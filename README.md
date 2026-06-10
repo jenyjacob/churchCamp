@@ -1,316 +1,629 @@
-# ⛺ Church Camp Registration & Check-In System
+# ✝ Church Camp Manager
 
-A full-stack web application for managing church camp registrations and check-ins.
-
-**Stack:** React + Flask + MySQL | **Hosting:** AWS (ECS Fargate + RDS + S3/CloudFront)
+A full-stack web application for managing church camp registrations and guest check-ins. Built with React, Flask, and MySQL — deployable on AWS EC2 Free Tier.
 
 ---
 
-## 🗂️ Project Structure
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [User Roles](#user-roles)
+- [Default Login](#default-login)
+- [Local Development](#local-development)
+  - [Option A — Docker Compose](#option-a--docker-compose-easiest)
+  - [Option B — Manual Setup](#option-b--manual-setup)
+- [Environment Variables](#environment-variables)
+- [API Reference](#api-reference)
+- [AWS Free Tier Deployment](#aws-free-tier-deployment)
+- [Troubleshooting](#troubleshooting)
+- [Security Checklist](#security-checklist)
+
+---
+
+## Overview
+
+Church Camp Manager is a purpose-built registration and check-in system for church camps. Staff can register campers, track payment and registration status, and manage daily check-in and check-out — all from a clean, role-protected web interface.
+
+```
+Browser
+   │
+   ▼
+CloudFront (HTTPS CDN)
+   │
+   ├──▶ S3 Bucket         (React static frontend)
+   │
+   └──▶ EC2 t2.micro      (Ubuntu 24.04)
+              ├── Nginx    (reverse proxy, port 80)
+              ├── Gunicorn (Flask API, port 5000)
+              └── MySQL    (database, port 3306)
+```
+
+---
+
+## Features
+
+| Feature | Admin | Staff |
+|---|---|---|
+| Login with username & password | ✅ | ✅ |
+| View dashboard with live stats | ✅ | ✅ |
+| Search & view camper list | ✅ | ✅ |
+| Register new campers | ✅ | ❌ |
+| Edit camper details | ✅ | ❌ |
+| Delete campers | ✅ | ❌ |
+| Check in / check out guests | ✅ | ✅ |
+| View currently checked-in list | ✅ | ✅ |
+| Manage staff user accounts | ✅ | ❌ |
+| Assign admin or staff roles | ✅ | ❌ |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, React Router v6, Axios |
+| Backend | Python 3.11, Flask 3, Flask-JWT-Extended |
+| Database | MySQL 8.0, SQLAlchemy ORM |
+| Web Server | Nginx + Gunicorn |
+| Auth | JWT (JSON Web Tokens), bcrypt password hashing |
+| Deployment | AWS EC2 t2.micro, S3, CloudFront |
+| Local Dev | Docker Compose |
+
+---
+
+## Project Structure
 
 ```
 church-camp/
-├── backend/          Flask API (Python)
-│   ├── app.py
-│   ├── config.py
-│   ├── models/       SQLAlchemy models (User, Camper, CheckIn)
-│   ├── routes/       REST endpoints (auth, campers, checkin, users)
-│   ├── utils/        Seed admin utility
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/         React app
+├── backend/
+│   ├── app.py                  # Flask app factory & entry point
+│   ├── config.py               # Environment config (DB, JWT, CORS)
+│   ├── db.py                   # SQLAlchemy instance
+│   ├── requirements.txt        # Python dependencies
+│   ├── Dockerfile              # Backend container
+│   ├── .env.example            # Environment variable template
+│   ├── models/
+│   │   ├── user.py             # User model (username, password hash, role)
+│   │   ├── camper.py           # Camper model (registration, medical, guardian)
+│   │   └── checkin.py          # CheckIn model (timestamps, staff tracking)
+│   ├── routes/
+│   │   ├── auth.py             # POST /api/auth/login, GET /api/auth/me
+│   │   ├── campers.py          # CRUD /api/campers/
+│   │   ├── checkin.py          # POST /api/checkin/, POST /api/checkin/:id/checkout
+│   │   └── users.py            # CRUD /api/users/ (admin only)
+│   └── utils/
+│       └── seed.py             # Creates default admin on first run
+│
+├── frontend/
+│   ├── public/
+│   │   └── index.html
 │   ├── src/
-│   │   ├── pages/    LoginPage, HomePage, CampersPage, CheckInPage, UsersPage
-│   │   ├── components/  AppShell (sidebar layout)
-│   │   ├── context/  AuthContext (JWT)
-│   │   └── utils/    api.js (Axios)
-│   ├── Dockerfile
-│   ├── nginx.conf
+│   │   ├── App.js              # Router, protected routes, role guards
+│   │   ├── index.js            # React entry point
+│   │   ├── index.css           # Global styles & design tokens
+│   │   ├── context/
+│   │   │   └── AuthContext.js  # JWT auth state, login/logout
+│   │   ├── utils/
+│   │   │   └── api.js          # Axios instance with JWT interceptor
+│   │   ├── components/
+│   │   │   └── AppShell.js     # Sidebar navigation layout
+│   │   └── pages/
+│   │       ├── LoginPage.js    # Login form with error handling
+│   │       ├── HomePage.js     # Dashboard: stats + quick actions
+│   │       ├── CampersPage.js  # Camper list, search, register/edit/delete
+│   │       ├── CheckInPage.js  # Real-time check-in / check-out
+│   │       └── UsersPage.js    # Staff user management (admin only)
+│   ├── Dockerfile              # Frontend container (nginx)
+│   ├── nginx.conf              # Nginx config for React + API proxy
 │   └── package.json
-├── infra/            DB init SQL
-├── docker-compose.yml
+│
+├── infra/
+│   └── init_db.sql             # Database and user initialization SQL
+│
+├── docker-compose.yml          # Local dev: MySQL + Flask + React
+├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 👤 Default Login
+## User Roles
 
-After first startup, a default admin account is created:
+The app has two roles enforced on both the frontend (UI) and backend (API):
 
-| Field    | Value         |
-|----------|---------------|
-| Username | `admin`       |
+**`admin`**
+- Full access to all features
+- Can register, edit, and delete campers
+- Can create, update, and delete staff users
+- Can assign roles (admin or user)
+- Sees the Admin → Users menu item
+
+**`user`** (Staff)
+- Read-only access to camper list and details
+- Can perform check-in and check-out
+- Cannot edit or delete any records
+- No access to user management
+
+---
+
+## Default Login
+
+A default admin account is automatically created the first time the app starts:
+
+| Field | Value |
+|---|---|
+| Username | `admin` |
 | Password | `Admin@1234!` |
 
-⚠️ **Change this password immediately** after first login via Admin → Users.
+> ⚠️ **Change this password immediately** after first login via Admin → Users → Edit.
 
 ---
 
-## 🔐 Roles
-
-| Role    | Permissions                              |
-|---------|------------------------------------------|
-| `admin` | Full CRUD: campers, users, check-ins     |
-| `user`  | View campers, perform check-in/check-out |
-
----
-
-## 🚀 Local Development (Docker Compose)
+## Local Development
 
 ### Prerequisites
-- Docker Desktop installed and running
 
-### Start everything
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — for Option A
+- [Node.js 20 LTS](https://nodejs.org/) — for Option B frontend
+- [Python 3.11+](https://www.python.org/downloads/) — for Option B backend
 
+---
+
+### Option A — Docker Compose (Easiest)
+
+Starts MySQL, Flask, and React all at once.
+
+```bash
+# 1. Clone or extract the project
+cd church-camp
+
+# 2. Start everything
+docker compose up --build
+
+# First run takes 3-5 minutes to build images
+# Watch for: "✅ Default admin user created: admin / Admin@1234!"
+
+# 3. Open in browser
+http://localhost:80        ← the app
+http://localhost:5000      ← Flask API directly
+
+# 4. Stop everything
+docker compose down
+
+# Stop AND delete the database
+docker compose down -v
+```
+
+---
+
+### Option B — Manual Setup
+
+Run each service in its own terminal. **Start in order: MySQL → Flask → React.**
+
+**Terminal 1 — MySQL (via Docker)**
 ```bash
 cd church-camp
-docker compose up --build
+docker compose up db
+# Wait for: "ready for connections"
 ```
 
-- Frontend: http://localhost:80
-- Backend API: http://localhost:5000
-- MySQL: localhost:3306
-
-### Without Docker (manual)
-
-**Backend:**
+**Terminal 2 — Flask Backend**
 ```bash
-cd backend
-python -m venv venv && source venv/bin/activate
+cd church-camp/backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate
+source venv/bin/activate        # Mac / Linux
+venv\Scripts\activate           # Windows
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Set env vars
-export DATABASE_URL="mysql+pymysql://campuser:camppass@localhost:3306/churchcamp"
-export JWT_SECRET_KEY="your-secret-key"
+# Copy and configure environment file
+cp .env.example .env
+# Default values already match the Docker MySQL — no changes needed for local dev
 
+# Start Flask (auto-reloads on file changes)
 python app.py
+
+# Expected output:
+# ✅ Default admin user created: admin / Admin@1234!
+# * Running on http://0.0.0.0:5000
 ```
 
-**Frontend:**
+**Terminal 3 — React Frontend**
 ```bash
-cd frontend
+cd church-camp/frontend
+
+# Install dependencies
 npm install
-REACT_APP_API_URL=http://localhost:5000 npm start
+
+# Create proxy file (fixes localhost:3000 → localhost:5000 forwarding)
+# Make sure frontend/src/setupProxy.js exists with this content:
+#
+#   const { createProxyMiddleware } = require('http-proxy-middleware');
+#   module.exports = function(app) {
+#     app.use('/api', createProxyMiddleware({
+#       target: 'http://127.0.0.1:5000',
+#       changeOrigin: true,
+#     }));
+#   };
+
+npm install http-proxy-middleware
+
+# Start dev server
+npm start
+# Opens automatically at http://localhost:3000
 ```
 
 ---
 
-## ☁️ AWS Deployment Guide
+## Environment Variables
 
-### Architecture Overview
-
-```
-Internet
-   │
-   ▼
-CloudFront (CDN + HTTPS)
-   │
-   ├──▶ S3 Bucket (React static files)
-   │
-   └──▶ ALB (Application Load Balancer)
-           │
-           ▼
-        ECS Fargate (Flask backend container)
-           │
-           ▼
-        RDS MySQL (Multi-AZ for production)
-```
-
----
-
-### Step 1 — Prerequisites
+Copy `backend/.env.example` to `backend/.env` and fill in your values:
 
 ```bash
-# Install AWS CLI
-pip install awscli
-aws configure   # Enter: Access Key, Secret, Region (e.g. us-east-1), json
+# MySQL connection string
+DATABASE_URL=mysql+pymysql://campuser:camppass@localhost:3306/churchcamp
 
-# Install ECS CLI (optional but helpful)
-npm install -g @aws-amplify/cli
+# JWT signing secret — use a long random string (32+ chars)
+JWT_SECRET_KEY=replace-with-long-random-string-here
+
+# Flask secret key — use a different long random string
+SECRET_KEY=another-long-random-string-here
+
+# Allowed CORS origins (comma-separated)
+# Local dev:
+CORS_ORIGINS=http://localhost:3000
+# Production (add your CloudFront domain):
+CORS_ORIGINS=http://YOUR_EC2_IP,https://YOUR_CLOUDFRONT_DOMAIN
 ```
 
----
-
-### Step 2 — Create RDS MySQL Database
-
-1. Open AWS Console → **RDS** → Create database
-2. Settings:
-   - Engine: **MySQL 8.0**
-   - Template: Production (or Free Tier for testing)
-   - DB instance identifier: `churchcamp-db`
-   - Master username: `admin`
-   - Master password: (use a strong password)
-   - Instance class: `db.t3.micro` (free tier) or `db.t3.small`
-   - Storage: 20 GB gp2
-   - Multi-AZ: Yes (for production)
-   - VPC: Default or your custom VPC
-   - Public access: **No** (backend connects via VPC)
-   - VPC security group: Create new → allow port 3306 from ECS security group
-3. After creation, note the **Endpoint** (e.g. `churchcamp-db.xxxxx.us-east-1.rds.amazonaws.com`)
-4. Connect and run `infra/init_db.sql` to create the database and user:
-   ```bash
-   mysql -h <RDS_ENDPOINT> -u admin -p < infra/init_db.sql
-   ```
+> ⚠️ Never commit your `.env` file to version control. It is listed in `.gitignore`.
 
 ---
 
-### Step 3 — Store Secrets in AWS Secrets Manager
+## API Reference
 
-```bash
-# JWT secret
-aws secretsmanager create-secret \
-  --name "churchcamp/jwt-secret" \
-  --secret-string "$(openssl rand -hex 48)"
+All protected routes require the header: `Authorization: Bearer <token>`
 
-# Database password
-aws secretsmanager create-secret \
-  --name "churchcamp/db-password" \
-  --secret-string "YOUR_RDS_PASSWORD"
-```
+### Auth
 
----
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | None | Login — returns JWT token and user info |
+| `GET` | `/api/auth/me` | JWT | Get current logged-in user |
 
-### Step 4 — Push Backend Docker Image to ECR
-
-```bash
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=us-east-1
-
-# Create ECR repository
-aws ecr create-repository --repository-name churchcamp-backend --region $AWS_REGION
-
-# Authenticate Docker
-aws ecr get-login-password --region $AWS_REGION | \
-  docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-# Build and push
-cd backend
-docker build -t churchcamp-backend .
-docker tag churchcamp-backend:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/churchcamp-backend:latest
-docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/churchcamp-backend:latest
-```
-
----
-
-### Step 5 — Deploy Backend on ECS Fargate
-
-1. **Create ECS Cluster:**
-   - AWS Console → ECS → Create Cluster
-   - Name: `churchcamp-cluster`
-   - Infrastructure: **AWS Fargate**
-
-2. **Create Task Definition:**
-   - Family: `churchcamp-backend`
-   - Task role: Create IAM role with `secretsmanager:GetSecretValue`
-   - Container:
-     - Image: your ECR image URI
-     - Port: `5000`
-     - Environment variables:
-       ```
-       DATABASE_URL = mysql+pymysql://campuser:<password>@<RDS_ENDPOINT>:3306/churchcamp
-       JWT_SECRET_KEY = (from Secrets Manager)
-       SECRET_KEY = (from Secrets Manager)
-       CORS_ORIGINS = https://your-cloudfront-domain.cloudfront.net
-       ```
-
-3. **Create Service:**
-   - Launch type: Fargate
-   - Task definition: `churchcamp-backend`
-   - Desired tasks: 2 (for HA)
-   - Load balancer: Application Load Balancer
-   - Target group: port 5000, health check path `/api/auth/me` (will return 401, that's OK — set success codes to `200,401`)
-
----
-
-### Step 6 — Deploy Frontend to S3 + CloudFront
-
-```bash
-# Build React app
-cd frontend
-REACT_APP_API_URL=https://YOUR_ALB_DNS_NAME npm run build
-
-# Create S3 bucket (replace with your unique name)
-BUCKET_NAME=churchcamp-frontend-$(date +%s)
-aws s3 mb s3://$BUCKET_NAME --region us-east-1
-
-# Enable static website hosting
-aws s3 website s3://$BUCKET_NAME --index-document index.html --error-document index.html
-
-# Upload build
-aws s3 sync build/ s3://$BUCKET_NAME --delete
-
-# Create CloudFront distribution
-aws cloudfront create-distribution \
-  --distribution-config file://infra/cloudfront-config.json
-```
-
-**S3 bucket policy** (allow CloudFront access):
+**Login request body:**
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": { "Service": "cloudfront.amazonaws.com" },
-    "Action": "s3:GetObject",
-    "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*"
-  }]
+  "username": "admin",
+  "password": "Admin@1234!"
+}
+```
+
+**Login response:**
+```json
+{
+  "access_token": "eyJhbGci...",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "admin",
+    "full_name": "Camp Administrator",
+    "email": "admin@churchcamp.org",
+    "is_active": true
+  }
 }
 ```
 
 ---
 
-### Step 7 — Configure HTTPS (ACM Certificate)
+### Campers
 
-1. AWS Console → **Certificate Manager** → Request certificate
-2. Add your domain (e.g. `camp.yourchurch.org`)
-3. DNS validation → add the CNAME to your DNS
-4. Attach certificate to:
-   - CloudFront distribution (frontend)
-   - ALB listener (backend HTTPS on port 443)
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/campers/` | JWT | List campers (paginated, searchable) |
+| `GET` | `/api/campers/:id` | JWT | Get single camper details |
+| `POST` | `/api/campers/` | Admin | Register new camper |
+| `PUT` | `/api/campers/:id` | Admin | Update camper details |
+| `DELETE` | `/api/campers/:id` | Admin | Delete a camper |
+| `GET` | `/api/campers/stats` | JWT | Get dashboard statistics |
+
+**Query parameters for `GET /api/campers/`:**
+
+| Param | Type | Description |
+|---|---|---|
+| `search` | string | Search by first name, last name, or guardian name |
+| `status` | string | Filter by `registered`, `waitlist`, or `cancelled` |
+| `session` | string | Filter by session name |
+| `page` | integer | Page number (default: 1) |
+| `per_page` | integer | Results per page (default: 20) |
 
 ---
 
-### Step 8 — Update CORS
+### Check-In
 
-Once you have your CloudFront domain, update the backend environment variable:
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/checkin/` | JWT | Check in a camper |
+| `POST` | `/api/checkin/:id/checkout` | JWT | Check out a camper |
+| `GET` | `/api/checkin/` | JWT | List check-ins (supports `active_only=true`) |
+| `GET` | `/api/checkin/camper/:id` | JWT | Get check-in history for a camper |
+
+---
+
+### Users (Admin Only)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/users/` | Admin | List all staff users |
+| `POST` | `/api/users/` | Admin | Create new staff user |
+| `PUT` | `/api/users/:id` | Admin | Update user (role, password, status) |
+| `DELETE` | `/api/users/:id` | Admin | Delete a user |
+
+---
+
+## AWS Free Tier Deployment
+
+Deploy the full app for **$0/month** for the first 12 months using AWS Free Tier.
+
+### Architecture
+
 ```
-CORS_ORIGINS=https://camp.yourchurch.org,https://your-cf-domain.cloudfront.net
+EC2 t2.micro (one server — free tier)
+├── Nginx        port 80  — reverse proxy
+├── Gunicorn     port 5000 — Flask API
+└── MySQL        port 3306 — database
+
+CloudFront + S3 — React frontend (free tier)
 ```
 
-Redeploy the ECS service to pick up the new environment variable.
+### Free Tier Cost Breakdown
+
+| Service | Free Allowance | Cost |
+|---|---|---|
+| EC2 t2.micro | 750 hrs/month | $0 |
+| EBS Storage 8GB | 30 GB/month | $0 |
+| S3 | 5GB + 20K requests | $0 |
+| CloudFront | 1TB + 10M requests | $0 |
+| **Total** | | **$0/month** |
+
+> After 12 months, the same setup costs approximately $10–15/month.
+
+### Deployment Steps (Summary)
+
+**1. Launch EC2 t2.micro**
+```
+AWS Console → EC2 → Launch Instance
+AMI: Ubuntu 24.04 LTS | Type: t2.micro | Key pair: churchcamp-key
+Security group inbound: SSH (22), HTTP (80), HTTPS (443)
+```
+
+**2. SSH into EC2**
+```bash
+ssh -i churchcamp-key.pem ubuntu@YOUR_EC2_IP
+```
+
+**3. Install software on EC2**
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3 python3-pip python3-venv nginx mysql-server git
+```
+
+**4. Set up MySQL**
+```bash
+sudo systemctl start mysql && sudo systemctl enable mysql
+sudo mysql -u root -p
+```
+```sql
+CREATE DATABASE churchcamp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'campuser'@'localhost' IDENTIFIED BY 'YourStrongPassword!';
+GRANT ALL PRIVILEGES ON churchcamp.* TO 'campuser'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+**5. Upload and configure backend**
+```bash
+# Upload from Windows
+scp -i churchcamp-key.pem -r church-camp/backend ubuntu@YOUR_EC2_IP:/home/ubuntu/
+
+# On EC2
+cd /home/ubuntu/backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+nano .env   # fill in DATABASE_URL, JWT_SECRET_KEY, SECRET_KEY, CORS_ORIGINS
+python app.py   # test — then Ctrl+C
+```
+
+**6. Run Flask as a system service**
+```bash
+sudo nano /etc/systemd/system/churchcamp.service
+# (paste systemd unit — see full deployment guide)
+sudo systemctl daemon-reload
+sudo systemctl enable churchcamp
+sudo systemctl start churchcamp
+```
+
+**7. Configure Nginx**
+```bash
+sudo nano /etc/nginx/sites-available/churchcamp
+# (paste nginx config — see full deployment guide)
+sudo ln -s /etc/nginx/sites-available/churchcamp /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl restart nginx
+```
+
+**8. Build and upload React frontend**
+```bash
+# On Windows
+cd church-camp/frontend
+$env:REACT_APP_API_URL="http://YOUR_EC2_IP"
+npm run build
+
+# Upload to EC2
+scp -i churchcamp-key.pem -r frontend/build/* ubuntu@YOUR_EC2_IP:/var/www/churchcamp/
+```
+
+**9. Add CloudFront**
+```
+AWS Console → CloudFront → Create Distribution
+Origin: YOUR_EC2_IP | Protocol: HTTP | Default root: index.html
+Error pages: 403 → /index.html (200), 404 → /index.html (200)
+```
+
+> For the full step-by-step deployment guide with all commands and configs, refer to `ChurchCamp_AWS_Deployment_Guide.docx`.
 
 ---
 
-## 🔒 Security Checklist
+## Troubleshooting
 
-- [ ] Change default `admin` password on first login
-- [ ] Use strong, unique `JWT_SECRET_KEY` and `SECRET_KEY`
-- [ ] RDS not publicly accessible (VPC only)
-- [ ] HTTPS on all endpoints (ACM + ALB + CloudFront)
-- [ ] ECS task role follows least privilege
-- [ ] S3 bucket blocks all public access (CloudFront OAC only)
-- [ ] Enable RDS automated backups (7-day minimum)
-- [ ] Enable CloudTrail for audit logging
-- [ ] Set up CloudWatch alarms for ECS CPU/memory
+### Proxy error on localhost:3000
+
+```
+Proxy error: Could not proxy request /api/auth/login from localhost:3000 to http://localhost:5000
+```
+
+**Fix:** Make sure `frontend/src/setupProxy.js` exists:
+```javascript
+const { createProxyMiddleware } = require('http-proxy-middleware');
+module.exports = function(app) {
+  app.use('/api', createProxyMiddleware({
+    target: 'http://127.0.0.1:5000',
+    changeOrigin: true,
+  }));
+};
+```
+Then restart React: `Ctrl+C` → `npm start`
 
 ---
 
-## 📡 API Reference
+### Flask won't start — can't connect to MySQL
 
-| Method | Endpoint                         | Auth     | Description              |
-|--------|----------------------------------|----------|--------------------------|
-| POST   | `/api/auth/login`                | None     | Login, returns JWT       |
-| GET    | `/api/auth/me`                   | JWT      | Get current user         |
-| GET    | `/api/campers/`                  | JWT      | List campers (paginated) |
-| POST   | `/api/campers/`                  | Admin    | Register new camper      |
-| PUT    | `/api/campers/:id`               | Admin    | Update camper            |
-| DELETE | `/api/campers/:id`               | Admin    | Delete camper            |
-| GET    | `/api/campers/stats`             | JWT      | Dashboard statistics     |
-| POST   | `/api/checkin/`                  | JWT      | Check in a camper        |
-| POST   | `/api/checkin/:id/checkout`      | JWT      | Check out a camper       |
-| GET    | `/api/checkin/`                  | JWT      | List check-ins           |
-| GET    | `/api/users/`                    | Admin    | List all users           |
-| POST   | `/api/users/`                    | Admin    | Create a staff user      |
-| PUT    | `/api/users/:id`                 | Admin    | Update user              |
-| DELETE | `/api/users/:id`                 | Admin    | Delete user              |
+```
+sqlalchemy.exc.OperationalError: Can't connect to MySQL server
+```
+
+**Fix:** Start MySQL first, then Flask.
+```bash
+docker compose up db        # wait for "ready for connections"
+python app.py               # then start Flask
+```
+
+---
+
+### Port 5000 already in use (Mac)
+
+macOS Monterey+ uses port 5000 for AirPlay Receiver.
+
+**Fix:** System Settings → General → AirDrop & Handoff → AirPlay Receiver → **Off**
+
+---
+
+### 504 Gateway Timeout in browser
+
+Flask is not running or not reachable from the proxy.
+
+```bash
+# Test Flask directly
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin@1234!"}'
+```
+
+If this works in terminal but fails in browser, the proxy config is the issue. See above.
+
+---
+
+### On EC2 — Flask service not starting
+
+```bash
+# View the last 50 log lines
+sudo journalctl -u churchcamp -n 50
+
+# Common causes:
+# - Wrong DATABASE_URL in .env
+# - MySQL not running: sudo systemctl start mysql
+# - Wrong file path in ExecStart of the service file
+```
+
+---
+
+## Security Checklist
+
+Before sharing the app URL with your team:
+
+- [ ] Change default `admin` password immediately after first login
+- [ ] Use a strong `JWT_SECRET_KEY` (48+ random characters)
+- [ ] Use a strong `SECRET_KEY` (different from JWT key)
+- [ ] Use strong MySQL passwords (not the examples in this README)
+- [ ] Remove port 5000 from EC2 security group after testing
+- [ ] Serve the app over HTTPS via CloudFront — not the raw EC2 IP
+- [ ] Enable automatic Ubuntu security updates on EC2:
+  ```bash
+  sudo dpkg-reconfigure --priority=low unattended-upgrades
+  ```
+- [ ] Back up your MySQL data regularly:
+  ```bash
+  mysqldump -u campuser -p churchcamp > backup_$(date +%Y%m%d).sql
+  ```
+
+---
+
+## Quick Command Reference
+
+```bash
+# ── Local Dev ──────────────────────────────────────────────────
+
+# Start everything (Docker)
+docker compose up --build
+
+# Start only MySQL (for manual backend dev)
+docker compose up db
+
+# ── EC2 via SSH ────────────────────────────────────────────────
+
+# Connect
+ssh -i churchcamp-key.pem ubuntu@YOUR_EC2_IP
+
+# View Flask logs live
+sudo journalctl -u churchcamp -f
+
+# Restart Flask
+sudo systemctl restart churchcamp
+
+# Restart Nginx
+sudo systemctl restart nginx
+
+# Check service status
+sudo systemctl status churchcamp
+sudo systemctl status nginx
+sudo systemctl status mysql
+
+# ── Redeploy Backend ───────────────────────────────────────────
+
+# Upload new code (Windows PowerShell)
+scp -i churchcamp-key.pem -r church-camp/backend ubuntu@YOUR_EC2_IP:/home/ubuntu/
+
+# Restart Flask on EC2 after upload
+sudo systemctl restart churchcamp
+
+# ── Redeploy Frontend ──────────────────────────────────────────
+
+# Rebuild (Windows PowerShell)
+cd church-camp/frontend
+$env:REACT_APP_API_URL="http://YOUR_EC2_IP"
+npm run build
+
+# Upload build (Windows PowerShell)
+scp -i churchcamp-key.pem -r frontend/build/* ubuntu@YOUR_EC2_IP:/var/www/churchcamp/
+```
+
+---
+
+*Church Camp Manager — Built with React, Flask, and MySQL. Hosted on AWS Free Tier.*
