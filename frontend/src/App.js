@@ -1,0 +1,47 @@
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import AppShell from "./components/AppShell";
+import LoginPage from "./pages/LoginPage";
+import HomePage from "./pages/HomePage";
+import CampersPage from "./pages/CampersPage";
+import CheckInPage from "./pages/CheckInPage";
+import UsersPage from "./pages/UsersPage";
+
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh" }}><div className="spinner" style={{borderTopColor:"#1E4D2B",border:"3px solid #ccc",borderTopColor:"#1E4D2B"}} /></div>;
+  return user ? children : <Navigate to="/login" replace />;
+}
+
+function RequireAdmin({ children }) {
+  const { isAdmin, loading } = useAuth();
+  if (loading) return null;
+  return isAdmin ? children : <Navigate to="/" replace />;
+}
+
+function AppRoutes() {
+  const { user } = useAuth();
+  return (
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
+        <Route index element={<HomePage />} />
+        <Route path="campers" element={<CampersPage />} />
+        <Route path="checkin" element={<CheckInPage />} />
+        <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
