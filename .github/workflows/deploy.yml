@@ -24,7 +24,7 @@ jobs:
           MYSQL_PASSWORD:      camppass
         ports: ['3306:3306']
         options: >-
-          --health-cmd='mysqladmin ping -h localhost -u campuser -pcamppass'
+          --health-cmd='mysqladmin ping -h 127.0.0.1 -u campuser -pcamppass'
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -53,7 +53,7 @@ jobs:
         run: |
           cd backend && timeout 15 python app.py &
           sleep 8
-          curl -f http://localhost:5000/api/auth/me || true
+          curl -f http://127.0.0.1:5000/api/auth/me || true
           echo "Flask started OK"
 
   test-frontend:
