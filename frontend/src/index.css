@@ -547,89 +547,146 @@ tbody tr:hover { background: var(--cream); }
 
 .login-card .form-group { text-align: left; }
 
-/* ── Mobile Responsive ───────────────────────────── */
 @media (max-width: 768px) {
 
+  /* Stack sidebar above content */
   .app-shell {
-    flex-direction: column;
+    flex-direction: column !important;
+    height: auto !important;
   }
 
+  /* Sidebar becomes compact top bar */
   .sidebar {
-    width: 100%;
-    height: auto;
-    min-height: unset;
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 10px 16px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: unset !important;
+    padding: 10px 14px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    box-sizing: border-box !important;
+    gap: 0 !important;
   }
 
+  /* Brand name on the left */
   .sidebar-brand {
-    flex: 1;
-    padding: 0;
-    margin-bottom: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    margin-bottom: 8px !important;
   }
 
   .sidebar-brand h2 {
-    font-size: 14px;
-    margin: 0;
+    font-size: 15px !important;
+    margin: 0 !important;
   }
 
-  .sidebar-brand p {
-    display: none;
+  /* Hide subtitle */
+  .sidebar-brand p,
+  .sidebar-brand span.tagline {
+    display: none !important;
   }
 
+  /* Nav links in a horizontal row */
   .sidebar-nav {
-    display: flex;
-    flex-direction: row;
-    gap: 4px;
-    flex-wrap: wrap;
-    width: 100%;
-    padding: 8px 0 0 0;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin-bottom: 8px !important;
   }
 
-  .sidebar-nav .nav-item {
-    padding: 6px 12px;
-    font-size: 13px;
-    border-radius: 6px;
+  .sidebar-nav .nav-item,
+  .sidebar-nav a {
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
   }
 
+  /* User badge + sign out in one row */
   .sidebar-footer {
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0 0 0;
-    border-top: 1px solid rgba(255,255,255,0.15);
-    margin-top: 4px;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding-top: 8px !important;
+    margin-top: 0 !important;
+    border-top: 1px solid rgba(255,255,255,0.2) !important;
   }
 
-  .user-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .user-badge .info .name {
+    font-size: 12px !important;
   }
 
+  .user-badge .info .role-tag {
+    font-size: 10px !important;
+  }
+
+  .avatar {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 11px !important;
+  }
+
+  /* Main content takes full width */
   .main-content {
-    padding: 16px;
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding: 14px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
   }
 
-  /* Stat grid — 2 columns on mobile */
+  /* Page elements */
+  .page-body   { padding: 12px !important; }
+  .form-grid   { grid-template-columns: 1fr !important; }
+  .form-grid-3 { grid-template-columns: 1fr !important; }
+  .top-bar     { padding: 12px 14px !important; }
+
+  /* Stat cards 2 columns */
   .stat-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .stat-card {
+    padding: 14px !important;
+  }
+
+  .stat-card .value {
+    font-size: 28px !important;
+  }
+
+  /* Quick actions full width */
+  .quick-actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .quick-actions .btn {
+    width: 100% !important;
   }
 }
 
+/* Very small phones */
 @media (max-width: 420px) {
-  /* Stat grid — 1 column on very small phones */
   .stat-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .sidebar-nav .nav-item,
+  .sidebar-nav a {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
   }
 }
