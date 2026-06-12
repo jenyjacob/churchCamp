@@ -84,7 +84,7 @@ jobs:
         with: { node-version: '20' }
       - name: Build React for production
         env:
-          REACT_APP_API_URL: http://${{ secrets.EC2_HOST }}
+          REACT_APP_API_URL: https://www.gcacamp.org
           CI: false
         run: cd frontend && npm install --legacy-peer-deps && npm run build
       - name: Set up SSH
