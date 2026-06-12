@@ -1,4 +1,4 @@
-# ✝ Church Camp Manager
+# ✝ GCA Church Camp 
 
 A full-stack web application for registering campers and managing daily check-in/check-out at a church camp.
 
