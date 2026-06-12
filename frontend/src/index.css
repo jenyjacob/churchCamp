@@ -547,11 +547,89 @@ tbody tr:hover { background: var(--cream); }
 
 .login-card .form-group { text-align: left; }
 
-/* ── Responsive ── */
+/* ── Mobile Responsive ───────────────────────────── */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; }
-  .form-grid { grid-template-columns: 1fr; }
-  .form-grid-3 { grid-template-columns: 1fr; }
-  .page-body { padding: 16px; }
+
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    min-height: unset;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .sidebar-brand {
+    flex: 1;
+    padding: 0;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sidebar-brand h2 {
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .sidebar-brand p {
+    display: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    flex-wrap: wrap;
+    width: 100%;
+    padding: 8px 0 0 0;
+  }
+
+  .sidebar-nav .nav-item {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+
+  .sidebar-footer {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0 0 0;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    margin-top: 4px;
+  }
+
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .main-content {
+    padding: 16px;
+  }
+
+  /* Stat grid — 2 columns on mobile */
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Stat grid — 1 column on very small phones */
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
 }
