@@ -23,9 +23,9 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <span className="cross-mark">✝</span>
+      <img src="/grace-logo.png" alt="Grace Christian Assembly" className="login-logo" />
         <h1>Welcome Back</h1>
-        <p className="tagline">Church Camp Registration & Check-In</p>
+        <p className="tagline">GCA Camp Registration & Check-In</p>
 
         {error && (
           <div className="alert alert-error">
