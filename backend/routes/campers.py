@@ -13,7 +13,6 @@ def require_admin():
 @jwt_required()
 def get_campers():
     search = request.args.get("search", "").strip()
-    session = request.args.get("session", "").strip()
     status = request.args.get("status", "").strip()
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
@@ -27,10 +26,9 @@ def get_campers():
                 Camper.first_name.ilike(like),
                 Camper.last_name.ilike(like),
                 Camper.guardian_name.ilike(like),
+                Camper.family_group.ilike(like),
             )
         )
-    if session:
-        query = query.filter(Camper.session == session)
     if status:
         query = query.filter(Camper.registration_status == status)
 
@@ -58,6 +56,7 @@ def create_camper():
         return jsonify({"error": "Admin access required"}), 403
 
     data = request.get_json()
+    data = {k: (None if v == "" else v) for k, v in data.items()}
     if not data.get("first_name") or not data.get("last_name"):
         return jsonify({"error": "First and last name are required"}), 400
 
@@ -67,19 +66,12 @@ def create_camper():
         date_of_birth=data.get("date_of_birth"),
         age=data.get("age"),
         gender=data.get("gender"),
-        grade=data.get("grade"),
         cabin_group=data.get("cabin_group"),
-        session=data.get("session"),
+        family_group=data.get("family_group"),
         guardian_name=data.get("guardian_name"),
         guardian_phone=data.get("guardian_phone"),
-        guardian_email=data.get("guardian_email"),
-        emergency_contact=data.get("emergency_contact"),
-        emergency_phone=data.get("emergency_phone"),
         allergies=data.get("allergies"),
-        medical_notes=data.get("medical_notes"),
-        medications=data.get("medications"),
         registration_status=data.get("registration_status", "registered"),
-        payment_status=data.get("payment_status", "unpaid"),
         notes=data.get("notes"),
     )
     db.session.add(camper)
@@ -94,10 +86,11 @@ def update_camper(camper_id):
 
     camper = Camper.query.get_or_404(camper_id)
     data = request.get_json()
+    data = {k: (None if v == "" else v) for k, v in data.items()}
 
     fields = [
         "first_name", "last_name", "date_of_birth", "age", "gender", "grade",
-        "cabin_group", "session", "guardian_name", "guardian_phone", "guardian_email",
+        "cabin_group", "session", "family_group", "guardian_name", "guardian_phone", "guardian_email",
         "emergency_contact", "emergency_phone", "allergies", "medical_notes",
         "medications", "registration_status", "payment_status", "notes"
     ]
@@ -128,10 +121,8 @@ def get_stats():
         1 for c in Camper.query.all()
         if any(ci.checked_out_at is None for ci in c.checkins)
     )
-    paid = Camper.query.filter_by(payment_status="paid").count()
     return jsonify({
         "total_registered": total,
         "status_registered": registered,
         "checked_in": checked_in,
-        "paid": paid,
     }), 200

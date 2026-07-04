@@ -7,10 +7,12 @@ import HomePage from "./pages/HomePage";
 import CampersPage from "./pages/CampersPage";
 import CheckInPage from "./pages/CheckInPage";
 import UsersPage from "./pages/UsersPage";
+import CabinsPage from "./pages/CabinsPage";
+import SchedulePage from "./pages/SchedulePage";
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh" }}><div className="spinner" style={{borderTopColor:"#1E4D2B",border:"3px solid #ccc",borderTopColor:"#1E4D2B"}} /></div>;
+  if (loading) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh" }}><div className="spinner" style={{border:"3px solid #ccc",borderTopColor:"#1E4D2B"}} /></div>;
   return user ? children : <Navigate to="/login" replace />;
 }
 
@@ -25,10 +27,16 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      
+      {/* Public Schedule Path - Redirects to /app/schedule if logged in */}
+      <Route path="/schedule" element={user ? <Navigate to="/app/schedule" replace /> : <SchedulePage />} />
+      
       <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<HomePage />} />
         <Route path="campers" element={<CampersPage />} />
         <Route path="checkin" element={<CheckInPage />} />
+        <Route path="cabins" element={<CabinsPage />} />
+        <Route path="app/schedule" element={<SchedulePage />} />
         <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

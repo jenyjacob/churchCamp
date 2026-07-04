@@ -46,7 +46,7 @@ export default function HomePage() {
 
         {loading ? (
           <div className="text-center" style={{ padding: 40 }}>
-            <div className="spinner" style={{ borderTopColor: "var(--forest-mid)", border: "3px solid #eee", borderTopColor: "var(--forest-mid)", width: 32, height: 32, margin: "0 auto" }} />
+            <div className="spinner" style={{ border: "3px solid #eee", borderTopColor: "var(--forest-mid)", width: 32, height: 32, margin: "0 auto" }} />
           </div>
         ) : (
           <>
@@ -66,14 +66,10 @@ export default function HomePage() {
                 <div className="value">{stats?.status_registered ?? "—"}</div>
                 <div className="sub">registration confirmed</div>
               </div>
-              <div className="stat-card gold-accent">
-                <div className="label">Paid</div>
-                <div className="value" style={{ color: "var(--forest-mid)" }}>{stats?.paid ?? "—"}</div>
-                <div className="sub">payment complete</div>
-              </div>
+
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="dashboard-grid">
               {/* Quick Actions */}
               <div className="card">
                 <h3 style={{ fontSize: "1rem", color: "var(--forest)", marginBottom: 16 }}>Quick Actions</h3>

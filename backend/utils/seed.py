@@ -13,5 +13,5 @@ def seed_admin():
         admin.set_password("Admin@1234!")
         db.session.add(admin)
         db.session.commit()
-        print("✅ Default admin user created: admin / Admin@1234!")
-        print("⚠️  Change the password immediately after first login!")
+        print("Default admin user created: admin / Admin@1234!")
+        print("Warning: Change the password immediately after first login!")

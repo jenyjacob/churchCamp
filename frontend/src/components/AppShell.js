@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -6,6 +6,8 @@ const navItems = [
   { to: "/",        icon: "🏠", label: "Dashboard",  exact: true },
   { to: "/campers", icon: "👤", label: "Campers"  },
   { to: "/checkin", icon: "✅", label: "Check-In"  },
+  { to: "/cabins",  icon: "⛺", label: "Cabins"  },
+  { to: "/app/schedule", icon: "📅", label: "Schedule" },
 ];
 
 const adminItems = [
@@ -28,13 +30,41 @@ function NavItem({ to, icon, label, exact }) {
 
 export default function AppShell() {
   const { user, logout, isAdmin } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close mobile drawer when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const initials = user?.full_name
     ? user.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase();
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {/* Mobile Sticky Header */}
+      <header className="mobile-header">
+        <div className="mobile-brand">
+          <span className="cross">✝</span>
+          <span>Camp Manager</span>
+        </div>
+        <button 
+          className="mobile-menu-toggle"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle Navigation Menu"
+        >
+          {isMobileMenuOpen ? "✕" : "☰"}
+        </button>
+      </header>
+
+      {/* Backdrop overlay for closing the drawer */}
+      {isMobileMenuOpen && (
+        <div className="mobile-menu-backdrop" onClick={() => setIsMobileMenuOpen(false)} />
+      )}
+
+      <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
         <div className="sidebar-brand">
           <span className="cross">✝</span>
           <h2>Camp Registration</h2>

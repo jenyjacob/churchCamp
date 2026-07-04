@@ -3,11 +3,10 @@ import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 
 const EMPTY_CAMPER = {
-  first_name: "", last_name: "", age: "", gender: "", grade: "",
-  cabin_group: "", session: "", guardian_name: "", guardian_phone: "",
-  guardian_email: "", emergency_contact: "", emergency_phone: "",
-  allergies: "", medical_notes: "", medications: "",
-  registration_status: "registered", payment_status: "unpaid", notes: "",
+  first_name: "", last_name: "", age: "", gender: "",
+  cabin_group: "", family_group: "", guardian_name: "", guardian_phone: "",
+  allergies: "",
+  registration_status: "registered", notes: "",
 };
 
 function CamperModal({ camper, onClose, onSave }) {
@@ -62,24 +61,18 @@ function CamperModal({ camper, onClose, onSave }) {
                 <option value="other">Other</option>
               </select>
             </div>
-            <div className="form-group"><label className="form-label">Grade</label><input {...inp("grade")} placeholder="e.g. 7th" /></div>
             <div className="form-group"><label className="form-label">Cabin / Group</label><input {...inp("cabin_group")} /></div>
-            <div className="form-group"><label className="form-label">Session</label><input {...inp("session")} placeholder="e.g. Session A, Week 1" /></div>
+            <div className="form-group"><label className="form-label">Family Group</label><input {...inp("family_group")} placeholder="e.g. 101" /></div>
           </div>
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Guardian & Emergency</div>
           <div className="form-grid">
             <div className="form-group"><label className="form-label">Guardian Name</label><input {...inp("guardian_name")} /></div>
             <div className="form-group"><label className="form-label">Guardian Phone</label><input {...inp("guardian_phone")} type="tel" /></div>
-            <div className="form-group"><label className="form-label">Guardian Email</label><input {...inp("guardian_email")} type="email" /></div>
-            <div className="form-group"><label className="form-label">Emergency Contact</label><input {...inp("emergency_contact")} /></div>
-            <div className="form-group"><label className="form-label">Emergency Phone</label><input {...inp("emergency_phone")} type="tel" /></div>
           </div>
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Medical</div>
           <div className="form-group"><label className="form-label">Allergies</label><textarea {...inp("allergies")} className="form-textarea" rows={2} /></div>
-          <div className="form-group"><label className="form-label">Medications</label><textarea {...inp("medications")} className="form-textarea" rows={2} /></div>
-          <div className="form-group"><label className="form-label">Medical Notes</label><textarea {...inp("medical_notes")} className="form-textarea" rows={2} /></div>
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Status</div>
           <div className="form-grid">
@@ -89,14 +82,6 @@ function CamperModal({ camper, onClose, onSave }) {
                 <option value="registered">Registered</option>
                 <option value="waitlist">Waitlist</option>
                 <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Payment Status</label>
-              <select className="form-select" value={form.payment_status} onChange={e => set("payment_status", e.target.value)}>
-                <option value="unpaid">Unpaid</option>
-                <option value="partial">Partial</option>
-                <option value="paid">Paid</option>
               </select>
             </div>
           </div>
@@ -115,7 +100,6 @@ function CamperModal({ camper, onClose, onSave }) {
 }
 
 const REG_BADGE = { registered: "badge-green", waitlist: "badge-gold", cancelled: "badge-red" };
-const PAY_BADGE = { paid: "badge-green", partial: "badge-gold", unpaid: "badge-red" };
 
 export default function CampersPage() {
   const { isAdmin } = useAuth();
@@ -198,18 +182,17 @@ export default function CampersPage() {
                 <th>Name</th>
                 <th>Age</th>
                 <th>Cabin / Group</th>
-                <th>Session</th>
+                <th>Family Group</th>
                 <th>Registration</th>
-                <th>Payment</th>
                 <th>Check-In</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isAdmin ? 8 : 7} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
+                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
               ) : campers.length === 0 ? (
-                <tr><td colSpan={isAdmin ? 8 : 7} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
+                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
               ) : campers.map(c => (
                 <tr key={c.id}>
                   <td>
@@ -218,9 +201,8 @@ export default function CampersPage() {
                   </td>
                   <td>{c.age ?? "—"}</td>
                   <td>{c.cabin_group || "—"}</td>
-                  <td>{c.session || "—"}</td>
+                  <td>{c.family_group || "—"}</td>
                   <td><span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`}>{c.registration_status}</span></td>
-                  <td><span className={`badge ${PAY_BADGE[c.payment_status] || "badge-gray"}`}>{c.payment_status}</span></td>
                   <td>{c.checked_in ? <span className="badge badge-green">Checked In</span> : <span className="badge badge-gray">Not In</span>}</td>
                   {isAdmin && (
                     <td>
