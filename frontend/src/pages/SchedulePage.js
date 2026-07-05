@@ -3,7 +3,24 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 
-const EMPTY_EVENT = { day: "Day 1", time: "", title: "", location: "", description: "" };
+const generateTimeOptions = () => {
+  const options = [];
+  const periods = ["AM", "PM"];
+  for (let p = 0; p < 2; p++) {
+    const period = periods[p];
+    for (let h = 0; h < 12; h++) {
+      const displayHour = h === 0 ? 12 : h;
+      for (let m = 0; m < 60; m += 15) {
+        const displayMin = m === 0 ? "00" : m;
+        options.push(`${displayHour}:${displayMin} ${period}`);
+      }
+    }
+  }
+  return options;
+};
+const TIME_INTERVALS = generateTimeOptions();
+
+const EMPTY_EVENT = { day: "", time: "", title: "", location: "", description: "" };
 
 export default function SchedulePage() {
   const { user, isAdmin } = useAuth();
@@ -16,6 +33,8 @@ export default function SchedulePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeEvent, setActiveEvent] = useState(EMPTY_EVENT);
   const [saving, setSaving] = useState(false);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -41,11 +60,21 @@ export default function SchedulePage() {
 
   const openAddModal = () => {
     setActiveEvent(EMPTY_EVENT);
+    setStartTime("");
+    setEndTime("");
     setModalOpen(true);
   };
 
   const openEditModal = (event) => {
     setActiveEvent(event);
+    if (event.time && event.time.includes(" - ")) {
+      const parts = event.time.split(" - ");
+      setStartTime(parts[0].trim());
+      setEndTime(parts[1].trim());
+    } else {
+      setStartTime(event.time || "");
+      setEndTime("");
+    }
     setModalOpen(true);
   };
 
@@ -207,25 +236,70 @@ export default function SchedulePage() {
             <form onSubmit={handleSave}>
               <div className="form-group">
                 <label className="form-label">Day *</label>
-                <input 
-                  className="form-input" 
+                <select 
+                  className="form-select" 
                   value={activeEvent.day} 
                   onChange={e => setActiveEvent({ ...activeEvent, day: e.target.value })} 
-                  placeholder="e.g. Day 1, Monday" 
-                  required 
-                />
+                  required
+                >
+                  <option value="">Select Day...</option>
+                  <option value="Friday, Aug 14">Friday, Aug 14</option>
+                  <option value="Saturday, Aug 15">Saturday, Aug 15</option>
+                  <option value="Sunday, Aug 16">Sunday, Aug 16</option>
+                </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Time *</label>
-                <input 
-                  className="form-input" 
-                  value={activeEvent.time} 
-                  onChange={e => setActiveEvent({ ...activeEvent, time: e.target.value })} 
-                  placeholder="e.g. 08:00 AM - 09:00 AM" 
-                  required 
-                />
-              </div>
+               <div className="form-group">
+                 <label className="form-label">Time *</label>
+                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                   <div style={{ flex: 1 }}>
+                     <span style={{ fontSize: "0.72rem", color: "var(--muted)", display: "block", marginBottom: 4 }}>From</span>
+                     <select
+                       className="form-select"
+                       value={startTime}
+                       onChange={e => {
+                         const newStart = e.target.value;
+                         setStartTime(newStart);
+                         if (newStart && endTime) {
+                           setActiveEvent({ ...activeEvent, time: `${newStart} - ${endTime}` });
+                         } else {
+                           setActiveEvent({ ...activeEvent, time: newStart });
+                         }
+                       }}
+                       required
+                     >
+                       <option value="">Start Time...</option>
+                       {TIME_INTERVALS.map(t => (
+                         <option key={`start-${t}`} value={t}>{t}</option>
+                       ))}
+                     </select>
+                   </div>
+
+                   <span style={{ marginTop: 20, color: "var(--muted)" }}>to</span>
+
+                   <div style={{ flex: 1 }}>
+                     <span style={{ fontSize: "0.72rem", color: "var(--muted)", display: "block", marginBottom: 4 }}>To (Optional)</span>
+                     <select
+                       className="form-select"
+                       value={endTime}
+                       onChange={e => {
+                         const newEnd = e.target.value;
+                         setEndTime(newEnd);
+                         if (startTime && newEnd) {
+                           setActiveEvent({ ...activeEvent, time: `${startTime} - ${newEnd}` });
+                         } else {
+                           setActiveEvent({ ...activeEvent, time: startTime });
+                         }
+                       }}
+                     >
+                       <option value="">No end time</option>
+                       {TIME_INTERVALS.map(t => (
+                         <option key={`end-${t}`} value={t}>{t}</option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
+               </div>
 
               <div className="form-group">
                 <label className="form-label">Event Title *</label>
@@ -322,9 +396,9 @@ export default function SchedulePage() {
         borderBottom: "2px solid var(--gold)"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: "24px", color: "var(--gold-lt)" }}>✝</span>
+          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 28, width: 28, objectFit: "contain", background: "white", borderRadius: "50%", padding: 1 }} />
           <span style={{ fontFamily: "Playfair Display, serif", color: "var(--white)", fontSize: "1.25rem", fontWeight: 600 }}>
-            Camp Schedule
+            GCA Camp Schedule
           </span>
         </div>
         <Link to="/login" className="btn btn-gold btn-sm">
@@ -338,9 +412,6 @@ export default function SchedulePage() {
           <h2 style={{ fontFamily: "Playfair Display, serif", fontSize: "1.75rem", color: "var(--forest)" }}>
             Camp Activities Timeline
           </h2>
-          <p className="text-muted" style={{ fontSize: "0.9rem", marginTop: 4 }}>
-            Direct access schedule for campers, parents, and volunteers.
-          </p>
         </div>
         {scheduleContent}
       </main>

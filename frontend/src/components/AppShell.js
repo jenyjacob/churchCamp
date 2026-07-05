@@ -46,9 +46,9 @@ export default function AppShell() {
     <div className="app-shell">
       {/* Mobile Sticky Header */}
       <header className="mobile-header">
-        <div className="mobile-brand">
-          <span className="cross">✝</span>
-          <span>Camp Manager</span>
+        <div className="mobile-brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 28, width: 28, objectFit: "contain", background: "white", borderRadius: "50%", padding: 1 }} />
+          <span>GCA Camp Manager</span>
         </div>
         <button 
           className="mobile-menu-toggle"
@@ -65,10 +65,9 @@ export default function AppShell() {
       )}
 
       <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
-        <div className="sidebar-brand">
-          <span className="cross">✝</span>
-          <h2>Camp Registration</h2>
-          <p>Church Camp Manager</p>
+        <div className="sidebar-brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingBottom: 16 }}>
+          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 52, width: 52, marginBottom: 12, objectFit: "contain", background: "white", borderRadius: "50%", padding: 2 }} />
+          <h2 style={{ fontSize: "1rem" }}>GCA Camp Registration</h2>
         </div>
 
         <nav className="sidebar-nav">
