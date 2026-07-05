@@ -589,6 +589,25 @@ export default function CabinsPage() {
       width: 100% !important;
       margin-top: 8px !important;
     }
+
+    @media (max-width: 820px) {
+      .cabins-manager {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: auto;
+        gap: 20px;
+      }
+
+      .sidebar-panel {
+        height: 420px;
+      }
+
+      .workspace-panel {
+        height: auto;
+        overflow-y: visible;
+        padding-right: 0;
+      }
+    }
   `;
 
   return (

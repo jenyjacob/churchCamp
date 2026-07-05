@@ -8,6 +8,14 @@ export default function CheckInPage() {
   const [activeCheckins, setActiveCheckins] = useState([]);
   const [loadingActive, setLoadingActive] = useState(true);
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
+  const [waiverModal, setWaiverModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    warningMessage: "",
+    showWarning: false,
+    onConfirm: null
+  });
 
   const flash = (type, text) => {
     setMessage({ type, text });
@@ -43,19 +51,31 @@ export default function CheckInPage() {
     return () => clearTimeout(t);
   }, [searchCampers]);
 
-  const handleCheckIn = async (camper) => {
+  const performCheckIn = async (camperId, fullName) => {
     try {
-      await api.post("/api/checkin/", { camper_id: camper.id });
-      flash("success", `✅ ${camper.full_name} checked in successfully!`);
+      await api.post("/api/checkin/", { camper_id: camperId });
+      flash("success", `✅ ${fullName} checked in successfully!`);
       setSearch("");
       setCampers([]);
       fetchActive();
     } catch (err) {
       flash("error", err.response?.data?.error || "Check-in failed.");
     }
+    setWaiverModal({ isOpen: false });
   };
 
-  const handleCheckInFamily = async (familyGroup, uncheckedCampers) => {
+  const handleCheckIn = (camper) => {
+    setWaiverModal({
+      isOpen: true,
+      title: "Waiver Form Confirmation",
+      message: `Has ${camper.full_name} submitted their waiver form?`,
+      warningMessage: `Please ask ${camper.full_name} to submit the waiver form before checking in.`,
+      showWarning: false,
+      onConfirm: () => performCheckIn(camper.id, camper.full_name)
+    });
+  };
+
+  const performCheckInFamily = async (familyGroup, uncheckedCampers) => {
     try {
       await Promise.all(
         uncheckedCampers.map(c => api.post("/api/checkin/", { camper_id: c.id }))
@@ -68,6 +88,19 @@ export default function CheckInPage() {
       flash("error", "Failed to check in all family members.");
       fetchActive();
     }
+    setWaiverModal({ isOpen: false });
+  };
+
+  const handleCheckInFamily = (familyGroup, uncheckedCampers) => {
+    const names = uncheckedCampers.map(c => c.full_name).join(", ");
+    setWaiverModal({
+      isOpen: true,
+      title: "Waiver Form Confirmation",
+      message: `Have all members of Family Group ${familyGroup} (${names}) submitted their waiver forms?`,
+      warningMessage: "Please ask all family members to submit their waiver forms before checking in.",
+      showWarning: false,
+      onConfirm: () => performCheckInFamily(familyGroup, uncheckedCampers)
+    });
   };
 
   const handleCheckOut = async (checkin) => {
@@ -249,6 +282,82 @@ export default function CheckInPage() {
           </div>
         </div>
       </div>
+
+      {/* Waiver Confirmation Dialog Box */}
+      {waiverModal.isOpen && (
+        <div className="waiver-modal-overlay" style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1100,
+          backdropFilter: "blur(2px)"
+        }}>
+          <div className="waiver-modal-content" style={{
+            background: "#fff",
+            borderRadius: "12px",
+            padding: "24px",
+            maxWidth: "480px",
+            width: "90%",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            borderTop: "5px solid var(--forest)"
+          }}>
+            <h3 style={{ margin: "0 0 16px 0", color: "var(--forest)", fontSize: "1.1rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+              📝 {waiverModal.title}
+            </h3>
+            
+            {!waiverModal.showWarning ? (
+              <>
+                <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", margin: "0 0 20px 0", lineHeight: 1.5 }}>
+                  {waiverModal.message}
+                </p>
+                <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                  <button 
+                    className="btn btn-outline" 
+                    onClick={() => setWaiverModal(prev => ({ ...prev, showWarning: true }))}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    No, Not Yet
+                  </button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={waiverModal.onConfirm}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    Yes, Confirmed
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ 
+                  background: "#fffbeb", 
+                  borderLeft: "4px solid #d97706", 
+                  padding: "12px 16px", 
+                  borderRadius: "4px", 
+                  marginBottom: 20,
+                  fontSize: "0.88rem",
+                  color: "#92400e",
+                  lineHeight: 1.4
+                }}>
+                  ⚠️ {waiverModal.warningMessage}
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => setWaiverModal({ isOpen: false })}
+                    style={{ padding: "8px 16px" }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
