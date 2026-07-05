@@ -7,7 +7,7 @@ campers_bp = Blueprint("campers", __name__)
 
 def require_admin():
     claims = get_jwt()
-    return claims.get("role") == "admin"
+    return claims.get("role") in ["admin", "owner"]
 
 @campers_bp.route("/", methods=["GET"])
 @jwt_required()

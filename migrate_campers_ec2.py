@@ -2,7 +2,7 @@ import openpyxl
 import pymysql
 import os
 
-file_path = "GCA Camp Report.xlsx"
+file_path = "/home/ubuntu/GCA Camp Report.xlsx"
 
 def split_name(full_name):
     if not full_name:
@@ -13,12 +13,12 @@ def split_name(full_name):
     return " ".join(parts[:-1]), parts[-1]
 
 def migrate():
-    # 1. Connect to local MySQL database
+    # 1. Connect to local MySQL database container mapping on port 3307
     conn = pymysql.connect(
-        host='localhost', 
+        host='127.0.0.1', 
         user='campuser', 
-        password='vRvcQPuMtuVSD3WV+F+umunRLk7t4stSzOExiA+Gro8=', 
-        port=3306, 
+        password='camppass', 
+        port=3307, # Map to the host port defined in docker-compose
         database='churchcamp'
     )
     cursor = conn.cursor()

@@ -4,7 +4,7 @@ import api from "../utils/api";
 
 const EMPTY_USER = { username: "", password: "", full_name: "", email: "", role: "user" };
 
-function UserModal({ user, onClose, onSave }) {
+function UserModal({ user, currentUser, onClose, onSave }) {
   const [form, setForm] = useState(user ? { ...user, password: "" } : EMPTY_USER);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -61,6 +61,9 @@ function UserModal({ user, onClose, onSave }) {
             <select className="form-select" value={form.role} onChange={e => set("role", e.target.value)}>
               <option value="user">Staff (View Only)</option>
               <option value="admin">Admin (Full Access)</option>
+              {currentUser?.role === "owner" && (
+                <option value="owner">Owner (System Owner)</option>
+              )}
             </select>
           </div>
           {user?.id && (
@@ -150,8 +153,8 @@ export default function UsersPage() {
                   <td>{u.full_name || "—"}</td>
                   <td>{u.email || "—"}</td>
                   <td>
-                    <span className={`badge ${u.role === "admin" ? "badge-gold" : "badge-blue"}`}>
-                      {u.role === "admin" ? "Admin" : "Staff"}
+                    <span className={`badge ${u.role === "owner" ? "badge-red" : u.role === "admin" ? "badge-gold" : "badge-blue"}`}>
+                      {u.role === "owner" ? "Owner" : u.role === "admin" ? "Admin" : "Staff"}
                     </span>
                   </td>
                   <td>
@@ -161,11 +164,17 @@ export default function UsersPage() {
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setModal(u)}>Edit</button>
+                      <button 
+                        className="btn btn-ghost btn-sm" 
+                        onClick={() => setModal(u)}
+                        disabled={u.role === "owner" && currentUser?.role !== "owner"}
+                      >
+                        Edit
+                      </button>
                       <button
                         className="btn btn-danger btn-sm"
                         onClick={() => setDeleteTarget(u)}
-                        disabled={u.id === currentUser?.id}
+                        disabled={u.id === currentUser?.id || (u.role === "owner" && currentUser?.role !== "owner")}
                       >
                         Delete
                       </button>
@@ -179,7 +188,7 @@ export default function UsersPage() {
       </div>
 
       {(modal === "add" || (modal && modal.id)) && (
-        <UserModal user={modal === "add" ? null : modal} onClose={() => setModal(null)} onSave={handleSave} />
+        <UserModal user={modal === "add" ? null : modal} currentUser={currentUser} onClose={() => setModal(null)} onSave={handleSave} />
       )}
 
       {deleteTarget && (

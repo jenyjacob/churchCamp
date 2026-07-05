@@ -5,16 +5,16 @@ from db import db
 
 users_bp = Blueprint("users", __name__)
 
-def require_admin():
+def require_admin_or_owner():
     claims = get_jwt()
-    if claims.get("role") != "admin":
+    if claims.get("role") not in ["admin", "owner"]:
         return False
     return True
 
 @users_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_users():
-    if not require_admin():
+    if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
     users = User.query.order_by(User.username).all()
     return jsonify({"users": [u.to_dict() for u in users]}), 200
@@ -22,8 +22,13 @@ def get_users():
 @users_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_user():
-    if not require_admin():
+    if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
+
+    claims = get_jwt()
+    data = request.get_json()
+    if data.get("role") == "owner" and claims.get("role") != "owner":
+        return jsonify({"error": "Only owners can create owner profiles"}), 403
 
     data = request.get_json()
     if not data.get("username") or not data.get("password"):
@@ -46,11 +51,20 @@ def create_user():
 @users_bp.route("/<int:user_id>", methods=["PUT"])
 @jwt_required()
 def update_user(user_id):
-    if not require_admin():
+    if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
 
     user = User.query.get_or_404(user_id)
+    claims = get_jwt()
     data = request.get_json()
+
+    # Admin cannot modify Owner
+    if user.role == "owner" and claims.get("role") != "owner":
+        return jsonify({"error": "Admin cannot modify owner profiles"}), 403
+
+    # Admin cannot promote anyone to Owner
+    if data.get("role") == "owner" and claims.get("role") != "owner":
+        return jsonify({"error": "Only owners can assign owner role"}), 403
 
     for field in ["role", "full_name", "email", "is_active"]:
         if field in data:
@@ -65,10 +79,16 @@ def update_user(user_id):
 @users_bp.route("/<int:user_id>", methods=["DELETE"])
 @jwt_required()
 def delete_user(user_id):
-    if not require_admin():
+    if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
 
     user = User.query.get_or_404(user_id)
+    claims = get_jwt()
+
+    # Admin cannot delete Owner
+    if user.role == "owner" and claims.get("role") != "owner":
+        return jsonify({"error": "Admin cannot delete owner profiles"}), 403
+
     db.session.delete(user)
     db.session.commit()
     return jsonify({"message": "User deleted"}), 200

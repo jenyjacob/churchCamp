@@ -1,16 +1,64 @@
+import os
 import pymysql
 
+env_path = "/home/ubuntu/backend/.env"
+db_url = None
+
+if os.path.exists(env_path):
+    with open(env_path, "r") as f:
+        for line in f:
+            if line.strip().startswith("DATABASE_URL="):
+                db_url = line.split("DATABASE_URL=")[1].strip().strip("'").strip('"')
+                break
+
+if not db_url:
+    print("Error: Could not locate DATABASE_URL inside /home/ubuntu/backend/.env")
+    exit(1)
+
+# Parse credentials from DATABASE_URL
+# e.g., mysql+pymysql://campuser:password@localhost:3306/churchcamp
+try:
+    clean_url = db_url.replace("mysql+pymysql://", "").replace("mysql://", "")
+    auth, rest = clean_url.split("@")
+    user, password = auth.split(":")
+    host_port, database = rest.split("/")
+    if ":" in host_port:
+        host, port_str = host_port.split(":")
+        port = int(port_str)
+    else:
+        host = host_port
+        port = 3306
+except Exception as e:
+    print(f"Error parsing DATABASE_URL connection string: {e}")
+    exit(1)
+
 def seed():
+    print(f"Connecting to EC2 MySQL database '{database}' on {host}:{port} as user '{user}'...")
     conn = pymysql.connect(
-        host='localhost', 
-        user='campuser', 
-        password='camppass', 
-        port=3306, 
-        database='churchcamp'
+        host=host, 
+        user=user, 
+        password=password, 
+        port=port, 
+        database=database
     )
     cursor = conn.cursor()
 
-    # Clear existing schedule events to prevent duplicate runs
+    # First ensure the table is created
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS schedule_events (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        day VARCHAR(50) NOT NULL,
+        time VARCHAR(100) NOT NULL,
+        title VARCHAR(150) NOT NULL,
+        description TEXT,
+        location VARCHAR(100),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB;
+    """)
+    conn.commit()
+
+    # Clear existing schedule events to prevent duplicates
     cursor.execute("DELETE FROM schedule_events")
     conn.commit()
 
@@ -65,7 +113,7 @@ def seed():
     cursor.close()
     conn.close()
 
-    print(f"Successfully seeded {inserted} schedule events!")
+    print(f"Successfully seeded {inserted} schedule events into your EC2 database!")
 
 if __name__ == "__main__":
     seed()

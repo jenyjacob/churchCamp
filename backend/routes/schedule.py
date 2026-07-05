@@ -7,7 +7,7 @@ schedule_bp = Blueprint("schedule", __name__)
 
 def require_admin():
     claims = get_jwt()
-    return claims.get("role") == "admin"
+    return claims.get("role") in ["admin", "owner"]
 
 @schedule_bp.route("/", methods=["GET"])
 def get_schedule():
