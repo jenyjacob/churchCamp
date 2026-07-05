@@ -27,6 +27,13 @@ export default function CabinsPage() {
   
   // Cabins config: loaded from localStorage, or defaults, merged on data fetch
   const [cabinsConfig, setCabinsConfig] = useState(() => {
+    // Run a one-time reset check to clear previous defaults
+    const isReset = localStorage.getItem("gca_cabins_reset_v4");
+    if (!isReset) {
+      localStorage.removeItem("gca_cabins_config");
+      localStorage.setItem("gca_cabins_reset_v4", "true");
+    }
+
     const saved = localStorage.getItem("gca_cabins_config");
     if (saved) {
       try {
@@ -35,11 +42,7 @@ export default function CabinsPage() {
         // Fallback below
       }
     }
-    return [
-      { name: "Cabin A", rooms: ["Room 1", "Room 2", "Room 3", "Room 4"] },
-      { name: "Cabin B", rooms: ["Room 1", "Room 2", "Room 3", "Room 4"] },
-      { name: "Cabin C", rooms: ["Room 1", "Room 2", "Room 3", "Room 4"] }
-    ];
+    return [];
   });
 
   const [dragOverBox, setDragOverBox] = useState(null); // e.g., "Cabin A | Room 1"
