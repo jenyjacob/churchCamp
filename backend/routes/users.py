@@ -38,10 +38,10 @@ def create_user():
         return jsonify({"error": "Username already exists"}), 409
 
     user = User(
-        username=data["username"],
+        username=data["username"].strip(),
         role=data.get("role", "user"),
-        full_name=data.get("full_name"),
-        email=data.get("email"),
+        full_name=data.get("full_name", "").strip() or None,
+        email=data.get("email", "").strip() or None,
     )
     user.set_password(data["password"])
     db.session.add(user)
@@ -68,7 +68,10 @@ def update_user(user_id):
 
     for field in ["role", "full_name", "email", "is_active"]:
         if field in data:
-            setattr(user, field, data[field])
+            val = data[field]
+            if field in ["email", "full_name"] and isinstance(val, str):
+                val = val.strip() or None
+            setattr(user, field, val)
 
     if "password" in data and data["password"]:
         user.set_password(data["password"])
