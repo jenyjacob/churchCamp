@@ -24,6 +24,25 @@ export default function AuditLogsPage() {
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
+  const [clearing, setClearing] = useState(false);
+
+  const handleClearLogs = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete all system activity logs? This action cannot be undone.")) {
+      return;
+    }
+    setClearing(true);
+    try {
+      await api.delete("/api/users/audit-logs");
+      setLogs([]);
+      setTotal(0);
+      setPages(1);
+      setPage(1);
+    } catch (err) {
+      setError("Failed to clear system activity logs.");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
@@ -48,8 +67,13 @@ export default function AuditLogsPage() {
   const formatTimestamp = (isoString) => {
     if (!isoString) return "—";
     try {
-      const date = new Date(isoString);
+      // Force interpretation as UTC if no timezone is specified
+      const utcString = isoString.endsWith("Z") || isoString.includes("+") 
+        ? isoString 
+        : `${isoString}Z`;
+      const date = new Date(utcString);
       return date.toLocaleString([], {
+        timeZone: "America/Chicago",
         month: "short",
         day: "numeric",
         hour: "2-digit",
@@ -64,8 +88,18 @@ export default function AuditLogsPage() {
   return (
     <>
       <div className="top-bar">
-        <h1>📄 System Activity Logs</h1>
-        <span className="text-muted">Review security events and administrative actions</span>
+        <div>
+          <h1>📄 System Activity Logs</h1>
+          <span className="text-muted">Review security events and administrative actions</span>
+        </div>
+        <button 
+          className="btn btn-danger" 
+          onClick={handleClearLogs} 
+          disabled={clearing || logs.length === 0}
+          style={{ height: "38px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600 }}
+        >
+          <span>🗑️</span> Clear Logs
+        </button>
       </div>
 
       <div className="page-body">

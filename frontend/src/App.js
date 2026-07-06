@@ -31,6 +31,12 @@ function RequireAdminOrDirector({ children }) {
   return hasAccess ? children : <Navigate to="/" replace />;
 }
 
+function RequireOwner({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user?.role === "owner" ? children : <Navigate to="/" replace />;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
   return (
@@ -48,7 +54,7 @@ function AppRoutes() {
         <Route path="app/schedule" element={<RequireAdminOrDirector><SchedulePage /></RequireAdminOrDirector>} />
         <Route path="outdoor" element={<RequireAdminOrDirector><OutdoorPage /></RequireAdminOrDirector>} />
         <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
-        <Route path="logs" element={<RequireAdmin><AuditLogsPage /></RequireAdmin>} />
+        <Route path="logs" element={<RequireOwner><AuditLogsPage /></RequireOwner>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

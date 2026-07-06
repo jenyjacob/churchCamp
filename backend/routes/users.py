@@ -103,11 +103,15 @@ def delete_user(user_id):
     log_action("DELETE_USER", f"Deleted user '{username}' (ID: {user_id})")
     return jsonify({"message": "User deleted"}), 200
 
+def require_owner():
+    claims = get_jwt()
+    return claims.get("role") == "owner"
+
 @users_bp.route("/audit-logs", methods=["GET"])
 @jwt_required()
 def get_audit_logs():
-    if not require_admin_or_owner():
-        return jsonify({"error": "Admin access required"}), 403
+    if not require_owner():
+        return jsonify({"error": "Owner access required"}), 403
 
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 50))
@@ -122,3 +126,15 @@ def get_audit_logs():
         "pages": paginated.pages,
         "page": page,
     }), 200
+
+@users_bp.route("/audit-logs", methods=["DELETE"])
+@jwt_required()
+def delete_audit_logs():
+    if not require_owner():
+        return jsonify({"error": "Owner access required"}), 403
+
+    AuditLog.query.delete()
+    db.session.commit()
+    from utils.logging import log_action
+    log_action("CLEAR_LOGS", "All audit logs were cleared by the system Owner")
+    return jsonify({"message": "Audit logs cleared successfully"}), 200

@@ -139,9 +139,17 @@ export default function AppShell() {
             <>
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" }} />
               <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "4px 12px 2px" }}>Admin</div>
-              {adminItems.map(item => (
-                <NavItem key={item.to} {...item} />
-              ))}
+              {adminItems
+                .filter(item => {
+                  if (item.to === "/logs") {
+                    return user?.role === "owner";
+                  }
+                  return true;
+                })
+                .map(item => (
+                  <NavItem key={item.to} {...item} />
+                ))
+              }
             </>
           )}
         </nav>
