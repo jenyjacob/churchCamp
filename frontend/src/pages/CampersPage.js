@@ -157,11 +157,9 @@ export default function CampersPage() {
     <>
       <div className="top-bar">
         <h1>Campers</h1>
-        {isAdmin && (
-          <button className="btn btn-primary" onClick={() => setModal("add")}>
-            ➕ Register Camper
-          </button>
-        )}
+        <button className="btn btn-primary" onClick={() => setModal("add")}>
+          ➕ Register Camper
+        </button>
       </div>
 
       <div className="page-body">

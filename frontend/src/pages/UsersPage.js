@@ -60,6 +60,7 @@ function UserModal({ user, currentUser, onClose, onSave }) {
             <label className="form-label">Role *</label>
             <select className="form-select" value={form.role} onChange={e => set("role", e.target.value)}>
               <option value="user">Staff (View Only)</option>
+              <option value="director">Camp Director (View Only)</option>
               <option value="admin">Admin (Full Access)</option>
               {currentUser?.role === "owner" && (
                 <option value="owner">Owner (System Owner)</option>
@@ -153,8 +154,8 @@ export default function UsersPage() {
                   <td>{u.full_name || "—"}</td>
                   <td>{u.email || "—"}</td>
                   <td>
-                    <span className={`badge ${u.role === "owner" ? "badge-red" : u.role === "admin" ? "badge-gold" : "badge-blue"}`}>
-                      {u.role === "owner" ? "Owner" : u.role === "admin" ? "Admin" : "Staff"}
+                    <span className={`badge ${u.role === "owner" ? "badge-red" : u.role === "admin" ? "badge-gold" : u.role === "director" ? "badge-green" : "badge-blue"}`}>
+                      {u.role === "owner" ? "Owner" : u.role === "admin" ? "Admin" : u.role === "director" ? "Camp Director" : "Staff"}
                     </span>
                   </td>
                   <td>

@@ -8,7 +8,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.Enum("owner", "admin", "user"), nullable=False, default="user")
+    role = db.Column(db.Enum("owner", "admin", "user", "director"), nullable=False, default="user")
     full_name = db.Column(db.String(150), nullable=True)
     email = db.Column(db.String(150), unique=True, nullable=True)
     is_active = db.Column(db.Boolean, default=True)

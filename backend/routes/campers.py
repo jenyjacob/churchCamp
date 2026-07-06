@@ -61,9 +61,6 @@ def get_camper(camper_id):
 @campers_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_camper():
-    if not require_admin():
-        return jsonify({"error": "Admin access required"}), 403
-
     data = request.get_json()
     data = {k: (None if v == "" else v) for k, v in data.items()}
     if not data.get("first_name") or not data.get("last_name"):
@@ -100,30 +97,40 @@ def create_camper():
 @campers_bp.route("/<int:camper_id>", methods=["PUT"])
 @jwt_required()
 def update_camper(camper_id):
-    if not require_admin():
-        return jsonify({"error": "Admin access required"}), 403
+    claims = get_jwt()
+    role = claims.get("role")
+    
+    if role not in ["admin", "owner", "director"]:
+        return jsonify({"error": "Admin or Director access required"}), 403
 
     camper = Camper.query.get_or_404(camper_id)
     data = request.get_json()
     data = {k: (None if v == "" else v) for k, v in data.items()}
 
-    fields = [
-        "first_name", "last_name", "date_of_birth", "age", "gender", "grade",
-        "cabin_group", "session", "family_group", "guardian_name", "guardian_phone", "guardian_email",
-        "emergency_contact", "emergency_phone", "allergies", "medical_notes",
-        "medications", "registration_status", "payment_status", "notes", "waiver_submitted"
-    ]
-    
-    waiver_changed = "waiver_submitted" in data and data["waiver_submitted"] != camper.waiver_submitted
+    # Camp Director can only modify outdoor activities
+    if role == "director":
+        for field in ["kayaking", "boat_tour"]:
+            if field in data:
+                setattr(camper, field, data[field])
+    else:
+        fields = [
+            "first_name", "last_name", "date_of_birth", "age", "gender", "grade",
+            "cabin_group", "session", "family_group", "guardian_name", "guardian_phone", "guardian_email",
+            "emergency_contact", "emergency_phone", "allergies", "medical_notes",
+            "medications", "registration_status", "payment_status", "notes", "waiver_submitted",
+            "kayaking", "boat_tour"
+        ]
+        
+        waiver_changed = "waiver_submitted" in data and data["waiver_submitted"] != camper.waiver_submitted
 
-    for field in fields:
-        if field in data:
-            setattr(camper, field, data[field])
+        for field in fields:
+            if field in data:
+                setattr(camper, field, data[field])
 
-    if waiver_changed and camper.family_group:
-        Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": camper.waiver_submitted})
-        from utils.logging import log_action
-        log_action("UPDATE_FAMILY_WAIVER", f"Synchronized waiver submission status ({camper.waiver_submitted}) for Family Group #{camper.family_group}")
+        if waiver_changed and camper.family_group:
+            Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": camper.waiver_submitted})
+            from utils.logging import log_action
+            log_action("UPDATE_FAMILY_WAIVER", f"Synchronized waiver submission status ({camper.waiver_submitted}) for Family Group #{camper.family_group}")
 
     db.session.commit()
     from utils.logging import log_action
@@ -159,4 +166,20 @@ def get_stats():
         "status_registered": registered,
         "checked_in": checked_in,
         "waivers_submitted": waivers_submitted,
+    }), 200
+
+@campers_bp.route("/outdoor", methods=["GET"])
+@jwt_required()
+def get_outdoor_activities():
+    campers = Camper.query.filter(
+        (Camper.kayaking > 0) | (Camper.boat_tour > 0)
+    ).all()
+    
+    total_kayaking = sum(c.kayaking for c in campers)
+    total_boat_tour = sum(c.boat_tour for c in campers)
+    
+    return jsonify({
+        "campers": [c.to_dict() for c in campers],
+        "total_kayaking": total_kayaking,
+        "total_boat_tour": total_boat_tour
     }), 200

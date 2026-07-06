@@ -68,10 +68,12 @@ def migrate():
     insert_sql = """
         INSERT INTO campers (
             first_name, last_name, age, gender, cabin_group, family_group,
-            guardian_name, guardian_phone, allergies, registration_status, notes
+            guardian_name, guardian_phone, allergies, registration_status, notes,
+            kayaking, boat_tour
         ) VALUES (
             %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s,
+            %s, %s
         )
     """
     
@@ -87,6 +89,21 @@ def migrate():
         email = row[9]
         family_group = str(row[10]) if row[10] is not None else None
         
+        # Parse outdoor activities
+        kayaking_val = 0
+        try:
+            if row[5] is not None and str(row[5]).strip() != "":
+                kayaking_val = int(float(row[5]))
+        except:
+            pass
+
+        boat_tour_val = 0
+        try:
+            if row[6] is not None and str(row[6]).strip() != "":
+                boat_tour_val = int(float(row[6]))
+        except:
+            pass
+
         if not name:
             continue
             
@@ -124,7 +141,9 @@ def migrate():
             guardian_phone,
             allergies,
             'registered',
-            notes
+            notes,
+            kayaking_val,
+            boat_tour_val
         ))
         inserted_count += 1
         

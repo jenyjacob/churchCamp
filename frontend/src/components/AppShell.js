@@ -8,6 +8,7 @@ const navItems = [
   { to: "/checkin", icon: "✅", label: "Check-In"  },
   { to: "/cabins",  icon: "⛺", label: "Cabins"  },
   { to: "/app/schedule", icon: "📅", label: "Schedule" },
+  { to: "/outdoor", icon: "🛶", label: "Outdoor Activities" },
 ];
 
 const adminItems = [
@@ -72,9 +73,23 @@ export default function AppShell() {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(item => (
-            <NavItem key={item.to} {...item} />
-          ))}
+          {navItems
+            .filter(item => {
+              const isStaff = user?.role === "user";
+              if (isStaff) {
+                return ["/", "/campers", "/checkin"].includes(item.to);
+              }
+              // Directors (role === 'director') can access both check-in, campers, AND outdoor activities!
+              const isDirector = user?.role === "director";
+              if (isDirector) {
+                return ["/", "/campers", "/checkin", "/outdoor"].includes(item.to);
+              }
+              return true;
+            })
+            .map(item => (
+              <NavItem key={item.to} {...item} />
+            ))
+          }
           {isAdmin && (
             <>
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" }} />

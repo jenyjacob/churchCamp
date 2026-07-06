@@ -28,6 +28,8 @@ class Camper(db.Model):
         nullable=False
     )
     notes = db.Column(db.Text, nullable=True)
+    kayaking = db.Column(db.Integer, default=0, nullable=False)
+    boat_tour = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -51,6 +53,8 @@ class Camper(db.Model):
             "waiver_submitted": self.waiver_submitted,
             "registration_status": self.registration_status,
             "notes": self.notes,
+            "kayaking": self.kayaking,
+            "boat_tour": self.boat_tour,
             "checked_in": any(c.checked_out_at is None for c in self.checkins),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

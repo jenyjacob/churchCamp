@@ -10,6 +10,7 @@ import UsersPage from "./pages/UsersPage";
 import CabinsPage from "./pages/CabinsPage";
 import SchedulePage from "./pages/SchedulePage";
 import AuditLogsPage from "./pages/AuditLogsPage";
+import OutdoorPage from "./pages/OutdoorPage";
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -21,6 +22,13 @@ function RequireAdmin({ children }) {
   const { isAdmin, loading } = useAuth();
   if (loading) return null;
   return isAdmin ? children : <Navigate to="/" replace />;
+}
+
+function RequireAdminOrDirector({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  const hasAccess = user?.role === "admin" || user?.role === "owner" || user?.role === "director";
+  return hasAccess ? children : <Navigate to="/" replace />;
 }
 
 function AppRoutes() {
@@ -36,8 +44,9 @@ function AppRoutes() {
         <Route index element={<HomePage />} />
         <Route path="campers" element={<CampersPage />} />
         <Route path="checkin" element={<CheckInPage />} />
-        <Route path="cabins" element={<CabinsPage />} />
-        <Route path="app/schedule" element={<SchedulePage />} />
+        <Route path="cabins" element={<RequireAdmin><CabinsPage /></RequireAdmin>} />
+        <Route path="app/schedule" element={<RequireAdmin><SchedulePage /></RequireAdmin>} />
+        <Route path="outdoor" element={<RequireAdminOrDirector><OutdoorPage /></RequireAdminOrDirector>} />
         <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
         <Route path="logs" element={<RequireAdmin><AuditLogsPage /></RequireAdmin>} />
       </Route>
