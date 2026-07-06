@@ -182,9 +182,27 @@ export default function OutdoorPage() {
 
         {/* List Card */}
         <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          <style>{`
+            @media (max-width: 576px) {
+              .outdoor-header {
+                flex-direction: column;
+                align-items: stretch !important;
+              }
+              .outdoor-actions {
+                width: 100%;
+                display: flex;
+                gap: 8px;
+              }
+              .outdoor-actions .search-box {
+                max-width: none !important;
+                flex: 1;
+              }
+            }
+          `}</style>
+
+          <div className="outdoor-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <h3 style={{ margin: 0 }}>Reserved Spots List</h3>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="outdoor-actions" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <div className="search-box" style={{ maxWidth: 280, width: "100%" }}>
                 <input
                   type="text"
@@ -217,7 +235,6 @@ export default function OutdoorPage() {
                 <thead>
                   <tr>
                     <th>Camper Name</th>
-                    <th>Family Group</th>
                     <th style={{ textAlign: "center" }}>🛶 Kayaking</th>
                     <th style={{ textAlign: "center" }}>🚤 Boat Tour</th>
                     <th style={{ textAlign: "right" }}>Actions</th>
@@ -227,15 +244,6 @@ export default function OutdoorPage() {
                   {filteredCampers.map(c => (
                     <tr key={c.id}>
                       <td style={{ fontWeight: 600 }}>{c.full_name}</td>
-                      <td>
-                        {c.family_group ? (
-                          <span className="badge badge-gold" style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 600 }}>
-                            👨‍👩‍👧‍👦 Family #{c.family_group}
-                          </span>
-                        ) : (
-                          <span className="text-muted">None</span>
-                        )}
-                      </td>
                       <td style={{ textAlign: "center", fontWeight: c.kayaking > 0 ? 700 : 400, color: c.kayaking > 0 ? "var(--forest-mid)" : "inherit" }}>
                         {c.kayaking > 0 ? `${c.kayaking} spots` : "—"}
                       </td>

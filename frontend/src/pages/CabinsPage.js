@@ -672,7 +672,7 @@ export default function CabinsPage() {
                   Unassigned ({unassignedCampers.length})
                 </h3>
                 <p className="text-muted" style={{ fontSize: "0.78rem", margin: "4px 0 0 0" }}>
-                  Drag cards or use dropdowns to assign
+                  {isAdmin ? "Drag cards or use dropdowns to assign" : "Camper registrations waiting for assignments"}
                 </p>
               </div>
 

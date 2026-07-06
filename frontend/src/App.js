@@ -44,8 +44,8 @@ function AppRoutes() {
         <Route index element={<HomePage />} />
         <Route path="campers" element={<CampersPage />} />
         <Route path="checkin" element={<CheckInPage />} />
-        <Route path="cabins" element={<RequireAdmin><CabinsPage /></RequireAdmin>} />
-        <Route path="app/schedule" element={<RequireAdmin><SchedulePage /></RequireAdmin>} />
+        <Route path="cabins" element={<RequireAdminOrDirector><CabinsPage /></RequireAdminOrDirector>} />
+        <Route path="app/schedule" element={<RequireAdminOrDirector><SchedulePage /></RequireAdminOrDirector>} />
         <Route path="outdoor" element={<RequireAdminOrDirector><OutdoorPage /></RequireAdminOrDirector>} />
         <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
         <Route path="logs" element={<RequireAdmin><AuditLogsPage /></RequireAdmin>} />

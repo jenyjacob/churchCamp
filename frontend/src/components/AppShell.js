@@ -82,7 +82,7 @@ export default function AppShell() {
               // Directors (role === 'director') can access both check-in, campers, AND outdoor activities!
               const isDirector = user?.role === "director";
               if (isDirector) {
-                return ["/", "/campers", "/checkin", "/outdoor"].includes(item.to);
+                return ["/", "/campers", "/checkin", "/outdoor", "/app/schedule", "/cabins"].includes(item.to);
               }
               return true;
             })
