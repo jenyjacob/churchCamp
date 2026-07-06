@@ -19,6 +19,7 @@ class Camper(db.Model):
 
     # Medical
     allergies = db.Column(db.Text, nullable=True)
+    waiver_submitted = db.Column(db.Boolean, default=False, nullable=False)
 
     # Status
     registration_status = db.Column(
@@ -47,6 +48,7 @@ class Camper(db.Model):
             "guardian_name": self.guardian_name,
             "guardian_phone": self.guardian_phone,
             "allergies": self.allergies,
+            "waiver_submitted": self.waiver_submitted,
             "registration_status": self.registration_status,
             "notes": self.notes,
             "checked_in": any(c.checked_out_at is None for c in self.checkins),

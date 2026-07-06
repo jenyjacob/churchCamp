@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 export default function CheckInPage() {
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [campers, setCampers] = useState([]);
   const [searching, setSearching] = useState(false);
   const [activeCheckins, setActiveCheckins] = useState([]);
   const [loadingActive, setLoadingActive] = useState(true);
+  const [stats, setStats] = useState({ total_registered: 0, checked_in: 0, waivers_submitted: 0 });
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
   const [waiverModal, setWaiverModal] = useState({
     isOpen: false,
@@ -30,9 +33,16 @@ export default function CheckInPage() {
       .finally(() => setLoadingActive(false));
   }, []);
 
+  const fetchStats = useCallback(() => {
+    api.get("/api/campers/stats")
+      .then(r => setStats(r.data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchActive();
-  }, [fetchActive]);
+    fetchStats();
+  }, [fetchActive, fetchStats]);
 
   const searchCampers = useCallback(() => {
     if (!search.trim()) {
@@ -58,6 +68,7 @@ export default function CheckInPage() {
       setSearch("");
       setCampers([]);
       fetchActive();
+      fetchStats();
     } catch (err) {
       flash("error", err.response?.data?.error || "Check-in failed.");
     }
@@ -65,6 +76,10 @@ export default function CheckInPage() {
   };
 
   const handleCheckIn = (camper) => {
+    if (camper.waiver_submitted) {
+      performCheckIn(camper.id, camper.full_name);
+      return;
+    }
     setWaiverModal({
       isOpen: true,
       title: "Waiver Form Confirmation",
@@ -77,21 +92,29 @@ export default function CheckInPage() {
 
   const performCheckInFamily = async (familyGroup, uncheckedCampers) => {
     try {
-      await Promise.all(
-        uncheckedCampers.map(c => api.post("/api/checkin/", { camper_id: c.id }))
-      );
+      // Execute sequentially to avoid concurrent database deadlock locks in MySQL
+      for (const c of uncheckedCampers) {
+        await api.post("/api/checkin/", { camper_id: c.id });
+      }
       flash("success", `✅ Family Group ${familyGroup} checked in successfully (${uncheckedCampers.length} members)!`);
       setSearch("");
       setCampers([]);
       fetchActive();
+      fetchStats();
     } catch (err) {
       flash("error", "Failed to check in all family members.");
       fetchActive();
+      fetchStats();
     }
     setWaiverModal({ isOpen: false });
   };
 
   const handleCheckInFamily = (familyGroup, uncheckedCampers) => {
+    const isWaiverSubmitted = uncheckedCampers.some(c => c.waiver_submitted);
+    if (isWaiverSubmitted) {
+      performCheckInFamily(familyGroup, uncheckedCampers);
+      return;
+    }
     const names = uncheckedCampers.map(c => c.full_name).join(", ");
     setWaiverModal({
       isOpen: true,
@@ -108,8 +131,23 @@ export default function CheckInPage() {
       await api.post(`/api/checkin/${checkin.id}/checkout`);
       flash("success", `👋 ${checkin.camper_name} checked out.`);
       fetchActive();
+      fetchStats();
     } catch (err) {
       flash("error", err.response?.data?.error || "Check-out failed.");
+    }
+  };
+
+  const handleResetCheckIn = async (checkin) => {
+    if (!window.confirm(`Are you sure you want to reset the check-in for ${checkin.camper_name}? This will completely delete the check-in record.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/checkin/${checkin.id}`);
+      flash("success", `🔄 Checked-in status reset for ${checkin.camper_name}.`);
+      fetchActive();
+      fetchStats();
+    } catch (err) {
+      flash("error", err.response?.data?.error || "Failed to reset check-in.");
     }
   };
 
@@ -131,6 +169,31 @@ export default function CheckInPage() {
             {message.text}
           </div>
         )}
+
+        {/* Statistics Row */}
+        <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "2rem" }}>✅</div>
+            <div>
+              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--forest-mid)" }}>{stats.checked_in}</div>
+              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Checked In Campers</div>
+            </div>
+          </div>
+          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "2rem" }}>📝</div>
+            <div>
+              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--gold)" }}>{stats.waivers_submitted}</div>
+              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Waiver Forms Submitted</div>
+            </div>
+          </div>
+          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "2rem" }}>👥</div>
+            <div>
+              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--charcoal)" }}>{Math.max(0, stats.total_registered - stats.checked_in)}</div>
+              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Remaining Check-Ins</div>
+            </div>
+          </div>
+        </div>
 
         <div className="checkin-grid">
           {/* Left: Check In */}
@@ -268,12 +331,24 @@ export default function CheckInPage() {
                           {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
                         </div>
                       </div>
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={() => handleCheckOut(ci)}
-                      >
-                        Check Out
-                      </button>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handleCheckOut(ci)}
+                        >
+                          Check Out
+                        </button>
+                        {isAdmin && (
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ padding: "0 10px", minWidth: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            title="Reset Check-In (Undo this action and completely remove the check-in record)"
+                            onClick={() => handleResetCheckIn(ci)}
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

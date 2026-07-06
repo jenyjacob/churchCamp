@@ -92,7 +92,12 @@ export default function SchedulePage() {
       setModalOpen(false);
       fetchSchedule();
     } catch (err) {
-      flash("error", err.response?.data?.error || "Failed to save event.");
+      const errorMsg = err.response?.data?.error || "Failed to save event.";
+      if (err.response?.status === 409) {
+        alert(`⚠️ Time Conflict Alert\n\n${errorMsg}`);
+      } else {
+        flash("error", errorMsg);
+      }
     } finally {
       setSaving(false);
     }

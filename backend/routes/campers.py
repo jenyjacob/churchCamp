@@ -69,6 +69,13 @@ def create_camper():
     if not data.get("first_name") or not data.get("last_name"):
         return jsonify({"error": "First and last name are required"}), 400
 
+    family_group = data.get("family_group")
+    waiver_status = data.get("waiver_submitted", False)
+    if family_group and not waiver_status:
+        existing_family_member = Camper.query.filter_by(family_group=family_group, waiver_submitted=True).first()
+        if existing_family_member:
+            waiver_status = True
+
     camper = Camper(
         first_name=data["first_name"],
         last_name=data["last_name"],
@@ -76,10 +83,11 @@ def create_camper():
         age=data.get("age"),
         gender=data.get("gender"),
         cabin_group=data.get("cabin_group"),
-        family_group=data.get("family_group"),
+        family_group=family_group,
         guardian_name=data.get("guardian_name"),
         guardian_phone=data.get("guardian_phone"),
         allergies=data.get("allergies"),
+        waiver_submitted=waiver_status,
         registration_status=data.get("registration_status", "registered"),
         notes=data.get("notes"),
     )
@@ -103,11 +111,19 @@ def update_camper(camper_id):
         "first_name", "last_name", "date_of_birth", "age", "gender", "grade",
         "cabin_group", "session", "family_group", "guardian_name", "guardian_phone", "guardian_email",
         "emergency_contact", "emergency_phone", "allergies", "medical_notes",
-        "medications", "registration_status", "payment_status", "notes"
+        "medications", "registration_status", "payment_status", "notes", "waiver_submitted"
     ]
+    
+    waiver_changed = "waiver_submitted" in data and data["waiver_submitted"] != camper.waiver_submitted
+
     for field in fields:
         if field in data:
             setattr(camper, field, data[field])
+
+    if waiver_changed and camper.family_group:
+        Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": camper.waiver_submitted})
+        from utils.logging import log_action
+        log_action("UPDATE_FAMILY_WAIVER", f"Synchronized waiver submission status ({camper.waiver_submitted}) for Family Group #{camper.family_group}")
 
     db.session.commit()
     from utils.logging import log_action
@@ -137,8 +153,10 @@ def get_stats():
         1 for c in Camper.query.all()
         if any(ci.checked_out_at is None for ci in c.checkins)
     )
+    waivers_submitted = Camper.query.filter_by(waiver_submitted=True).count()
     return jsonify({
         "total_registered": total,
         "status_registered": registered,
         "checked_in": checked_in,
+        "waivers_submitted": waivers_submitted,
     }), 200

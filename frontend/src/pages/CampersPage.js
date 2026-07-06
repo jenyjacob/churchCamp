@@ -84,6 +84,17 @@ function CamperModal({ camper, onClose, onSave }) {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
+            <div className="form-group" style={{ display: "flex", alignItems: "center", height: "100%", paddingTop: 28 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 600, color: "var(--forest-mid)" }}>
+                <input
+                  type="checkbox"
+                  checked={form.waiver_submitted || false}
+                  onChange={e => set("waiver_submitted", e.target.checked)}
+                  style={{ width: 18, height: 18 }}
+                />
+                Waiver Form Submitted
+              </label>
+            </div>
           </div>
           <div className="form-group"><label className="form-label">Notes</label><textarea {...inp("notes")} className="form-textarea" rows={2} /></div>
 
