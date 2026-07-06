@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import api from "../utils/api";
 
 const navItems = [
   { to: "/",        icon: "🏠", label: "Dashboard",  exact: true },
@@ -34,6 +35,50 @@ export default function AppShell() {
   const { user, logout, isAdmin } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+
+  // Change Password States
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPasswordError("Password must be at least 4 characters long.");
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      await api.post("/api/auth/change-password", {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+      setPasswordSuccess("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setIsChangePasswordOpen(false);
+        setPasswordSuccess("");
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err.response?.data?.error || "Failed to change password.");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   // Close mobile drawer when route changes
   useEffect(() => {
@@ -109,6 +154,10 @@ export default function AppShell() {
               <div className="role-tag">{user?.role}</div>
             </div>
           </div>
+          <button className="nav-item w-full" onClick={() => setIsChangePasswordOpen(true)} style={{ marginBottom: 4 }}>
+            <span className="icon">🔑</span>
+            Change Password
+          </button>
           <button className="nav-item w-full" onClick={logout}>
             <span className="icon">🚪</span>
             Sign Out
@@ -119,6 +168,84 @@ export default function AppShell() {
       <div className="main-content">
         <Outlet />
       </div>
+
+      {/* Change Password Modal */}
+      {isChangePasswordOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 400 }}>
+            <div className="modal-header">
+              <h2>Change Password</h2>
+              <button className="modal-close" onClick={() => {
+                setIsChangePasswordOpen(false);
+                setPasswordError("");
+                setPasswordSuccess("");
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+              }}>×</button>
+            </div>
+            
+            <form onSubmit={handleChangePassword}>
+              {passwordError && <div className="alert alert-error" style={{ marginBottom: 12 }}>{passwordError}</div>}
+              {passwordSuccess && <div className="alert alert-success" style={{ marginBottom: 12 }}>{passwordSuccess}</div>}
+              
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Current Password *</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  value={currentPassword} 
+                  onChange={e => setCurrentPassword(e.target.value)} 
+                  required 
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">New Password *</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  value={newPassword} 
+                  onChange={e => setNewPassword(e.target.value)} 
+                  required 
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 20 }}>
+                <label className="form-label">Confirm New Password *</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  value={confirmPassword} 
+                  onChange={e => setConfirmPassword(e.target.value)} 
+                  required 
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-ghost" 
+                  disabled={passwordSaving}
+                  onClick={() => {
+                    setIsChangePasswordOpen(false);
+                    setPasswordError("");
+                    setPasswordSuccess("");
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                  {passwordSaving ? "Saving..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
