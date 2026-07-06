@@ -32,6 +32,8 @@ def check_in():
     )
     db.session.add(checkin)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("CHECK_IN", f"Checked in camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
 
     return jsonify({"checkin": checkin.to_dict(), "camper": camper.to_dict()}), 201
 
@@ -47,6 +49,8 @@ def check_out(checkin_id):
     checkin.checked_out_at = datetime.utcnow()
     checkin.checked_out_by = user_id
     db.session.commit()
+    from utils.logging import log_action
+    log_action("CHECK_OUT", f"Checked out camper {checkin.camper.first_name} {checkin.camper.last_name} (ID: {checkin.camper_id})")
 
     return jsonify({"checkin": checkin.to_dict()}), 200
 

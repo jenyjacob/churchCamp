@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
-from models import User
+from models import User, AuditLog
 from db import db
 
 users_bp = Blueprint("users", __name__)
@@ -46,6 +46,8 @@ def create_user():
     user.set_password(data["password"])
     db.session.add(user)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("CREATE_USER", f"Created user '{user.username}' with role '{user.role}'")
     return jsonify({"user": user.to_dict()}), 201
 
 @users_bp.route("/<int:user_id>", methods=["PUT"])
@@ -77,6 +79,8 @@ def update_user(user_id):
         user.set_password(data["password"])
 
     db.session.commit()
+    from utils.logging import log_action
+    log_action("UPDATE_USER", f"Updated user profile for '{user.username}' (ID: {user.id})")
     return jsonify({"user": user.to_dict()}), 200
 
 @users_bp.route("/<int:user_id>", methods=["DELETE"])
@@ -92,6 +96,29 @@ def delete_user(user_id):
     if user.role == "owner" and claims.get("role") != "owner":
         return jsonify({"error": "Admin cannot delete owner profiles"}), 403
 
+    username = user.username
     db.session.delete(user)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("DELETE_USER", f"Deleted user '{username}' (ID: {user_id})")
     return jsonify({"message": "User deleted"}), 200
+
+@users_bp.route("/audit-logs", methods=["GET"])
+@jwt_required()
+def get_audit_logs():
+    if not require_admin_or_owner():
+        return jsonify({"error": "Admin access required"}), 403
+
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 50))
+
+    paginated = AuditLog.query.order_by(AuditLog.timestamp.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    return jsonify({
+        "logs": [log.to_dict() for log in paginated.items],
+        "total": paginated.total,
+        "pages": paginated.pages,
+        "page": page,
+    }), 200

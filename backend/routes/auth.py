@@ -13,12 +13,19 @@ def login():
     user = User.query.filter_by(username=data["username"]).first()
 
     if not user or not user.check_password(data["password"]):
+        from utils.logging import log_action
+        log_action("LOGIN_FAILURE", f"Failed login attempt for username: {data.get('username')}")
         return jsonify({"error": "Invalid username or password"}), 401
 
     if not user.is_active:
+        from utils.logging import log_action
+        log_action("LOGIN_FAILURE", f"Disabled account login attempt for username: {data.get('username')}", user.id, user.username)
         return jsonify({"error": "Account is disabled. Contact an administrator."}), 403
 
     token = create_access_token(identity=str(user.id), additional_claims={"role": user.role})
+
+    from utils.logging import log_action
+    log_action("LOGIN_SUCCESS", "User logged in successfully", user.id, user.username)
 
     return jsonify({
         "access_token": token,

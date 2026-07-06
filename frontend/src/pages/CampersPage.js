@@ -193,15 +193,29 @@ export default function CampersPage() {
                 <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
               ) : campers.length === 0 ? (
                 <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
-              ) : campers.map(c => (
-                <tr key={c.id}>
+              ) : campers.map((c, i) => (
+                <tr 
+                  key={c.id}
+                  style={c.family_group ? { 
+                    borderLeft: "4px solid var(--gold)",
+                    backgroundColor: "rgba(180, 151, 90, 0.02)"
+                  } : {}}
+                >
                   <td>
                     <div style={{ fontWeight: 600 }}>{c.full_name}</div>
                     {c.guardian_name && <div className="text-muted">{c.guardian_name}</div>}
                   </td>
                   <td>{c.age ?? "—"}</td>
                   <td>{c.cabin_group || "—"}</td>
-                  <td>{c.family_group || "—"}</td>
+                  <td>
+                    {c.family_group ? (
+                      <span className="badge badge-gold" style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 600 }}>
+                        👨‍👩‍👧‍👦 Family #{c.family_group}
+                      </span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
                   <td><span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`}>{c.registration_status}</span></td>
                   <td>{c.checked_in ? <span className="badge badge-green">Checked In</span> : <span className="badge badge-gray">Not In</span>}</td>
                   {isAdmin && (

@@ -9,6 +9,7 @@ import CheckInPage from "./pages/CheckInPage";
 import UsersPage from "./pages/UsersPage";
 import CabinsPage from "./pages/CabinsPage";
 import SchedulePage from "./pages/SchedulePage";
+import AuditLogsPage from "./pages/AuditLogsPage";
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -38,6 +39,7 @@ function AppRoutes() {
         <Route path="cabins" element={<CabinsPage />} />
         <Route path="app/schedule" element={<SchedulePage />} />
         <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+        <Route path="logs" element={<RequireAdmin><AuditLogsPage /></RequireAdmin>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

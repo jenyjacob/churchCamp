@@ -12,6 +12,7 @@ const navItems = [
 
 const adminItems = [
   { to: "/users",   icon: "⚙️", label: "Users"  },
+  { to: "/logs",    icon: "📄", label: "Audit Logs" },
 ];
 
 function NavItem({ to, icon, label, exact }) {

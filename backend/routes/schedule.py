@@ -35,6 +35,8 @@ def create_event():
     )
     db.session.add(event)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("CREATE_SCHEDULE_EVENT", f"Created event '{event.title}' on {event.day} at {event.time}")
     return jsonify({"event": event.to_dict()}), 201
 
 @schedule_bp.route("/<int:event_id>", methods=["PUT"])
@@ -53,6 +55,8 @@ def update_event(event_id):
     event.location = data.get("location", event.location).strip() if data.get("location") is not None else event.location
 
     db.session.commit()
+    from utils.logging import log_action
+    log_action("UPDATE_SCHEDULE_EVENT", f"Updated event '{event.title}' (ID: {event.id})")
     return jsonify({"event": event.to_dict()}), 200
 
 @schedule_bp.route("/<int:event_id>", methods=["DELETE"])
@@ -62,6 +66,9 @@ def delete_event(event_id):
         return jsonify({"error": "Admin access required"}), 403
 
     event = ScheduleEvent.query.get_or_404(event_id)
+    event_title = event.title
     db.session.delete(event)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("DELETE_SCHEDULE_EVENT", f"Deleted event '{event_title}' (ID: {event_id})")
     return jsonify({"message": "Event deleted"}), 200

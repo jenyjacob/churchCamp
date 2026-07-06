@@ -15,6 +15,9 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Relationship to audit logs
+    audit_logs = db.relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", lazy=True)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

@@ -32,7 +32,16 @@ def get_campers():
     if status:
         query = query.filter(Camper.registration_status == status)
 
-    paginated = query.order_by(Camper.last_name, Camper.first_name).paginate(
+    order_by_clause = db.case(
+        (db.or_(Camper.family_group.is_(None), Camper.family_group == ''), 1),
+        else_=0
+    )
+    paginated = query.order_by(
+        order_by_clause,
+        Camper.family_group,
+        Camper.last_name,
+        Camper.first_name
+    ).paginate(
         page=page, per_page=per_page, error_out=False
     )
 
@@ -76,6 +85,8 @@ def create_camper():
     )
     db.session.add(camper)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("REGISTER_CAMPER", f"Registered camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
     return jsonify({"camper": camper.to_dict()}), 201
 
 @campers_bp.route("/<int:camper_id>", methods=["PUT"])
@@ -99,6 +110,8 @@ def update_camper(camper_id):
             setattr(camper, field, data[field])
 
     db.session.commit()
+    from utils.logging import log_action
+    log_action("UPDATE_CAMPER", f"Updated camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
     return jsonify({"camper": camper.to_dict()}), 200
 
 @campers_bp.route("/<int:camper_id>", methods=["DELETE"])
@@ -108,8 +121,11 @@ def delete_camper(camper_id):
         return jsonify({"error": "Admin access required"}), 403
 
     camper = Camper.query.get_or_404(camper_id)
+    camper_name = f"{camper.first_name} {camper.last_name}"
     db.session.delete(camper)
     db.session.commit()
+    from utils.logging import log_action
+    log_action("DELETE_CAMPER", f"Deleted camper {camper_name} (ID: {camper_id})")
     return jsonify({"message": "Camper deleted"}), 200
 
 @campers_bp.route("/stats", methods=["GET"])
