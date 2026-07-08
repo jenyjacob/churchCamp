@@ -35,6 +35,7 @@ class Camper(db.Model):
 
     # Relationship to check-ins
     checkins = db.relationship("CheckIn", backref="camper", lazy=True)
+    tshirts = db.relationship("Tshirt", back_populates="camper", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -57,4 +58,5 @@ class Camper(db.Model):
             "boat_tour": self.boat_tour,
             "checked_in": any(c.checked_out_at is None for c in self.checkins),
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "tshirts": [t.to_dict() for t in self.tshirts],
         }

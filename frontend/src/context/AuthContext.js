@@ -35,10 +35,17 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
+  const loginPasskey = async (access_token, userData) => {
+    localStorage.setItem("token", access_token);
+    api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+    setUser(userData);
+    return userData;
+  };
+
   const isAdmin = user?.role === "admin" || user?.role === "owner";
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, login, loginPasskey, logout, isAdmin, loading }}>
       {children}
     </AuthContext.Provider>
   );

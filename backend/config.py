@@ -18,3 +18,9 @@ class Config:
 
     # Secret key
     SECRET_KEY = os.environ.get("SECRET_KEY", "flask-secret-change-me")
+
+    # WebAuthn settings
+    WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "localhost")
+    WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "GCA Camp Manager")
+    WEBAUTHN_RP_ORIGIN = os.environ.get("WEBAUTHN_RP_ORIGIN", "http://localhost:3000")
+

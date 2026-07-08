@@ -7,6 +7,7 @@ const EMPTY_CAMPER = {
   cabin_group: "", family_group: "", guardian_name: "", guardian_phone: "",
   allergies: "",
   registration_status: "registered", notes: "",
+  kayaking: 0, boat_tour: 0
 };
 
 function CamperModal({ camper, onClose, onSave }) {
@@ -58,7 +59,6 @@ function CamperModal({ camper, onClose, onSave }) {
                 <option value="">— Select —</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="other">Other</option>
               </select>
             </div>
             <div className="form-group"><label className="form-label">Cabin / Group</label><input {...inp("cabin_group")} /></div>
@@ -73,6 +73,18 @@ function CamperModal({ camper, onClose, onSave }) {
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Medical</div>
           <div className="form-group"><label className="form-label">Allergies</label><textarea {...inp("allergies")} className="form-textarea" rows={2} /></div>
+
+          <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Outdoor Activities</div>
+          <div className="form-grid" style={{ marginBottom: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Kayaking Spots</label>
+              <input {...inp("kayaking")} type="number" min="0" max="10" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Boat Tour Spots</label>
+              <input {...inp("boat_tour")} type="number" min="0" max="10" />
+            </div>
+          </div>
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Status</div>
           <div className="form-grid">

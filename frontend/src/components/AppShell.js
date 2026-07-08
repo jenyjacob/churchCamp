@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
+import {
+  isWebAuthnSupported,
+  prepareRegistrationOptions,
+  formatRegistrationCredential
+} from "../utils/webauthn";
+
 
 const navItems = [
   { to: "/",        icon: "🏠", label: "Dashboard",  exact: true },
@@ -79,6 +85,95 @@ export default function AppShell() {
       setPasswordSaving(false);
     }
   };
+
+  // Passkeys States
+  const [isPasskeysOpen, setIsPasskeysOpen] = useState(false);
+  const [passkeys, setPasskeys] = useState([]);
+  const [newPasskeyName, setNewPasskeyName] = useState("");
+  const [passkeyError, setPasskeyError] = useState("");
+  const [passkeySuccess, setPasskeySuccess] = useState("");
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
+  const fetchPasskeys = async () => {
+    try {
+      const res = await api.get("/api/auth/passkeys");
+      setPasskeys(res.data.passkeys || []);
+    } catch (err) {
+      setPasskeyError("Failed to fetch passkeys.");
+    }
+  };
+
+  useEffect(() => {
+    if (isPasskeysOpen) {
+      fetchPasskeys();
+      setNewPasskeyName("");
+      setPasskeyError("");
+      setPasskeySuccess("");
+    }
+  }, [isPasskeysOpen]);
+
+  const handleRegisterPasskey = async (e) => {
+    e.preventDefault();
+    setPasskeyError("");
+    setPasskeySuccess("");
+    setPasskeyLoading(true);
+
+    if (!isWebAuthnSupported()) {
+      setPasskeyError("Passkeys/WebAuthn are not supported on this browser or device.");
+      setPasskeyLoading(false);
+      return;
+    }
+
+    try {
+      const optionsRes = await api.post("/api/auth/register-passkey/options");
+      const options = optionsRes.data;
+
+      const preparedOptions = prepareRegistrationOptions(options);
+
+      const credential = await navigator.credentials.create({
+        publicKey: preparedOptions,
+      });
+
+      if (!credential) {
+        throw new Error("No credential returned from device.");
+      }
+
+      const formatted = formatRegistrationCredential(credential);
+
+      await api.post("/api/auth/register-passkey/verify", {
+        credential: formatted,
+        challenge: options.challenge,
+        name: newPasskeyName || "My Passkey",
+      });
+
+      setPasskeySuccess("Passkey registered successfully!");
+      setNewPasskeyName("");
+      fetchPasskeys();
+    } catch (err) {
+      console.error(err);
+      setPasskeyError(
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to register passkey. Make sure you are using HTTPS or localhost, and your device supports biometrics."
+      );
+    } finally {
+      setPasskeyLoading(false);
+    }
+  };
+
+  const handleDeletePasskey = async (passkeyId) => {
+    if (!window.confirm("Are you sure you want to delete this passkey?")) return;
+    setPasskeyError("");
+    setPasskeySuccess("");
+    try {
+      await api.delete(`/api/auth/passkeys/${passkeyId}`);
+      setPasskeySuccess("Passkey deleted successfully!");
+      fetchPasskeys();
+    } catch (err) {
+      setPasskeyError(err.response?.data?.error || "Failed to delete passkey.");
+    }
+  };
+
 
   // Close mobile drawer when route changes
   useEffect(() => {
@@ -166,6 +261,10 @@ export default function AppShell() {
             <span className="icon">🔑</span>
             Change Password
           </button>
+          <button className="nav-item w-full" onClick={() => setIsPasskeysOpen(true)} style={{ marginBottom: 4 }}>
+            <span className="icon">🛡️</span>
+            Manage Passkeys
+          </button>
           <button className="nav-item w-full" onClick={logout}>
             <span className="icon">🚪</span>
             Sign Out
@@ -251,6 +350,103 @@ export default function AppShell() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Passkeys Modal */}
+      {isPasskeysOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 500 }}>
+            <div className="modal-header">
+              <h2>Manage Biometric Passkeys</h2>
+              <button className="modal-close" onClick={() => setIsPasskeysOpen(false)}>×</button>
+            </div>
+            
+            <div className="modal-body" style={{ padding: "0 20px 20px" }}>
+              {passkeyError && <div className="alert alert-error" style={{ marginBottom: 12 }}>{passkeyError}</div>}
+              {passkeySuccess && <div className="alert alert-success" style={{ marginBottom: 12 }}>{passkeySuccess}</div>}
+              
+              {!isWebAuthnSupported() && (
+                <div className="alert alert-error" style={{ marginBottom: 12 }}>
+                  ⚠️ Your browser or device does not support WebAuthn / Passkeys, or you are not using a secure (HTTPS/localhost) connection.
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: "0.95rem", marginBottom: 10, color: "#374151" }}>Registered Passkeys</h3>
+                {passkeys.length === 0 ? (
+                  <p style={{ fontSize: "0.85rem", color: "#6B7280", fontStyle: "italic", background: "#F9FAFB", padding: 12, borderRadius: 6, border: "1px dashed #E5E7EB" }}>
+                    No biometric passkeys registered. Register your device below to log in faster.
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {passkeys.map(pk => (
+                      <div key={pk.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F9FAFB", padding: "10px 12px", borderRadius: 6, border: "1px solid #E5E7EB" }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: "0.88rem", color: "#1F2937" }}>🛡️ {pk.name || "Unnamed Passkey"}</div>
+                          <div style={{ fontSize: "0.75rem", color: "#6B7280" }}>
+                            Registered: {pk.created_at ? new Date(pk.created_at).toLocaleDateString() : "Unknown"} • Used {pk.sign_count} times
+                          </div>
+                        </div>
+                        <button 
+                          className="btn btn-ghost" 
+                          style={{ padding: "4px 8px", color: "#EF4444" }} 
+                          onClick={() => handleDeletePasskey(pk.id)}
+                          title="Delete Passkey"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {isWebAuthnSupported() && (
+                <form onSubmit={handleRegisterPasskey} style={{ borderTop: "1px solid #E5E7EB", paddingTop: 16 }}>
+                  <h3 style={{ fontSize: "0.95rem", marginBottom: 10, color: "#374151" }}>Register This Device</h3>
+                  <div className="form-group" style={{ marginBottom: 12 }}>
+                    <label className="form-label">Passkey Name *</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Face ID / Touch ID, My Laptop"
+                      value={newPasskeyName} 
+                      onChange={e => setNewPasskeyName(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary w-full" 
+                    style={{ justifyContent: "center", gap: 8 }}
+                    disabled={passkeyLoading}
+                  >
+                    {passkeyLoading ? (
+                      <>
+                        <span className="spinner" /> Authenticating...
+                      </>
+                    ) : (
+                      <>
+                        <span>🔑</span> Register Biometric Passkey
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn btn-ghost" 
+                onClick={() => setIsPasskeysOpen(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

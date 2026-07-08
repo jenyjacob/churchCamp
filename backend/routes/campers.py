@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
-from models import Camper
+from models import Camper, Tshirt
 from db import db
 
 campers_bp = Blueprint("campers", __name__)
@@ -73,6 +73,20 @@ def create_camper():
         if existing_family_member:
             waiver_status = True
 
+    kayaking = 0
+    if data.get("kayaking") is not None:
+        try:
+            kayaking = int(data.get("kayaking"))
+        except (ValueError, TypeError):
+            pass
+
+    boat_tour = 0
+    if data.get("boat_tour") is not None:
+        try:
+            boat_tour = int(data.get("boat_tour"))
+        except (ValueError, TypeError):
+            pass
+
     camper = Camper(
         first_name=data["first_name"],
         last_name=data["last_name"],
@@ -87,12 +101,118 @@ def create_camper():
         waiver_submitted=waiver_status,
         registration_status=data.get("registration_status", "registered"),
         notes=data.get("notes"),
+        kayaking=kayaking,
+        boat_tour=boat_tour,
     )
     db.session.add(camper)
     db.session.commit()
     from utils.logging import log_action
     log_action("REGISTER_CAMPER", f"Registered camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
     return jsonify({"camper": camper.to_dict()}), 201
+
+@campers_bp.route("/public-signup", methods=["POST"])
+def public_signup():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No registration details provided"}), 400
+
+    phone = data.get("phone")
+    email = data.get("email")
+    attendees = data.get("attendees", [])
+
+    if not phone:
+        return jsonify({"error": "Guardian phone number is required"}), 400
+
+    # Auto assign family group starting from 1001
+    all_family_groups = db.session.query(Camper.family_group).filter(Camper.family_group.isnot(None)).distinct().all()
+    max_num = 1000
+    for (fg,) in all_family_groups:
+        if fg and fg.isdigit():
+            max_num = max(max_num, int(fg))
+    family_group = str(max_num + 1)
+
+    if not attendees:
+        return jsonify({"error": "At least one attendee is required"}), 400
+
+    created_campers = []
+    
+    waiver_status = False
+    existing_family_member = Camper.query.filter_by(family_group=family_group, waiver_submitted=True).first()
+    if existing_family_member:
+        waiver_status = True
+
+    for att in attendees:
+        first_name = att.get("first_name")
+        last_name = att.get("last_name")
+        age = att.get("age")
+        gender = att.get("gender")
+        allergies = att.get("allergies")
+        tshirt_size = att.get("tshirt_size")
+
+        kayaking = 0
+        if att.get("kayaking") is not None:
+            try:
+                kayaking = int(att.get("kayaking"))
+            except (ValueError, TypeError):
+                pass
+
+        boat_tour = 0
+        if att.get("boat_tour") is not None:
+            try:
+                boat_tour = int(att.get("boat_tour"))
+            except (ValueError, TypeError):
+                pass
+
+        if not first_name or not last_name:
+            return jsonify({"error": "First and last name are required for all attendees"}), 400
+
+        parsed_age = None
+        if age is not None and str(age).strip() != "":
+            try:
+                parsed_age = int(age)
+            except ValueError:
+                return jsonify({"error": f"Invalid age for attendee {first_name}"}), 400
+
+            if parsed_age < 18 and (parsed_age is None or parsed_age < 0):
+                return jsonify({"error": f"Valid age is required for child attendee {first_name}"}), 400
+
+        camper = Camper(
+            first_name=first_name,
+            last_name=last_name,
+            age=parsed_age,
+            gender=gender if gender in ["male", "female"] else None,
+            family_group=str(family_group),
+            guardian_name="Self" if parsed_age is None or parsed_age >= 18 else None,
+            guardian_phone=phone,
+            allergies=allergies,
+            waiver_submitted=waiver_status,
+            registration_status="registered",
+            notes=f"Public Signup. Email: {email or 'N/A'}",
+            kayaking=kayaking,
+            boat_tour=boat_tour
+        )
+        db.session.add(camper)
+        db.session.flush()
+
+        if tshirt_size:
+            tshirt = Tshirt(
+                camper_id=camper.id,
+                attendee_name=f"{first_name} {last_name}",
+                tshirt_size=tshirt_size
+            )
+            db.session.add(tshirt)
+
+        created_campers.append(camper)
+
+    db.session.commit()
+
+    from utils.logging import log_action
+    log_action("PUBLIC_SIGNUP", f"Public signup for family group {family_group} with {len(created_campers)} attendees")
+
+    return jsonify({
+        "message": "Registration successful!",
+        "campers": [c.to_dict() for c in created_campers]
+    }), 201
 
 @campers_bp.route("/<int:camper_id>", methods=["PUT"])
 @jwt_required()
@@ -111,7 +231,11 @@ def update_camper(camper_id):
     if role == "director":
         for field in ["kayaking", "boat_tour"]:
             if field in data:
-                setattr(camper, field, data[field])
+                try:
+                    val = int(data[field]) if data[field] is not None else 0
+                except (ValueError, TypeError):
+                    val = 0
+                setattr(camper, field, val)
     else:
         fields = [
             "first_name", "last_name", "date_of_birth", "age", "gender", "grade",
@@ -125,7 +249,13 @@ def update_camper(camper_id):
 
         for field in fields:
             if field in data:
-                setattr(camper, field, data[field])
+                val = data[field]
+                if field in ["kayaking", "boat_tour"]:
+                    try:
+                        val = int(val) if val is not None else 0
+                    except (ValueError, TypeError):
+                        val = 0
+                setattr(camper, field, val)
 
         if waiver_changed and camper.family_group:
             Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": camper.waiver_submitted})

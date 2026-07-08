@@ -11,6 +11,7 @@ import CabinsPage from "./pages/CabinsPage";
 import SchedulePage from "./pages/SchedulePage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import OutdoorPage from "./pages/OutdoorPage";
+import SignupPage from "./pages/SignupPage";
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -42,6 +43,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       
       {/* Public Schedule Path - Redirects to /app/schedule if logged in */}
       <Route path="/schedule" element={user ? <Navigate to="/app/schedule" replace /> : <SchedulePage />} />
