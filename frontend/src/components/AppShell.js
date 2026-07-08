@@ -40,6 +40,7 @@ function NavItem({ to, icon, label, exact }) {
 export default function AppShell() {
   const { user, logout, isAdmin } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
 
   // Change Password States
@@ -257,14 +258,23 @@ export default function AppShell() {
               <div className="role-tag">{user?.role}</div>
             </div>
           </div>
-          <button className="nav-item w-full" onClick={() => setIsChangePasswordOpen(true)} style={{ marginBottom: 4 }}>
-            <span className="icon">🔑</span>
-            Change Password
+          <button className="nav-item w-full" onClick={() => setIsSettingsOpen(!isSettingsOpen)} style={{ marginBottom: 4 }}>
+            <span className="icon">⚙️</span>
+            Settings
+            <span style={{ marginLeft: "auto", fontSize: "0.75rem", transform: isSettingsOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
           </button>
-          <button className="nav-item w-full" onClick={() => setIsPasskeysOpen(true)} style={{ marginBottom: 4 }}>
-            <span className="icon">🛡️</span>
-            Manage Passkeys
-          </button>
+          {isSettingsOpen && (
+            <div style={{ paddingLeft: 12, display: "flex", flexDirection: "column", gap: 2, marginBottom: 4 }}>
+              <button className="nav-item w-full" onClick={() => setIsChangePasswordOpen(true)} style={{ fontSize: "0.825rem", padding: "8px 10px" }}>
+                <span className="icon">🔑</span>
+                Change Password
+              </button>
+              <button className="nav-item w-full" onClick={() => setIsPasskeysOpen(true)} style={{ fontSize: "0.825rem", padding: "8px 10px" }}>
+                <span className="icon">🛡️</span>
+                Manage Passkeys
+              </button>
+            </div>
+          )}
           <button className="nav-item w-full" onClick={logout}>
             <span className="icon">🚪</span>
             Sign Out

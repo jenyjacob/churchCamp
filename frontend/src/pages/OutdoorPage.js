@@ -187,15 +187,22 @@ export default function OutdoorPage() {
               .outdoor-header {
                 flex-direction: column;
                 align-items: stretch !important;
+                gap: 12px !important;
               }
               .outdoor-actions {
                 width: 100%;
                 display: flex;
-                gap: 8px;
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 8px !important;
               }
               .outdoor-actions .search-box {
                 max-width: none !important;
-                flex: 1;
+                width: 100% !important;
+              }
+              .outdoor-actions button {
+                width: 100% !important;
+                justify-content: center;
               }
             }
           `}</style>
@@ -230,7 +237,7 @@ export default function OutdoorPage() {
               <p className="text-muted">No reservations found.</p>
             </div>
           ) : (
-            <div className="table-responsive">
+            <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
