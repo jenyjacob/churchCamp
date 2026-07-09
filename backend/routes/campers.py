@@ -291,11 +291,17 @@ def get_stats():
         if any(ci.checked_out_at is None for ci in c.checkins)
     )
     waivers_submitted = Camper.query.filter_by(waiver_submitted=True).count()
+    total_families = db.session.query(Camper.family_group).filter(
+        Camper.family_group.isnot(None),
+        Camper.family_group != ""
+    ).distinct().count()
+
     return jsonify({
         "total_registered": total,
         "status_registered": registered,
         "checked_in": checked_in,
         "waivers_submitted": waivers_submitted,
+        "total_families": total_families,
     }), 200
 
 @campers_bp.route("/outdoor", methods=["GET"])

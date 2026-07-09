@@ -57,6 +57,11 @@ export default function HomePage() {
                 <div className="sub">campers enrolled</div>
               </div>
               <div className="stat-card gold-accent">
+                <div className="label">Family Groups</div>
+                <div className="value" style={{ color: "var(--gold)" }}>{stats?.total_families ?? "—"}</div>
+                <div className="sub">families registered</div>
+              </div>
+              <div className="stat-card gold-accent">
                 <div className="label">Checked In Now</div>
                 <div className="value" style={{ color: "var(--gold)" }}>{stats?.checked_in ?? "—"}</div>
                 <div className="sub">currently on site</div>
@@ -66,7 +71,6 @@ export default function HomePage() {
                 <div className="value">{stats?.status_registered ?? "—"}</div>
                 <div className="sub">registration confirmed</div>
               </div>
-
             </div>
 
             <div className="dashboard-grid">
