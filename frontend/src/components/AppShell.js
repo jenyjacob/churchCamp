@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import {
@@ -189,10 +189,10 @@ export default function AppShell() {
     <div className="app-shell">
       {/* Mobile Sticky Header */}
       <header className="mobile-header">
-        <div className="mobile-brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Link to="/" className="mobile-brand" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
           <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 28, width: 28, objectFit: "contain", background: "white", borderRadius: "50%", padding: 1 }} />
           <span>GCA Camp Manager</span>
-        </div>
+        </Link>
         <button 
           className="mobile-menu-toggle"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -208,9 +208,11 @@ export default function AppShell() {
       )}
 
       <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
-        <div className="sidebar-brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", paddingBottom: 16 }}>
-          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 52, width: 52, marginBottom: 12, objectFit: "contain", background: "white", borderRadius: "50%", padding: 2 }} />
-          <h2 style={{ fontSize: "1rem" }}>GCA Camp Registration</h2>
+        <div className="sidebar-brand" style={{ paddingBottom: 16 }}>
+          <Link to="/" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", textDecoration: "none", color: "inherit" }}>
+            <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 52, width: 52, marginBottom: 12, objectFit: "contain", background: "white", borderRadius: "50%", padding: 2, cursor: "pointer" }} />
+            <h2 style={{ fontSize: "1rem", cursor: "pointer" }}>GCA Camp Registration</h2>
+          </Link>
         </div>
 
         <nav className="sidebar-nav">

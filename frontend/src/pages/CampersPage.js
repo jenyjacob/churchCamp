@@ -136,6 +136,12 @@ export default function CampersPage() {
   const [modal, setModal] = useState(null); // null | "add" | camper object
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem("camperViewMode") || "table");
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem("camperViewMode", mode);
+  };
 
   const fetchCampers = useCallback(() => {
     setLoading(true);
@@ -165,6 +171,27 @@ export default function CampersPage() {
     }
   };
 
+  // Group campers for Family View mode
+  const families = {};
+  const individuals = [];
+  campers.forEach(c => {
+    if (c.family_group) {
+      if (!families[c.family_group]) {
+        families[c.family_group] = [];
+      }
+      families[c.family_group].push(c);
+    } else {
+      individuals.push(c);
+    }
+  });
+
+  const sortedFamilyKeys = Object.keys(families).sort((a, b) => {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+    return a.localeCompare(b);
+  });
+
   return (
     <>
       <div className="top-bar">
@@ -193,65 +220,182 @@ export default function CampersPage() {
             <option value="waitlist">Waitlist</option>
             <option value="cancelled">Cancelled</option>
           </select>
+          
+          {/* View Mode Toggle switcher */}
+          <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+            <button 
+              type="button"
+              className={`btn ${viewMode === "table" ? "btn-primary" : "btn-ghost"}`}
+              style={{ borderRadius: 0, padding: "6px 12px", border: "none", fontSize: "0.85rem" }}
+              onClick={() => handleViewModeChange("table")}
+            >
+              📋 Table
+            </button>
+            <button 
+              type="button"
+              className={`btn ${viewMode === "family" ? "btn-primary" : "btn-ghost"}`}
+              style={{ borderRadius: 0, padding: "6px 12px", border: "none", fontSize: "0.85rem" }}
+              onClick={() => handleViewModeChange("family")}
+            >
+              🗂️ Families
+            </button>
+          </div>
+
           <span className="text-muted">{total} camper{total !== 1 ? "s" : ""}</span>
         </div>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Cabin / Group</th>
-                <th>Family Group</th>
-                <th>Registration</th>
-                <th>Check-In</th>
-                {isAdmin && <th>Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
-              ) : campers.length === 0 ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
-              ) : campers.map((c, i) => (
-                <tr 
-                  key={c.id}
-                  style={c.family_group ? { 
-                    borderLeft: "4px solid var(--gold)",
-                    backgroundColor: "rgba(180, 151, 90, 0.02)"
-                  } : {}}
-                >
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{c.full_name}</div>
-                    {c.guardian_name && <div className="text-muted">{c.guardian_name}</div>}
-                  </td>
-                  <td>{c.age ?? "—"}</td>
-                  <td>{c.cabin_group || "—"}</td>
-                  <td>
-                    {c.family_group ? (
-                      <span className="badge badge-gold" style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 600 }}>
-                        👨‍👩‍👧‍👦 Family #{c.family_group}
-                      </span>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td><span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`}>{c.registration_status}</span></td>
-                  <td>{c.checked_in ? <span className="badge badge-green">Checked In</span> : <span className="badge badge-gray">Not In</span>}</td>
-                  {isAdmin && (
-                    <td>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setModal(c)}>Edit</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(c)}>Delete</button>
-                      </div>
-                    </td>
-                  )}
+        {viewMode === "table" ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Age</th>
+                  <th>Cabin / Group</th>
+                  <th>Family Group</th>
+                  <th>Registration</th>
+                  <th>Check-In</th>
+                  {isAdmin && <th>Actions</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
+                ) : campers.length === 0 ? (
+                  <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
+                ) : campers.map((c, i) => (
+                  <tr 
+                    key={c.id}
+                    style={c.family_group ? { 
+                      borderLeft: "4px solid var(--gold)",
+                      backgroundColor: "rgba(180, 151, 90, 0.02)"
+                    } : {}}
+                  >
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{c.full_name}</div>
+                      {c.guardian_name && <div className="text-muted">{c.guardian_name}</div>}
+                    </td>
+                    <td>{c.age ?? "—"}</td>
+                    <td>{c.cabin_group || "—"}</td>
+                    <td>
+                      {c.family_group ? (
+                        <span className="badge badge-gold" style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 600 }}>
+                          👨‍👩‍👧‍👦 Family #{c.family_group}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td><span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`}>{c.registration_status}</span></td>
+                    <td>{c.checked_in ? <span className="badge badge-green">Checked In</span> : <span className="badge badge-gray">Not In</span>}</td>
+                    {isAdmin && (
+                      <td>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setModal(c)}>Edit</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(c)}>Delete</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* Family Groups Box Layout View */
+          loading ? (
+            <div className="text-center" style={{ padding: 48, color: "var(--muted)" }}>Loading…</div>
+          ) : campers.length === 0 ? (
+            <div className="text-center" style={{ padding: 48, color: "var(--muted)" }}>No campers found.</div>
+          ) : (
+            <div className="family-grid">
+              {sortedFamilyKeys.map(fg => {
+                const members = families[fg];
+                const guardianPhone = members.find(m => m.guardian_phone)?.guardian_phone;
+                return (
+                  <div key={fg} className="family-card">
+                    <div className="family-card-header">
+                      <h3 className="family-card-title">👨‍👩‍👧‍👦 Family #{fg}</h3>
+                      <span className="text-muted" style={{ fontSize: "0.75rem" }}>{members.length} member{members.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="family-card-body">
+                      {members.map(c => (
+                        <div key={c.id} className="family-member-row">
+                          <div className="family-member-header">
+                            <span className="family-member-name">{c.full_name}</span>
+                            <span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`} style={{ fontSize: "0.7rem", padding: "2px 6px" }}>{c.registration_status}</span>
+                          </div>
+                          <div className="family-member-meta">
+                            {c.age && <span>Age: {c.age}</span>}
+                            {c.cabin_group && <span>Cabin: {c.cabin_group}</span>}
+                            <span>{c.checked_in ? "🟢 Checked In" : "⚪ Not In"}</span>
+                          </div>
+                          {c.allergies && (
+                            <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 2, fontWeight: 500 }}>
+                              ⚠️ Allergies: {c.allergies}
+                            </div>
+                          )}
+                          <div className="family-member-footer">
+                            <div style={{ fontSize: "0.75rem" }} className="text-muted">
+                              {c.guardian_phone || guardianPhone ? `📞 ${c.guardian_phone || guardianPhone}` : ""}
+                            </div>
+                            {isAdmin && (
+                              <div className="family-member-actions">
+                                <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setModal(c)}>Edit</button>
+                                <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setDeleteTarget(c)}>Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Unassigned / Individuals Group Card */}
+              {individuals.length > 0 && (
+                <div className="family-card" style={{ borderTop: "4px solid var(--forest)" }}>
+                  <div className="family-card-header" style={{ background: "rgba(34, 76, 56, 0.05)" }}>
+                    <h3 className="family-card-title" style={{ color: "var(--forest)" }}>👤 Individual Registrations</h3>
+                    <span className="text-muted" style={{ fontSize: "0.75rem" }}>{individuals.length} member{individuals.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="family-card-body">
+                    {individuals.map(c => (
+                      <div key={c.id} className="family-member-row">
+                        <div className="family-member-header">
+                          <span className="family-member-name">{c.full_name}</span>
+                          <span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`} style={{ fontSize: "0.7rem", padding: "2px 6px" }}>{c.registration_status}</span>
+                        </div>
+                        <div className="family-member-meta">
+                          {c.age && <span>Age: {c.age}</span>}
+                          {c.cabin_group && <span>Cabin: {c.cabin_group}</span>}
+                          <span>{c.checked_in ? "🟢 Checked In" : "⚪ Not In"}</span>
+                        </div>
+                        {c.allergies && (
+                          <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 2, fontWeight: 500 }}>
+                            ⚠️ Allergies: {c.allergies}
+                          </div>
+                        )}
+                        <div className="family-member-footer">
+                          <div style={{ fontSize: "0.75rem" }} className="text-muted">
+                            {c.guardian_phone ? `📞 ${c.guardian_phone}` : c.guardian_name ? `👤 ${c.guardian_name}` : ""}
+                          </div>
+                          {isAdmin && (
+                            <div className="family-member-actions">
+                              <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setModal(c)}>Edit</button>
+                              <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setDeleteTarget(c)}>Delete</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        )}
 
         {pages > 1 && (
           <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "center" }}>
