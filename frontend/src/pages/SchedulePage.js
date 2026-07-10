@@ -228,53 +228,40 @@ export default function SchedulePage() {
                 
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {sortedEventsForDay.map(evt => (
-                  <div key={evt.id} style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 16,
-                    paddingBottom: 16,
-                    borderBottom: "1px dashed rgba(0,0,0,0.06)",
-                  }}>
-                    <div style={{ display: "flex", gap: 16, flex: 1 }}>
-                      {/* Time bar indicator */}
-                      <div style={{
-                        minWidth: 100,
-                        fontWeight: 600,
-                        color: "var(--forest-mid)",
-                        fontSize: "0.85rem",
-                        paddingTop: 2,
-                      }}>
-                        ⏰ {evt.time}
-                      </div>
-
-                      {/* Details */}
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: "0.95rem", color: "var(--charcoal)" }}>
-                          {evt.title}
+                    <div key={evt.id} className="schedule-event-row">
+                      <div className="schedule-event-main">
+                        {/* Time bar indicator */}
+                        <div className="schedule-event-time">
+                          ⏰ {evt.time}
                         </div>
-                        {evt.location && (
-                          <div style={{ fontSize: "0.8rem", color: "var(--gold)", fontWeight: 500, marginTop: 2 }}>
-                            📍 {evt.location}
-                          </div>
-                        )}
-                        {evt.description && (
-                          <div className="text-muted" style={{ fontSize: "0.85rem", marginTop: 4, whiteSpace: "pre-line" }}>
-                            {evt.description}
-                          </div>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Admin edits */}
-                    {isAdmin && (
-                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEditModal(evt)} style={{ padding: "4px 8px" }}>Edit</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(evt)} style={{ padding: "4px 8px" }}>Delete</button>
+                        {/* Details */}
+                        <div className="schedule-event-details">
+                          <div className="schedule-event-title">
+                            {evt.title}
+                          </div>
+                          {evt.location && (
+                            <div className="schedule-event-location">
+                              📍 {evt.location}
+                            </div>
+                          )}
+                          {evt.description && (
+                            <div className="schedule-event-description">
+                              {evt.description}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Admin edits */}
+                      {isAdmin && (
+                        <div className="schedule-event-actions">
+                          <button className="btn btn-ghost btn-sm" onClick={() => openEditModal(evt)} style={{ padding: "4px 8px" }}>Edit</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(evt)} style={{ padding: "4px 8px" }}>Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
             </div>
           );
