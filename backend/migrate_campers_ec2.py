@@ -88,6 +88,11 @@ def migrate():
         cursor.execute("DELETE FROM campers")
         print("Cleaned existing campers & checkins tables in transaction.")
 
+        # Print debug Excel info
+        print(f"Total data rows to migrate: {len(data_rows)}")
+        for idx, row in enumerate(data_rows[:5]):
+            print(f"Excel Debug Row {idx}: {row}")
+
         # 4. First pass: group adults by Family Group to extract parent/guardian details
         family_guardians = {}
         for row in data_rows:
@@ -180,6 +185,9 @@ def migrate():
                 guardian_name = "Self"
                 guardian_phone = str(phone).strip() if phone else None
                 
+            if inserted_count < 5:
+                print(f"Parsed Camper {inserted_count}: first_name='{first_name}' (len={len(first_name) if first_name else 0}), last_name='{last_name}' (len={len(last_name) if last_name else 0})")
+
             cursor.execute(insert_sql, (
                 first_name,
                 last_name,
