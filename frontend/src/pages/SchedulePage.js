@@ -78,15 +78,68 @@ export default function SchedulePage() {
     setModalOpen(true);
   };
 
+  const parseTimeRangeStr = (timeStr) => {
+    if (!timeStr) return [0, 0];
+    if (timeStr.includes(" - ")) {
+      const parts = timeStr.split(" - ");
+      return [timeToMinutes(parts[0]), timeToMinutes(parts[1])];
+    }
+    const m = timeToMinutes(timeStr);
+    return [m, m];
+  };
+
+  const isOverlappingRanges = (range1, range2) => {
+    const [s1, e1] = range1;
+    const [s2, e2] = range2;
+    if (s1 === e1 && s2 === e2) return s1 === s2;
+    if (s1 === e1) return s2 <= s1 && s1 < e2;
+    if (s2 === e2) return s1 <= s2 && s2 < e1;
+    return s1 < e2 && s2 < e1;
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!startTime || !endTime) {
+      flash("error", "Both Start Time and End Time are required.");
+      return;
+    }
+    const startMin = timeToMinutes(startTime);
+    const endMin = timeToMinutes(endTime);
+    if (endMin <= startMin) {
+      flash("error", "End Time must be after Start Time.");
+      return;
+    }
+
+    // Check for client-side overlap to restrict overlapping instantly!
+    const newRange = [startMin, endMin];
+    const isConflict = events.some(evt => {
+      // Skip checking the same event if editing
+      if (activeEvent.id && evt.id === activeEvent.id) return false;
+      // Must be the same day
+      if (evt.day !== activeEvent.day) return false;
+      
+      // Parse existing range
+      const existingRange = parseTimeRangeStr(evt.time);
+      return isOverlappingRanges(newRange, existingRange);
+    });
+    
+    if (isConflict) {
+      alert(`⚠️ Time Conflict Alert\n\nThe selected time slot (${startTime} - ${endTime}) overlaps with an existing event on ${activeEvent.day}. Please select a different time range.`);
+      return;
+    }
+
     setSaving(true);
+    const eventToSave = {
+      ...activeEvent,
+      time: `${startTime} - ${endTime}`
+    };
+
     try {
       if (activeEvent.id) {
-        await api.put(`/api/schedule/${activeEvent.id}`, activeEvent);
+        await api.put(`/api/schedule/${activeEvent.id}`, eventToSave);
         flash("success", "Event updated successfully!");
       } else {
-        await api.post("/api/schedule/", activeEvent);
+        await api.post("/api/schedule/", eventToSave);
         flash("success", "Event created successfully!");
       }
       setModalOpen(false);
@@ -283,7 +336,7 @@ export default function SchedulePage() {
                    <span style={{ marginTop: 20, color: "var(--muted)" }}>to</span>
 
                    <div style={{ flex: 1 }}>
-                     <span style={{ fontSize: "0.72rem", color: "var(--muted)", display: "block", marginBottom: 4 }}>To (Optional)</span>
+                     <span style={{ fontSize: "0.72rem", color: "var(--muted)", display: "block", marginBottom: 4 }}>To *</span>
                      <select
                        className="form-select"
                        value={endTime}
@@ -296,8 +349,9 @@ export default function SchedulePage() {
                            setActiveEvent({ ...activeEvent, time: startTime });
                          }
                        }}
+                       required
                      >
-                       <option value="">No end time</option>
+                       <option value="">End Time...</option>
                        {TIME_INTERVALS.map(t => (
                          <option key={`end-${t}`} value={t}>{t}</option>
                        ))}

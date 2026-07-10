@@ -222,19 +222,19 @@ export default function CampersPage() {
           </select>
           
           {/* View Mode Toggle switcher */}
-          <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+          <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden", flex: 1, minWidth: "160px" }}>
             <button 
               type="button"
               className={`btn ${viewMode === "table" ? "btn-primary" : "btn-ghost"}`}
-              style={{ borderRadius: 0, padding: "6px 12px", border: "none", fontSize: "0.85rem" }}
+              style={{ flex: 1, borderRadius: 0, padding: "6px 12px", border: "none", fontSize: "0.85rem", textAlign: "center" }}
               onClick={() => handleViewModeChange("table")}
             >
-              📋 Table
+              📋 List
             </button>
             <button 
               type="button"
               className={`btn ${viewMode === "family" ? "btn-primary" : "btn-ghost"}`}
-              style={{ borderRadius: 0, padding: "6px 12px", border: "none", fontSize: "0.85rem" }}
+              style={{ flex: 1, borderRadius: 0, padding: "6px 12px", border: "none", fontSize: "0.85rem", textAlign: "center" }}
               onClick={() => handleViewModeChange("family")}
             >
               🗂️ Families
