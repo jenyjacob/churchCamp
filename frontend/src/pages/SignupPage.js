@@ -3,8 +3,8 @@ import api from "../utils/api";
 
 const TSHIRT_SIZES = [
   "2T", "3T", "4T", "5T",
-  "Youth XS", "Youth S", "Youth M", "Youth L", "Youth XL",
-  "Adult S", "Adult M", "Adult L", "Adult XL", "Adult 2XL", "Adult 3XL", "Adult 4XL", "Adult 5XL"
+  "YXXS", "YXS", "YS", "YM", "YL", "YXL",
+  "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"
 ];
 
 export default function SignupPage() {

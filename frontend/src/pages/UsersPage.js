@@ -35,7 +35,7 @@ function UserModal({ user, currentUser, onClose, onSave }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 480 }}>
         <div className="modal-header">
-          <h2>{user?.id ? "Edit User" : "Add Staff User"}</h2>
+          <h2>{user?.id ? "Edit User" : "Add Registration Team User"}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         {error && <div className="alert alert-error">{error}</div>}
@@ -59,7 +59,7 @@ function UserModal({ user, currentUser, onClose, onSave }) {
           <div className="form-group">
             <label className="form-label">Role *</label>
             <select className="form-select" value={form.role} onChange={e => set("role", e.target.value)}>
-              <option value="user">Staff (View Only)</option>
+              <option value="user">Registration Team (View Only)</option>
               <option value="director">Camp Director (View Only)</option>
               <option value="admin">Admin (Full Access)</option>
               {currentUser?.role === "owner" && (
@@ -89,7 +89,8 @@ function UserModal({ user, currentUser, onClose, onSave }) {
 }
 
 export default function UsersPage() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, hasPermission } = useAuth();
+  const canEdit = hasPermission("users", "edit");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -119,15 +120,15 @@ export default function UsersPage() {
   return (
     <>
       <div className="top-bar">
-        <h1>Staff Users</h1>
-        <button className="btn btn-primary" onClick={() => setModal("add")}>➕ Add User</button>
+        <h1>Registration Team Users</h1>
+        {canEdit && <button className="btn btn-primary" onClick={() => setModal("add")}>➕ Add User</button>}
       </div>
 
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="alert alert-warn" style={{ marginBottom: 20 }}>
-          ⚙️ <strong>Admin only.</strong> Manage staff accounts and permissions here.
+          ⚙️ <strong>Admin only.</strong> Manage Registration Team accounts and permissions here.
         </div>
 
         <div className="table-wrap">
@@ -155,7 +156,7 @@ export default function UsersPage() {
                   <td>{u.email || "—"}</td>
                   <td>
                     <span className={`badge ${u.role === "owner" ? "badge-red" : u.role === "admin" ? "badge-gold" : u.role === "director" ? "badge-green" : "badge-blue"}`}>
-                      {u.role === "owner" ? "Owner" : u.role === "admin" ? "Admin" : u.role === "director" ? "Camp Director" : "Staff"}
+                      {u.role === "owner" ? "Owner" : u.role === "admin" ? "Admin" : u.role === "director" ? "Camp Director" : "Registration Team"}
                     </span>
                   </td>
                   <td>
@@ -164,22 +165,26 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button 
-                        className="btn btn-ghost btn-sm" 
-                        onClick={() => setModal(u)}
-                        disabled={u.role === "owner" && currentUser?.role !== "owner"}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => setDeleteTarget(u)}
-                        disabled={u.id === currentUser?.id || (u.role === "owner" && currentUser?.role !== "owner")}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    {canEdit ? (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button 
+                          className="btn btn-ghost btn-sm" 
+                          onClick={() => setModal(u)}
+                          disabled={u.role === "owner" && currentUser?.role !== "owner"}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => setDeleteTarget(u)}
+                          disabled={u.id === currentUser?.id || (u.role === "owner" && currentUser?.role !== "owner")}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-muted" style={{ fontSize: "0.8rem" }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))}

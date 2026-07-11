@@ -41,8 +41,9 @@ def migrate():
     try:
         # Clear existing campers to prevent duplicates (will not commit until the end of transaction)
         cursor.execute("DELETE FROM checkins")
+        cursor.execute("DELETE FROM tshirts")
         cursor.execute("DELETE FROM campers")
-        print("Cleaned existing campers & checkins tables in transaction.")
+        print("Cleaned existing campers, checkins & tshirts tables in transaction.")
 
         # 3. First pass: group adults by Family Group to extract parent/guardian details
         family_guardians = {}
@@ -151,6 +152,18 @@ def migrate():
                 kayaking_val,
                 boat_tour_val
             ))
+            
+            # Retrieve the newly inserted camper ID
+            camper_id = cursor.lastrowid
+            raw_size = row[3]
+            if raw_size:
+                tshirt_size = str(raw_size).strip()
+                if tshirt_size:
+                    cursor.execute(
+                        "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size) VALUES (%s, %s, %s)",
+                        (camper_id, name, tshirt_size)
+                    )
+            
             inserted_count += 1
             
         conn.commit()

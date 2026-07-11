@@ -82,11 +82,10 @@ export default function HomePage() {
       </div>
 
       <div className="page-body">
-        <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.5rem", color: "var(--forest)", marginBottom: 4 }}>
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.5rem", color: "var(--forest)", marginBottom: 0 }}>
             {greeting()}, {user?.full_name?.split(" ")[0] || user?.username}! 👋
           </h2>
-          <p className="text-muted">Here's what's happening at camp today.</p>
         </div>
 
         <div className="card" style={{

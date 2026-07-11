@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 export default function OutdoorPage() {
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission("outdoor", "edit");
   const [campers, setCampers] = useState([]);
   const [totalKayaking, setTotalKayaking] = useState(0);
   const [totalBoatTour, setTotalBoatTour] = useState(0);
@@ -219,13 +222,15 @@ export default function OutdoorPage() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <button
-                className="btn btn-forest"
-                onClick={handleOpenAddModal}
-                style={{ padding: "0 16px", height: "38px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600 }}
-              >
-                <span>➕</span> Add Participant
-              </button>
+              {canEdit && (
+                <button
+                  className="btn btn-forest"
+                  onClick={handleOpenAddModal}
+                  style={{ padding: "0 16px", height: "38px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600 }}
+                >
+                  <span>➕</span> Add Participant
+                </button>
+              )}
             </div>
           </div>
 
@@ -244,7 +249,7 @@ export default function OutdoorPage() {
                     <th>Camper Name</th>
                     <th style={{ textAlign: "center" }}>🛶 Kayaking</th>
                     <th style={{ textAlign: "center" }}>🚤 Boat Tour</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
+                    {canEdit && <th style={{ textAlign: "right" }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -257,14 +262,16 @@ export default function OutdoorPage() {
                       <td style={{ textAlign: "center", fontWeight: c.boat_tour > 0 ? 700 : 400, color: c.boat_tour > 0 ? "var(--gold)" : "inherit" }}>
                         {c.boat_tour > 0 ? `${c.boat_tour} spots` : "—"}
                       </td>
-                      <td style={{ textAlign: "right" }}>
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => handleEditClick(c)}
-                        >
-                          Edit Spots
-                        </button>
-                      </td>
+                      {canEdit && (
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleEditClick(c)}
+                          >
+                            Edit Spots
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

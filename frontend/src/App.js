@@ -12,6 +12,9 @@ import SchedulePage from "./pages/SchedulePage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import OutdoorPage from "./pages/OutdoorPage";
 import SignupPage from "./pages/SignupPage";
+import TShirtsPage from "./pages/TShirtsPage";
+import RoleAssignerPage from "./pages/RoleAssignerPage";
+
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -19,23 +22,10 @@ function RequireAuth({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
-function RequireAdmin({ children }) {
-  const { isAdmin, loading } = useAuth();
-  if (loading) return null;
-  return isAdmin ? children : <Navigate to="/" replace />;
-}
-
-function RequireAdminOrDirector({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  const hasAccess = user?.role === "admin" || user?.role === "owner" || user?.role === "director";
-  return hasAccess ? children : <Navigate to="/" replace />;
-}
-
-function RequireOwner({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  return user?.role === "owner" ? children : <Navigate to="/" replace />;
+function RequirePermission({ pageKey, children }) {
+  const { hasPermission, loading } = useAuth();
+  if (loading) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh" }}><div className="spinner" style={{border:"3px solid #ccc",borderTopColor:"#1E4D2B"}} /></div>;
+  return hasPermission(pageKey, "hide") ? children : <Navigate to="/" replace />;
 }
 
 function AppRoutes() {
@@ -49,14 +39,16 @@ function AppRoutes() {
       <Route path="/schedule" element={user ? <Navigate to="/app/schedule" replace /> : <SchedulePage />} />
       
       <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
-        <Route index element={<HomePage />} />
-        <Route path="campers" element={<CampersPage />} />
-        <Route path="checkin" element={<CheckInPage />} />
-        <Route path="cabins" element={<RequireAdminOrDirector><CabinsPage /></RequireAdminOrDirector>} />
-        <Route path="app/schedule" element={<RequireAdminOrDirector><SchedulePage /></RequireAdminOrDirector>} />
-        <Route path="outdoor" element={<RequireAdminOrDirector><OutdoorPage /></RequireAdminOrDirector>} />
-        <Route path="users" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
-        <Route path="logs" element={<RequireOwner><AuditLogsPage /></RequireOwner>} />
+        <Route index element={<RequirePermission pageKey="dashboard"><HomePage /></RequirePermission>} />
+        <Route path="campers" element={<RequirePermission pageKey="campers"><CampersPage /></RequirePermission>} />
+        <Route path="checkin" element={<RequirePermission pageKey="checkin"><CheckInPage /></RequirePermission>} />
+        <Route path="cabins" element={<RequirePermission pageKey="cabins"><CabinsPage /></RequirePermission>} />
+        <Route path="app/schedule" element={<RequirePermission pageKey="schedule"><SchedulePage /></RequirePermission>} />
+        <Route path="outdoor" element={<RequirePermission pageKey="outdoor"><OutdoorPage /></RequirePermission>} />
+        <Route path="tshirts" element={<RequirePermission pageKey="apparel"><TShirtsPage /></RequirePermission>} />
+        <Route path="users" element={<RequirePermission pageKey="users"><UsersPage /></RequirePermission>} />
+        <Route path="logs" element={<RequirePermission pageKey="logs"><AuditLogsPage /></RequirePermission>} />
+        <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

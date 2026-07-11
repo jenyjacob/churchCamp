@@ -10,17 +10,19 @@ import {
 
 
 const navItems = [
-  { to: "/",        icon: "🏠", label: "Dashboard",  exact: true },
-  { to: "/campers", icon: "👤", label: "Campers"  },
-  { to: "/checkin", icon: "✅", label: "Check-In"  },
-  { to: "/cabins",  icon: "⛺", label: "Cabins"  },
-  { to: "/app/schedule", icon: "📅", label: "Schedule" },
-  { to: "/outdoor", icon: "🛶", label: "Outdoor Activities" },
+  { to: "/",        icon: "🏠", label: "Dashboard",  exact: true, pageKey: "dashboard" },
+  { to: "/campers", icon: "👤", label: "Campers", pageKey: "campers" },
+  { to: "/checkin", icon: "✅", label: "Check-In", pageKey: "checkin" },
+  { to: "/cabins",  icon: "⛺", label: "Cabins", pageKey: "cabins" },
+  { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
+  { to: "/outdoor", icon: "🛶", label: "Outdoor Activities", pageKey: "outdoor" },
+  { to: "/tshirts", icon: "👕", label: "Apparel", pageKey: "apparel" },
 ];
 
 const adminItems = [
-  { to: "/users",   icon: "⚙️", label: "Users"  },
-  { to: "/logs",    icon: "📄", label: "Audit Logs" },
+  { to: "/users",   icon: "⚙️", label: "Users", pageKey: "users" },
+  { to: "/logs",    icon: "📄", label: "Audit Logs", pageKey: "logs" },
+  { to: "/role-assigner", icon: "🛡️", label: "Role Assigner", pageKey: "role_assigner" },
 ];
 
 function NavItem({ to, icon, label, exact }) {
@@ -38,7 +40,7 @@ function NavItem({ to, icon, label, exact }) {
 }
 
 export default function AppShell() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
@@ -217,33 +219,17 @@ export default function AppShell() {
 
         <nav className="sidebar-nav">
           {navItems
-            .filter(item => {
-              const isStaff = user?.role === "user";
-              if (isStaff) {
-                return ["/", "/campers", "/checkin"].includes(item.to);
-              }
-              // Directors (role === 'director') can access both check-in, campers, AND outdoor activities!
-              const isDirector = user?.role === "director";
-              if (isDirector) {
-                return ["/", "/campers", "/checkin", "/outdoor", "/app/schedule", "/cabins"].includes(item.to);
-              }
-              return true;
-            })
+            .filter(item => hasPermission(item.pageKey, "hide"))
             .map(item => (
               <NavItem key={item.to} {...item} />
             ))
           }
-          {isAdmin && (
+          {adminItems.some(item => hasPermission(item.pageKey, "hide")) && (
             <>
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" }} />
               <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "4px 12px 2px" }}>Admin</div>
               {adminItems
-                .filter(item => {
-                  if (item.to === "/logs") {
-                    return user?.role === "owner";
-                  }
-                  return true;
-                })
+                .filter(item => hasPermission(item.pageKey, "hide"))
                 .map(item => (
                   <NavItem key={item.to} {...item} />
                 ))

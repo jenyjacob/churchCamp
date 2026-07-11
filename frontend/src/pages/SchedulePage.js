@@ -23,7 +23,8 @@ const TIME_INTERVALS = generateTimeOptions();
 const EMPTY_EVENT = { day: "", time: "", title: "", location: "", description: "" };
 
 export default function SchedulePage() {
-  const { user, isAdmin } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = hasPermission("schedule", "edit");
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

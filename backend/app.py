@@ -14,6 +14,7 @@ from routes.campers import campers_bp
 from routes.checkin import checkin_bp
 from routes.users import users_bp
 from routes.schedule import schedule_bp
+from routes.permissions import permissions_bp
 
 def create_app():
     app = Flask(__name__)
@@ -28,6 +29,7 @@ def create_app():
     app.register_blueprint(checkin_bp, url_prefix="/api/checkin")
     app.register_blueprint(users_bp, url_prefix="/api/users")
     app.register_blueprint(schedule_bp, url_prefix="/api/schedule")
+    app.register_blueprint(permissions_bp, url_prefix="/api/permissions")
 
     with app.app_context():
         db.create_all()

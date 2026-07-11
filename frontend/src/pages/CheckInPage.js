@@ -3,7 +3,8 @@ import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function CheckInPage() {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission("checkin", "edit");
   const [search, setSearch] = useState("");
   const [campers, setCampers] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -244,12 +245,14 @@ export default function CheckInPage() {
                             {uncheckedFamilyCampers.length} of {familyCampers.length} members not checked in
                           </div>
                         </div>
-                        <button 
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleCheckInFamily(fg, uncheckedFamilyCampers)}
-                        >
-                          Check In All
-                        </button>
+                        {canEdit && (
+                          <button 
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleCheckInFamily(fg, uncheckedFamilyCampers)}
+                          >
+                            Check In All
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -282,7 +285,7 @@ export default function CheckInPage() {
                         <button
                           className="btn btn-primary btn-sm"
                           onClick={() => handleCheckIn(c)}
-                          disabled={c.checked_in}
+                          disabled={!canEdit || c.checked_in}
                         >
                           {c.checked_in ? "Checked In" : "Check In"}
                         </button>
@@ -335,10 +338,11 @@ export default function CheckInPage() {
                         <button
                           className="btn btn-outline btn-sm"
                           onClick={() => handleCheckOut(ci)}
+                          disabled={!canEdit}
                         >
                           Check Out
                         </button>
-                        {isAdmin && (
+                        {canEdit && (
                           <button
                             className="btn btn-danger btn-sm"
                             style={{ padding: "0 10px", minWidth: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}

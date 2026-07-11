@@ -125,7 +125,8 @@ function CamperModal({ camper, onClose, onSave }) {
 const REG_BADGE = { registered: "badge-green", waitlist: "badge-gold", cancelled: "badge-red" };
 
 export default function CampersPage() {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission("campers", "edit");
   const [campers, setCampers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -199,9 +200,11 @@ export default function CampersPage() {
     <>
       <div className="top-bar">
         <h1>Campers</h1>
-        <button className="btn btn-primary" onClick={() => setModal("add")}>
-          ➕ Register Camper
-        </button>
+        {canEdit && (
+          <button className="btn btn-primary" onClick={() => setModal("add")}>
+            ➕ Register Camper
+          </button>
+        )}
       </div>
 
       <div className="page-body">
@@ -258,14 +261,14 @@ export default function CampersPage() {
                   <th>Family Group</th>
                   <th>Registration</th>
                   <th>Check-In</th>
-                  {isAdmin && <th>Actions</th>}
+                  {canEdit && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
+                  <tr><td colSpan={canEdit ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
                 ) : campers.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
+                  <tr><td colSpan={canEdit ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
                 ) : campers.map((c, i) => (
                   <tr 
                     key={c.id}
@@ -291,7 +294,7 @@ export default function CampersPage() {
                     </td>
                     <td><span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`}>{c.registration_status}</span></td>
                     <td>{c.checked_in ? <span className="badge badge-green">Checked In</span> : <span className="badge badge-gray">Not In</span>}</td>
-                    {isAdmin && (
+                    {canEdit && (
                       <td>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => setModal(c)}>Edit</button>
@@ -342,7 +345,7 @@ export default function CampersPage() {
                             <div style={{ fontSize: "0.75rem" }} className="text-muted">
                               {c.guardian_phone || guardianPhone ? `📞 ${c.guardian_phone || guardianPhone}` : ""}
                             </div>
-                            {isAdmin && (
+                            {canEdit && (
                               <div className="family-member-actions">
                                 <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setModal(c)}>Edit</button>
                                 <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setDeleteTarget(c)}>Delete</button>
@@ -384,7 +387,7 @@ export default function CampersPage() {
                           <div style={{ fontSize: "0.75rem" }} className="text-muted">
                             {c.guardian_phone ? `📞 ${c.guardian_phone}` : c.guardian_name ? `👤 ${c.guardian_name}` : ""}
                           </div>
-                          {isAdmin && (
+                          {canEdit && (
                             <div className="family-member-actions">
                               <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setModal(c)}>Edit</button>
                               <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setDeleteTarget(c)}>Delete</button>

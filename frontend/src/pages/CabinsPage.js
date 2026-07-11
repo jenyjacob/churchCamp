@@ -13,7 +13,8 @@ const parseCabinGroup = (cabinGroupString) => {
 };
 
 export default function CabinsPage() {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = useAuth();
+  const isAdmin = hasPermission("cabins", "edit");
   
   // Campers data state
   const [campers, setCampers] = useState([]);

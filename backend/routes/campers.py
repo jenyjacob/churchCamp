@@ -268,6 +268,23 @@ def update_camper(camper_id):
                         val = 0
                 setattr(camper, field, val)
 
+        if "tshirt_size" in data:
+            t_size = data["tshirt_size"]
+            if t_size:
+                tshirt = Tshirt.query.filter_by(camper_id=camper.id).first()
+                if tshirt:
+                    tshirt.tshirt_size = t_size
+                    tshirt.attendee_name = f"{camper.first_name} {camper.last_name}"
+                else:
+                    tshirt = Tshirt(
+                        camper_id=camper.id,
+                        attendee_name=f"{camper.first_name} {camper.last_name}",
+                        tshirt_size=t_size
+                    )
+                    db.session.add(tshirt)
+            else:
+                Tshirt.query.filter_by(camper_id=camper.id).delete()
+
         if waiver_changed and camper.family_group:
             Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": camper.waiver_submitted})
             from utils.logging import log_action
