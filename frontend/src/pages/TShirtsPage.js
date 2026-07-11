@@ -60,14 +60,28 @@ export default function TShirtsPage() {
   };
 
   // Filter campers based on search query
-  const filteredCampers = campers.filter(c => {
-    if (!search) return true;
+  const filteredCampers = (() => {
+    if (!search) return campers;
     const query = search.toLowerCase();
-    const nameMatch = c.full_name?.toLowerCase().includes(query);
-    const familyMatch = c.family_group?.toLowerCase().includes(query);
-    const guardianMatch = c.guardian_name?.toLowerCase().includes(query);
-    return nameMatch || familyMatch || guardianMatch;
-  });
+    const matchingFamilyGroups = new Set(
+      campers
+        .filter(c => 
+          c.full_name?.toLowerCase().includes(query) ||
+          c.family_group?.toLowerCase().includes(query) ||
+          c.guardian_name?.toLowerCase().includes(query)
+        )
+        .map(c => c.family_group)
+        .filter(Boolean)
+    );
+    return campers.filter(c => {
+      const matchesSearch = 
+        c.full_name?.toLowerCase().includes(query) ||
+        c.family_group?.toLowerCase().includes(query) ||
+        c.guardian_name?.toLowerCase().includes(query);
+      const belongsToMatchingFamily = c.family_group && matchingFamilyGroups.has(c.family_group);
+      return matchesSearch || belongsToMatchingFamily;
+    });
+  })();
 
   // Group campers by family
   const families = {};

@@ -295,15 +295,28 @@ export default function CabinsPage() {
   };
 
   // Search filtering
-  const filteredCampers = campers.filter(c => {
-    if (!search.trim()) return true;
+  const filteredCampers = (() => {
+    if (!search.trim()) return campers;
     const query = search.toLowerCase();
-    return (
-      c.first_name.toLowerCase().includes(query) ||
-      c.last_name.toLowerCase().includes(query) ||
-      (c.family_group && c.family_group.toLowerCase().includes(query))
+    const matchingFamilyGroups = new Set(
+      campers
+        .filter(c => 
+          c.first_name.toLowerCase().includes(query) ||
+          c.last_name.toLowerCase().includes(query) ||
+          (c.family_group && c.family_group.toLowerCase().includes(query))
+        )
+        .map(c => c.family_group)
+        .filter(Boolean)
     );
-  });
+    return campers.filter(c => {
+      const matchesSearch = 
+        c.first_name.toLowerCase().includes(query) ||
+        c.last_name.toLowerCase().includes(query) ||
+        (c.family_group && c.family_group.toLowerCase().includes(query));
+      const belongsToMatchingFamily = c.family_group && matchingFamilyGroups.has(c.family_group);
+      return matchesSearch || belongsToMatchingFamily;
+    });
+  })();
 
   // Extract unassigned campers and group them by Family Group
   const unassignedCampers = filteredCampers.filter(c => !c.cabin_group);

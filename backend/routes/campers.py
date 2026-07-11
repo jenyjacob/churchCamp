@@ -21,14 +21,37 @@ def get_campers():
 
     if search:
         like = f"%{search}%"
-        query = query.filter(
+        # Find all family groups for campers matching the search criteria
+        matched_families = db.session.query(Camper.family_group).filter(
             db.or_(
                 Camper.first_name.ilike(like),
                 Camper.last_name.ilike(like),
                 Camper.guardian_name.ilike(like),
                 Camper.family_group.ilike(like),
             )
-        )
+        ).filter(Camper.family_group.isnot(None), Camper.family_group != '').distinct().all()
+        
+        family_ids = [f[0] for f in matched_families if f[0]]
+        
+        if family_ids:
+            query = query.filter(
+                db.or_(
+                    Camper.first_name.ilike(like),
+                    Camper.last_name.ilike(like),
+                    Camper.guardian_name.ilike(like),
+                    Camper.family_group.ilike(like),
+                    Camper.family_group.in_(family_ids)
+                )
+            )
+        else:
+            query = query.filter(
+                db.or_(
+                    Camper.first_name.ilike(like),
+                    Camper.last_name.ilike(like),
+                    Camper.guardian_name.ilike(like),
+                    Camper.family_group.ilike(like),
+                )
+            )
     if status:
         query = query.filter(Camper.registration_status == status)
 
