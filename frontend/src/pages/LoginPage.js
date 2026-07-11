@@ -67,11 +67,18 @@ export default function LoginPage() {
       await loginPasskey(access_token, user);
     } catch (err) {
       console.error(err);
-      setError(
-        err.response?.data?.error ||
-        err.message ||
-        "Passkey sign in failed. Make sure you are using HTTPS or localhost, and your passkey is registered."
-      );
+      let errMsg = err.response?.data?.error || err.message || "Passkey sign in failed.";
+      const rawErr = ((err.message || "") + " " + (err.name || "") + " " + String(err)).toLowerCase();
+      if (
+        err.name === "NotAllowedError" ||
+        err.name === "AbortError" ||
+        rawErr.includes("privacy-considerations-client") ||
+        rawErr.includes("timed out") ||
+        rawErr.includes("not allowed")
+      ) {
+        errMsg = "Passkey operation was cancelled or timed out. Please try again.";
+      }
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

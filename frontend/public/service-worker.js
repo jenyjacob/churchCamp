@@ -1,4 +1,4 @@
-const CACHE_NAME = "gca-camp-manager-v1";
+const CACHE_NAME = "gca-camp-manager-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",

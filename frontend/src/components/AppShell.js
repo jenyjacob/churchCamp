@@ -167,11 +167,18 @@ export default function AppShell() {
       fetchPasskeys();
     } catch (err) {
       console.error(err);
-      setPasskeyError(
-        err.response?.data?.error ||
-        err.message ||
-        "Failed to register passkey. Make sure you are using HTTPS or localhost, and your device supports biometrics."
-      );
+      let errMsg = err.response?.data?.error || err.message || "Failed to register passkey.";
+      const rawErr = ((err.message || "") + " " + (err.name || "") + " " + String(err)).toLowerCase();
+      if (
+        err.name === "NotAllowedError" ||
+        err.name === "AbortError" ||
+        rawErr.includes("privacy-considerations-client") ||
+        rawErr.includes("timed out") ||
+        rawErr.includes("not allowed")
+      ) {
+        errMsg = "Passkey operation was cancelled or timed out. Please try again.";
+      }
+      setPasskeyError(errMsg);
     } finally {
       setPasskeyLoading(false);
     }
