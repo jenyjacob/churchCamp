@@ -12,6 +12,7 @@ export default function CheckInPage() {
   const [loadingActive, setLoadingActive] = useState(true);
   const [stats, setStats] = useState({ total_registered: 0, checked_in: 0, waivers_submitted: 0 });
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
+  const [allCampers, setAllCampers] = useState([]);
   const [waiverModal, setWaiverModal] = useState({
     isOpen: false,
     title: "",
@@ -40,10 +41,17 @@ export default function CheckInPage() {
       .catch(() => {});
   }, []);
 
+  const fetchAllCampers = useCallback(() => {
+    api.get("/api/campers/?page=1&per_page=-1")
+      .then(r => setAllCampers(r.data.campers || []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchActive();
     fetchStats();
-  }, [fetchActive, fetchStats]);
+    fetchAllCampers();
+  }, [fetchActive, fetchStats, fetchAllCampers]);
 
   const searchCampers = useCallback(() => {
     if (!search.trim()) {
@@ -70,6 +78,7 @@ export default function CheckInPage() {
       setCampers([]);
       fetchActive();
       fetchStats();
+      fetchAllCampers();
     } catch (err) {
       flash("error", err.response?.data?.error || "Check-in failed.");
     }
@@ -102,10 +111,12 @@ export default function CheckInPage() {
       setCampers([]);
       fetchActive();
       fetchStats();
+      fetchAllCampers();
     } catch (err) {
       flash("error", "Failed to check in all family members.");
       fetchActive();
       fetchStats();
+      fetchAllCampers();
     }
     setWaiverModal({ isOpen: false });
   };
@@ -133,6 +144,7 @@ export default function CheckInPage() {
       flash("success", `👋 ${checkin.camper_name} checked out.`);
       fetchActive();
       fetchStats();
+      fetchAllCampers();
     } catch (err) {
       flash("error", err.response?.data?.error || "Check-out failed.");
     }
@@ -147,6 +159,7 @@ export default function CheckInPage() {
       flash("success", `🔄 Checked-in status reset for ${checkin.camper_name}.`);
       fetchActive();
       fetchStats();
+      fetchAllCampers();
     } catch (err) {
       flash("error", err.response?.data?.error || "Failed to reset check-in.");
     }
@@ -223,7 +236,7 @@ export default function CheckInPage() {
                 <div style={{ marginTop: 12 }}>
                   {/* Family Group Quick Check-In Panels */}
                   {uniqueFamilyGroups.map(fg => {
-                    const familyCampers = campers.filter(c => c.family_group === fg);
+                    const familyCampers = allCampers.filter(c => c.family_group === fg);
                     const uncheckedFamilyCampers = familyCampers.filter(c => !c.checked_in);
                     
                     if (uncheckedFamilyCampers.length === 0) return null;
@@ -240,7 +253,24 @@ export default function CheckInPage() {
                         alignItems: "center"
                       }}>
                         <div>
-                          <div style={{ fontWeight: 600, color: "var(--forest)" }}>Family Group {fg}</div>
+                          <div className="tooltip-container">
+                            <div style={{ fontWeight: 600, color: "var(--forest)", display: "flex", alignItems: "center", gap: 4 }}>
+                              Family Group {fg} <span style={{ fontSize: "0.8rem", opacity: 0.65 }}>ℹ️</span>
+                            </div>
+                            <div className="tooltip-content">
+                              <strong style={{ display: "block", borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 4, marginBottom: 4 }}>
+                                Family Members ({familyCampers.length}):
+                              </strong>
+                              {familyCampers.map(c => (
+                                <div key={c.id} style={{ display: "flex", gap: 12, justifyContent: "space-between", margin: "2px 0" }}>
+                                  <span>{c.full_name}</span>
+                                  <span style={{ fontSize: "0.75rem" }}>
+                                    {c.checked_in ? "🟢 Checked In" : "⚪ Not Checked In"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                           <div className="text-muted" style={{ fontSize: "0.75rem" }}>
                             {uncheckedFamilyCampers.length} of {familyCampers.length} members not checked in
                           </div>

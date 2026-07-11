@@ -1188,5 +1188,50 @@ tbody tr:hover { background: var(--cream); }
   transform: scale(0.98);
 }
 
+/* ── Tooltips ── */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 250px;
+  background-color: var(--charcoal);
+  color: var(--white);
+  text-align: left;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  position: absolute;
+  z-index: 999;
+  bottom: 125%; /* Position above */
+  left: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%; /* Arrow at the bottom */
+  left: 20px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: var(--charcoal) transparent transparent transparent;
+}
+
+.tooltip-container:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 
 
