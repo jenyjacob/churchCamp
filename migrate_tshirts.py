@@ -31,11 +31,11 @@ try:
         port = 3306
 except Exception as e:
     print("Error parsing DATABASE_URL:", e)
-    user = "campuser"
-    password = "camppass"
-    host = "localhost"
-    port = 3306
-    dbname = "churchcamp"
+    user = os.environ.get("DB_USER", "")
+    password = os.environ.get("DB_PASSWORD", "")
+    host = os.environ.get("DB_HOST", "localhost")
+    port = int(os.environ.get("DB_PORT", 3306))
+    dbname = os.environ.get("DB_NAME", "churchcamp")
 
 def normalize_size(val):
     if not val:

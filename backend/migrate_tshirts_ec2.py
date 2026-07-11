@@ -63,11 +63,11 @@ def migrate():
     load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))
     
     db_url = os.environ.get("DATABASE_URL")
-    db_user = 'campuser'
-    db_password = 'camppass'
-    db_host = '127.0.0.1'
-    db_port = 3307
-    db_name = 'churchcamp'
+    db_user = os.environ.get("DB_USER", "")
+    db_password = os.environ.get("DB_PASSWORD", "")
+    db_host = os.environ.get("DB_HOST", "127.0.0.1")
+    db_port = int(os.environ.get("DB_PORT", 3307))
+    db_name = os.environ.get("DB_NAME", "churchcamp")
 
     if db_url:
         try:

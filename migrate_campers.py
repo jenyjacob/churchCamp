@@ -28,13 +28,37 @@ def migrate():
     header = rows[0]
     data_rows = rows[1:]
 
-    # 2. Connect to local MySQL database
+    # 2. Connect to local MySQL database (loading credentials dynamically from environment)
+    import urllib.parse as urlparse
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+    load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))
+
+    db_url = os.environ.get("DATABASE_URL")
+    db_user = os.environ.get("DB_USER", "")
+    db_password = os.environ.get("DB_PASSWORD", "")
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_port = int(os.environ.get("DB_PORT", 3306))
+    db_name = os.environ.get("DB_NAME", "churchcamp")
+
+    if db_url:
+        try:
+            parsed_url = db_url.replace("mysql+pymysql://", "http://")
+            url = urlparse.urlparse(parsed_url)
+            db_user = url.username or db_user
+            db_password = url.password or db_password
+            db_host = url.hostname or db_host
+            db_port = url.port or db_port
+            db_name = url.path.lstrip('/') or db_name
+        except Exception as e:
+            print(f"Warning: Failed to parse DATABASE_URL: {e}")
+
     conn = pymysql.connect(
-        host='localhost', 
-        user='campuser', 
-        password='camppass', 
-        port=3306, 
-        database='churchcamp'
+        host=db_host, 
+        user=db_user, 
+        password=db_password, 
+        port=db_port, 
+        database=db_name
     )
     cursor = conn.cursor()
     

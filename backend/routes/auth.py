@@ -1,12 +1,15 @@
 import base64
 import json
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from models import User, UserPasskey, WebauthnChallenge
+
+from utils.limiter import rate_limit
 
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login", methods=["POST"])
+@rate_limit(5, 60)
 def login():
     data = request.get_json()
     if not data or not data.get("username") or not data.get("password"):
@@ -231,6 +234,7 @@ def login_passkey_options():
     return jsonify(json.loads(options_json)), 200
 
 @auth_bp.route("/login-passkey/verify", methods=["POST"])
+@rate_limit(5, 60)
 def login_passkey_verify():
     data = request.get_json()
     if not data or not data.get("credential") or not data.get("challenge"):
@@ -327,4 +331,24 @@ def delete_passkey(passkey_id):
     db.session.commit()
 
     return jsonify({"message": "Passkey deleted successfully"}), 200
+
+@auth_bp.route("/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    from models.token_blocklist import TokenBlocklist
+    from db import db
+    
+    jti = get_jwt()["jti"]
+    blocklist_entry = TokenBlocklist(jti=jti)
+    db.session.add(blocklist_entry)
+    db.session.commit()
+    
+    # Log logout action
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    username = user.username if user else "Unknown"
+    from utils.logging import log_action
+    log_action("LOGOUT", "User logged out and token was blacklisted", user_id, username)
+    
+    return jsonify({"message": "Logged out successfully"}), 200
 

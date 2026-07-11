@@ -114,8 +114,10 @@ All protected endpoints require: `Authorization: Bearer <token>`
 - [ ] Remove port 5000 from EC2 security group after setup
 - [ ] Serve over HTTPS via CloudFront
 - [ ] Enable automatic Ubuntu security updates
-- [ ] Never commit `.env` to git
 - [ ] SSH port 22 restricted to your IP only
+
+> [!WARNING]
+> **Secret Rotation Warning**: If you previously had hardcoded database passwords or secret keys in your source files, please rotate those credentials immediately on your production servers (including MySQL credentials and Flask/JWT secret keys). Git history retains past commits containing those values, meaning they are still stored in the repository history.
 
 ---
 

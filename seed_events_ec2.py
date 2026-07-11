@@ -16,7 +16,7 @@ if not db_url:
     exit(1)
 
 # Parse credentials from DATABASE_URL
-# e.g., mysql+pymysql://campuser:password@localhost:3306/churchcamp
+# e.g., mysql+pymysql://username:password@host:port/database
 try:
     clean_url = db_url.replace("mysql+pymysql://", "").replace("mysql://", "")
     auth, rest = clean_url.split("@")

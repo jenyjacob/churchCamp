@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from models import User, AuditLog
 from db import db
+from utils.permissions import require_page_permission
 
 users_bp = Blueprint("users", __name__)
 
@@ -13,6 +14,7 @@ def require_admin_or_owner():
 
 @users_bp.route("/", methods=["GET"])
 @jwt_required()
+@require_page_permission("users", "read")
 def get_users():
     if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
@@ -21,6 +23,7 @@ def get_users():
 
 @users_bp.route("/", methods=["POST"])
 @jwt_required()
+@require_page_permission("users", "edit")
 def create_user():
     if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
@@ -52,6 +55,7 @@ def create_user():
 
 @users_bp.route("/<int:user_id>", methods=["PUT"])
 @jwt_required()
+@require_page_permission("users", "edit")
 def update_user(user_id):
     if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
@@ -85,6 +89,7 @@ def update_user(user_id):
 
 @users_bp.route("/<int:user_id>", methods=["DELETE"])
 @jwt_required()
+@require_page_permission("users", "edit")
 def delete_user(user_id):
     if not require_admin_or_owner():
         return jsonify({"error": "Admin access required"}), 403
@@ -103,12 +108,29 @@ def delete_user(user_id):
     log_action("DELETE_USER", f"Deleted user '{username}' (ID: {user_id})")
     return jsonify({"message": "User deleted"}), 200
 
+@users_bp.route("/delete-me", methods=["DELETE"])
+@jwt_required()
+def delete_own_account():
+    current_identity = get_jwt_identity()
+    user = User.query.get_or_404(int(current_identity))
+    if user.role == "owner":
+        owner_count = User.query.filter_by(role="owner").count()
+        if owner_count <= 1:
+            return jsonify({"error": "Cannot delete the last owner account"}), 400
+    user_id = user.id
+    db.session.delete(user)
+    db.session.commit()
+    from utils.logging import log_action
+    log_action("DELETE_SELF", f"User deleted their own account (ID: {user_id})")
+    return jsonify({"message": "Your account has been deleted successfully"}), 200
+
 def require_owner():
     claims = get_jwt()
     return claims.get("role") == "owner"
 
 @users_bp.route("/audit-logs", methods=["GET"])
 @jwt_required()
+@require_page_permission("logs", "read")
 def get_audit_logs():
     if not require_owner():
         return jsonify({"error": "Owner access required"}), 403
@@ -129,6 +151,7 @@ def get_audit_logs():
 
 @users_bp.route("/audit-logs", methods=["DELETE"])
 @jwt_required()
+@require_page_permission("logs", "edit")
 def delete_audit_logs():
     if not require_owner():
         return jsonify({"error": "Owner access required"}), 403

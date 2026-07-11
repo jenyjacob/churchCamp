@@ -55,11 +55,11 @@ def migrate():
     load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))
     
     db_url = os.environ.get("DATABASE_URL")
-    db_user = 'campuser'
-    db_password = 'camppass'
-    db_host = '127.0.0.1'
-    db_port = 3307
-    db_name = 'churchcamp'
+    db_user = os.environ.get("DB_USER", "")
+    db_password = os.environ.get("DB_PASSWORD", "")
+    db_host = os.environ.get("DB_HOST", "127.0.0.1")
+    db_port = int(os.environ.get("DB_PORT", 3307))
+    db_name = os.environ.get("DB_NAME", "churchcamp")
 
     if db_url:
         try:
@@ -187,7 +187,7 @@ def migrate():
                 guardian_phone = str(phone).strip() if phone else None
                 
             if inserted_count < 5:
-                print(f"Parsed Camper {inserted_count}: first_name='{first_name}' (len={len(first_name) if first_name else 0}), last_name='{last_name}' (len={len(last_name) if last_name else 0})")
+                print(f"Parsed Camper {inserted_count}: [REDACTED]")
 
             cursor.execute(insert_sql, (
                 first_name,

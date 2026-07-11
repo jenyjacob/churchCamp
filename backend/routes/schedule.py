@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from models import ScheduleEvent
 from db import db
+from utils.permissions import require_page_permission
 
 schedule_bp = Blueprint("schedule", __name__)
 
@@ -56,6 +57,7 @@ def is_overlapping(range1, range2):
 
 @schedule_bp.route("/", methods=["POST"])
 @jwt_required()
+@require_page_permission("schedule", "edit")
 def create_event():
     if not require_admin():
         return jsonify({"error": "Admin access required"}), 403
@@ -92,6 +94,7 @@ def create_event():
 
 @schedule_bp.route("/<int:event_id>", methods=["PUT"])
 @jwt_required()
+@require_page_permission("schedule", "edit")
 def update_event(event_id):
     if not require_admin():
         return jsonify({"error": "Admin access required"}), 403
@@ -130,6 +133,7 @@ def update_event(event_id):
 
 @schedule_bp.route("/<int:event_id>", methods=["DELETE"])
 @jwt_required()
+@require_page_permission("schedule", "edit")
 def delete_event(event_id):
     if not require_admin():
         return jsonify({"error": "Admin access required"}), 403

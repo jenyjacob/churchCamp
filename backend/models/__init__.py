@@ -7,4 +7,5 @@ from .tshirt import Tshirt
 from .user_passkey import UserPasskey
 from .webauthn_challenge import WebauthnChallenge
 from .permission import PagePermission
+from .token_blocklist import TokenBlocklist
 

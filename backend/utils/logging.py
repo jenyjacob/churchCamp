@@ -40,6 +40,6 @@ def log_action(action, details=None, user_id=None, username=None):
 
         # Log print statement for console output verification
         user_str = resolved_username if resolved_username else "Anonymous"
-        print(f"[AUDIT LOG] {user_str} [{ip_addr or 'N/A'}]: {action} - {details or ''}")
+        print(f"[AUDIT LOG] {user_str}: {action} - [REDACTED]")
     except Exception as e:
         print(f"[AUDIT ERROR] Logging failed: {str(e)}")

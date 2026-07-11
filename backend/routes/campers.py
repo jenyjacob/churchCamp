@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from models import Camper, Tshirt
 from db import db
+from utils.limiter import rate_limit
+
+from utils.permissions import require_page_permission
 
 campers_bp = Blueprint("campers", __name__)
 
@@ -11,6 +14,7 @@ def require_admin():
 
 @campers_bp.route("/", methods=["GET"])
 @jwt_required()
+@require_page_permission("campers", "read")
 def get_campers():
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
@@ -88,12 +92,14 @@ def get_campers():
 
 @campers_bp.route("/<int:camper_id>", methods=["GET"])
 @jwt_required()
+@require_page_permission("campers", "read")
 def get_camper(camper_id):
     camper = Camper.query.get_or_404(camper_id)
     return jsonify({"camper": camper.to_dict()}), 200
 
 @campers_bp.route("/", methods=["POST"])
 @jwt_required()
+@require_page_permission("campers", "edit")
 def create_camper():
     data = request.get_json()
     data = {k: (None if v == "" else v) for k, v in data.items()}
@@ -145,6 +151,7 @@ def create_camper():
     return jsonify({"camper": camper.to_dict()}), 201
 
 @campers_bp.route("/public-signup", methods=["POST"])
+@rate_limit(5, 60)
 def public_signup():
     data = request.get_json()
     if not data:
@@ -250,6 +257,7 @@ def public_signup():
 
 @campers_bp.route("/<int:camper_id>", methods=["PUT"])
 @jwt_required()
+@require_page_permission("campers", "edit")
 def update_camper(camper_id):
     claims = get_jwt()
     role = claims.get("role")
@@ -320,6 +328,7 @@ def update_camper(camper_id):
 
 @campers_bp.route("/<int:camper_id>", methods=["DELETE"])
 @jwt_required()
+@require_page_permission("campers", "edit")
 def delete_camper(camper_id):
     if not require_admin():
         return jsonify({"error": "Admin access required"}), 403

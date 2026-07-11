@@ -3,11 +3,13 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Camper, CheckIn
 from db import db
 from datetime import datetime
+from utils.permissions import require_page_permission
 
 checkin_bp = Blueprint("checkin", __name__)
 
 @checkin_bp.route("/", methods=["POST"])
 @jwt_required()
+@require_page_permission("checkin", "edit")
 def check_in():
     user_id = int(get_jwt_identity())
     data = request.get_json()
@@ -45,6 +47,7 @@ def check_in():
 
 @checkin_bp.route("/<int:checkin_id>/checkout", methods=["POST"])
 @jwt_required()
+@require_page_permission("checkin", "edit")
 def check_out(checkin_id):
     user_id = int(get_jwt_identity())
     checkin = CheckIn.query.get_or_404(checkin_id)
@@ -62,6 +65,7 @@ def check_out(checkin_id):
 
 @checkin_bp.route("/", methods=["GET"])
 @jwt_required()
+@require_page_permission("checkin", "read")
 def get_checkins():
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 50))
@@ -84,6 +88,7 @@ def get_checkins():
 
 @checkin_bp.route("/camper/<int:camper_id>", methods=["GET"])
 @jwt_required()
+@require_page_permission("checkin", "read")
 def get_camper_checkins(camper_id):
     checkins = CheckIn.query.filter_by(camper_id=camper_id).order_by(
         CheckIn.checked_in_at.desc()
@@ -92,6 +97,7 @@ def get_camper_checkins(camper_id):
 
 @checkin_bp.route("/<int:checkin_id>", methods=["DELETE"])
 @jwt_required()
+@require_page_permission("checkin", "edit")
 def delete_checkin(checkin_id):
     from flask_jwt_extended import get_jwt
     claims = get_jwt()

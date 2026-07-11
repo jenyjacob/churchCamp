@@ -89,6 +89,19 @@ export default function AppShell() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("WARNING: Are you sure you want to permanently delete your account? This action is irreversible and all your data will be permanently removed from the system.")) {
+      return;
+    }
+    try {
+      await api.delete("/api/users/delete-me");
+      alert("Your account has been deleted successfully.");
+      logout();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to delete account.");
+    }
+  };
+
   // Passkeys States
   const [isPasskeysOpen, setIsPasskeysOpen] = useState(false);
   const [passkeys, setPasskeys] = useState([]);
@@ -260,6 +273,10 @@ export default function AppShell() {
               <button className="nav-item w-full" onClick={() => setIsPasskeysOpen(true)} style={{ fontSize: "0.825rem", padding: "8px 10px" }}>
                 <span className="icon">🛡️</span>
                 Manage Passkeys
+              </button>
+              <button className="nav-item w-full" onClick={handleDeleteAccount} style={{ fontSize: "0.825rem", padding: "8px 10px", color: "var(--danger)" }}>
+                <span className="icon">🗑️</span>
+                Delete Account
               </button>
             </div>
           )}

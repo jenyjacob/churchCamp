@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
+    api.post("/api/auth/logout").catch(() => {});
     localStorage.removeItem("token");
     delete api.defaults.headers.common["Authorization"];
     setUser(null);
