@@ -3,11 +3,56 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 
+const BIBLE_VERSES = [
+  { text: "He makes me to lie down in green pastures; He leads me beside the still waters. He restores my soul; He leads me in the paths of righteousness For His name’s sake.", ref: "Psalm 23:2-3" },
+  { text: "Let the heavens rejoice, and let the earth be glad; Let the sea roar, and all its fullness; Let the field be joyful, and all that is in it. Then all the trees of the woods will rejoice.", ref: "Psalm 96:11-12" },
+  { text: "As iron sharpens iron, So a man sharpens the countenance of his friend.", ref: "Proverbs 27:17" },
+  { text: "The Lord your God in your midst, The Mighty One, will save; He will rejoice over you with gladness, He will quiet you with His love, He will rejoice over you with singing.", ref: "Zephaniah 3:17" },
+  { text: "For where two or three are gathered together in My name, I am there in the midst of them.", ref: "Matthew 18:20" },
+  { text: "You are the light of the world. A city that is set on a hill cannot be hidden.", ref: "Matthew 5:14" },
+  { text: "Let no one despise your youth, but be an example to the believers in word, in conduct, in love, in spirit, in faith, in purity.", ref: "1 Timothy 4:12" },
+  { text: "But those who wait on the Lord Shall renew their strength; They shall mount up with wings like eagles, They shall run and not be weary, They shall walk and not faint.", ref: "Isaiah 40:31" },
+  { text: "This is the day the Lord has made; We will rejoice and be glad in it.", ref: "Psalm 118:24" },
+  { text: "Let all that you do be done with love.", ref: "1 Corinthians 16:14" },
+  { text: "Be strong and of good courage, do not fear nor be afraid of them; for the Lord your God, He is the One who goes with you. He will not leave you nor forsake you.", ref: "Deuteronomy 31:6" },
+  { text: "For I know the thoughts that I think toward you, says the Lord, thoughts of peace and not of evil, to give you a future and a hope.", ref: "Jeremiah 29:11" },
+  { text: "Create in me a clean heart, O God, And renew a steadfast spirit within me.", ref: "Psalm 51:10" },
+  { text: "The heavens declare the glory of God; And the firmament shows His handiwork.", ref: "Psalm 19:1" },
+  { text: "I can do all things through Christ who strengthens me.", ref: "Philippians 4:13" },
+  { text: "Trust in the Lord with all your heart, And lean not on your own understanding; In all your ways acknowledge Him, And He shall direct your paths.", ref: "Proverbs 3:5-6" },
+  { text: "The Lord is my shepherd; I shall not want.", ref: "Psalm 23:1" },
+  { text: "Now may the God of hope fill you with all joy and peace in believing, that you may abound in hope by the power of the Holy Spirit.", ref: "Romans 15:13" },
+  { text: "Come to Me, all you who labor and are heavy laden, and I will give you rest.", ref: "Matthew 11:28" },
+  { text: "Oh, give thanks to the Lord, for He is good! For His mercy endures forever.", ref: "Psalm 107:1" },
+  { text: "The Lord is my light and my salvation; Whom shall I fear? The Lord is the strength of my life; Of whom shall I be afraid?", ref: "Psalm 27:1" },
+  { text: "Commit your works to the Lord, And your thoughts will be established.", ref: "Proverbs 16:3" },
+  { text: "A soft answer turns away wrath, But a harsh word stirs up anger.", ref: "Proverbs 15:1" },
+  { text: "Peace I leave with you, My peace I give to you; not as the world gives do I give to you. Let not your heart be troubled, neither let it be afraid.", ref: "John 14:27" },
+  { text: "Therefore comfort each other and edify one another, just as you also are doing.", ref: "1 Thessalonians 5:11" },
+  { text: "The name of the Lord is a strong tower; The righteous run to it and are safe.", ref: "Proverbs 18:10" },
+  { text: "And above all things have fervent love for one another, for \"love will cover a multitude of sins.\"", ref: "1 Peter 4:8" },
+  { text: "And we know that all things work together for good to those who love God, to those who are the called according to His purpose.", ref: "Romans 8:28" },
+  { text: "Bless the Lord, O my soul; And all that is within me, bless His holy name!", ref: "Psalm 103:1" },
+  { text: "Fear not, for I am with you; Be not dismayed, for I am your God. I will strengthen you, Yes, I will help you, I will uphold you with My righteous right hand.", ref: "Isaiah 41:10" },
+  { text: "Behold, how good and how pleasant it is For brethren to dwell together in unity!", ref: "Psalm 133:1" }
+];
+
 export default function HomePage() {
   const { user, isAdmin } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentCheckins, setRecentCheckins] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const getDailyVerse = () => {
+    const dateStr = new Date().toDateString();
+    let hash = 0;
+    for (let i = 0; i < dateStr.length; i++) {
+      hash = dateStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % BIBLE_VERSES.length;
+    return BIBLE_VERSES[index];
+  };
+  const verse = getDailyVerse();
 
   useEffect(() => {
     Promise.all([
@@ -42,6 +87,49 @@ export default function HomePage() {
             {greeting()}, {user?.full_name?.split(" ")[0] || user?.username}! 👋
           </h2>
           <p className="text-muted">Here's what's happening at camp today.</p>
+        </div>
+
+        <div className="card" style={{
+          borderLeft: "4px solid var(--forest)",
+          background: "linear-gradient(135deg, rgba(34, 76, 56, 0.04) 0%, rgba(34, 76, 56, 0.01) 100%)",
+          padding: "16px 20px",
+          marginBottom: 28,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          borderRadius: "var(--radius-md)",
+          boxShadow: "var(--shadow-sm)"
+        }}>
+          <div style={{ 
+            fontSize: "0.7rem", 
+            textTransform: "uppercase", 
+            letterSpacing: "0.08em", 
+            fontWeight: 700, 
+            color: "var(--forest-mid)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6
+          }}>
+            <span>📖</span> Verse of the Day
+          </div>
+          <blockquote style={{ 
+            margin: 0, 
+            fontFamily: "'Playfair Display', Georgia, serif", 
+            fontSize: "1.05rem", 
+            fontStyle: "italic", 
+            color: "var(--charcoal)",
+            lineHeight: 1.5
+          }}>
+            "{verse.text}"
+          </blockquote>
+          <div style={{ 
+            textAlign: "right", 
+            fontSize: "0.8rem", 
+            fontWeight: 600, 
+            color: "var(--muted)" 
+          }}>
+            — {verse.ref}
+          </div>
         </div>
 
         {loading ? (

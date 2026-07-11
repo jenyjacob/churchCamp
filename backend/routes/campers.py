@@ -36,12 +36,23 @@ def get_campers():
         (db.or_(Camper.family_group.is_(None), Camper.family_group == ''), 1),
         else_=0
     )
-    paginated = query.order_by(
+    ordered_query = query.order_by(
         order_by_clause,
         Camper.family_group,
         Camper.last_name,
         Camper.first_name
-    ).paginate(
+    )
+
+    if per_page == -1:
+        items = ordered_query.all()
+        return jsonify({
+            "campers": [c.to_dict() for c in items],
+            "total": len(items),
+            "pages": 1,
+            "page": 1,
+        }), 200
+
+    paginated = ordered_query.paginate(
         page=page, per_page=per_page, error_out=False
     )
 

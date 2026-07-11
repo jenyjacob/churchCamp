@@ -141,18 +141,21 @@ export default function CampersPage() {
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
     localStorage.setItem("camperViewMode", mode);
+    setPage(1);
   };
 
   const fetchCampers = useCallback(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page, per_page: 20 });
+    const perPageVal = viewMode === "family" ? -1 : 20;
+    const pageVal = viewMode === "family" ? 1 : page;
+    const params = new URLSearchParams({ page: pageVal, per_page: perPageVal });
     if (search) params.set("search", search);
     if (statusFilter) params.set("status", statusFilter);
     api.get(`/api/campers/?${params}`)
       .then(r => { setCampers(r.data.campers); setTotal(r.data.total); setPages(r.data.pages); })
       .catch(() => setError("Failed to load campers."))
       .finally(() => setLoading(false));
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, viewMode]);
 
   useEffect(() => { fetchCampers(); }, [fetchCampers]);
 

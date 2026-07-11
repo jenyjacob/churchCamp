@@ -1157,4 +1157,36 @@ tbody tr:hover { background: var(--cream); }
   }
 }
 
+/* ── Floating Action Button (FAB) ── */
+.schedule-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--forest);
+  color: var(--white);
+  border: 2px solid var(--gold);
+  padding: 12px 20px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(27, 67, 50, 0.3);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), background-color 0.2s var(--ease);
+}
+
+.schedule-fab:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(27, 67, 50, 0.4);
+  background-color: var(--forest-mid);
+}
+
+.schedule-fab:active {
+  transform: scale(0.98);
+}
+
+
 

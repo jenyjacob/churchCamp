@@ -415,15 +415,15 @@ export default function SchedulePage() {
       <>
         <div className="top-bar">
           <h1>Camp Schedule</h1>
-          {isAdmin && (
-            <button className="btn btn-primary" onClick={openAddModal}>
-              ➕ Add Event
-            </button>
-          )}
         </div>
         <div className="page-body">
           {scheduleContent}
         </div>
+        {isAdmin && (
+          <button className="schedule-fab" onClick={openAddModal}>
+            ➕ Add Event
+          </button>
+        )}
       </>
     );
   }
