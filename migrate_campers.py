@@ -152,18 +152,6 @@ def migrate():
                 kayaking_val,
                 boat_tour_val
             ))
-            
-            # Retrieve the newly inserted camper ID
-            camper_id = cursor.lastrowid
-            raw_size = row[3]
-            if raw_size:
-                tshirt_size = str(raw_size).strip()
-                if tshirt_size:
-                    cursor.execute(
-                        "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size) VALUES (%s, %s, %s)",
-                        (camper_id, name, tshirt_size)
-                    )
-            
             inserted_count += 1
             
         conn.commit()
