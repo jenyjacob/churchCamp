@@ -143,6 +143,7 @@ def create_camper():
         notes=data.get("notes"),
         kayaking=kayaking,
         boat_tour=boat_tour,
+        team_name=data.get("team_name"),
     )
     db.session.add(camper)
     db.session.commit()
@@ -286,7 +287,7 @@ def update_camper(camper_id):
             "cabin_group", "session", "family_group", "guardian_name", "guardian_phone", "guardian_email",
             "emergency_contact", "emergency_phone", "allergies", "medical_notes",
             "medications", "registration_status", "payment_status", "notes", "waiver_submitted",
-            "kayaking", "boat_tour"
+            "kayaking", "boat_tour", "team_name"
         ]
         
         waiver_changed = "waiver_submitted" in data and data["waiver_submitted"] != camper.waiver_submitted

@@ -12,6 +12,7 @@ class Camper(db.Model):
     gender = db.Column(db.Enum("male", "female", "other"), nullable=True)
     cabin_group = db.Column(db.String(100), nullable=True)
     family_group = db.Column(db.String(100), nullable=True)
+    team_name = db.Column(db.String(100), nullable=True)
 
     # Guardian info
     guardian_name = db.Column(db.String(150), nullable=True)
@@ -61,4 +62,5 @@ class Camper(db.Model):
             "tshirts": [t.to_dict() for t in self.tshirts],
             "tshirt_size": self.tshirts[0].tshirt_size if self.tshirts else "",
             "indian_size": self.tshirts[0].indian_size if self.tshirts else "",
+            "team_name": self.team_name,
         }

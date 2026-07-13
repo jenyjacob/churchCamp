@@ -10,7 +10,7 @@ const EMPTY_CAMPER = {
   kayaking: 0, boat_tour: 0
 };
 
-function CamperModal({ camper, onClose, onSave }) {
+function CamperModal({ camper, onClose, onSave, teamNames }) {
   const [form, setForm] = useState(camper || EMPTY_CAMPER);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -63,6 +63,14 @@ function CamperModal({ camper, onClose, onSave }) {
             </div>
             <div className="form-group"><label className="form-label">Cabin / Group</label><input {...inp("cabin_group")} /></div>
             <div className="form-group"><label className="form-label">Family Group</label><input {...inp("family_group")} placeholder="e.g. 101" /></div>
+            <div className="form-group">
+              <label className="form-label">Team</label>
+              <select className="form-select" value={form.team_name || ""} onChange={e => set("team_name", e.target.value)}>
+                <option value="">— Unassigned —</option>
+                <option value={teamNames.team_1}>{teamNames.team_1}</option>
+                <option value={teamNames.team_2}>{teamNames.team_2}</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Guardian & Emergency</div>
@@ -138,6 +146,7 @@ export default function CampersPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("camperViewMode") || "table");
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
@@ -159,6 +168,16 @@ export default function CampersPage() {
   }, [page, search, statusFilter, viewMode]);
 
   useEffect(() => { fetchCampers(); }, [fetchCampers]);
+
+  useEffect(() => {
+    api.get("/api/settings/")
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(res.data.settings);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSave = (camper) => {
     fetchCampers();
@@ -259,6 +278,7 @@ export default function CampersPage() {
                   <th>Age</th>
                   <th>Cabin / Group</th>
                   <th>Family Group</th>
+                  <th>Team</th>
                   <th>Registration</th>
                   <th>Check-In</th>
                   {canEdit && <th>Actions</th>}
@@ -266,9 +286,9 @@ export default function CampersPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={canEdit ? 7 : 6} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
+                  <tr><td colSpan={canEdit ? 8 : 7} className="text-center" style={{ padding: 32 }}>Loading…</td></tr>
                 ) : campers.length === 0 ? (
-                  <tr><td colSpan={canEdit ? 7 : 6} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
+                  <tr><td colSpan={canEdit ? 8 : 7} className="text-center" style={{ padding: 32, color: "var(--muted)" }}>No campers found.</td></tr>
                 ) : campers.map((c, i) => (
                   <tr 
                     key={c.id}
@@ -287,6 +307,19 @@ export default function CampersPage() {
                       {c.family_group ? (
                         <span className="badge badge-gold" style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 600 }}>
                           👨‍👩‍👧‍👦 Family #{c.family_group}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {c.team_name ? (
+                        <span className={`badge ${
+                          c.team_name === (settings.team_1_name || "Team Peter") 
+                            ? "badge-gold" 
+                            : "badge-blue"
+                        }`} style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 700 }}>
+                          🏆 {c.team_name}
                         </span>
                       ) : (
                         <span className="text-muted">—</span>
@@ -413,7 +446,15 @@ export default function CampersPage() {
       </div>
 
       {(modal === "add" || (modal && modal.id)) && (
-        <CamperModal camper={modal === "add" ? null : modal} onClose={() => setModal(null)} onSave={handleSave} />
+        <CamperModal 
+          camper={modal === "add" ? null : modal} 
+          onClose={() => setModal(null)} 
+          onSave={handleSave} 
+          teamNames={{
+            team_1: settings.team_1_name || "Team Peter",
+            team_2: settings.team_2_name || "Team Paul"
+          }}
+        />
       )}
 
       {deleteTarget && (

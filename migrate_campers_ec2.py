@@ -90,6 +90,12 @@ def migrate():
         except Exception as ex:
             print(f"Note: users.role schema alter statement bypassed: {ex}")
 
+        try:
+            cursor.execute("ALTER TABLE campers ADD COLUMN IF NOT EXISTS team_name VARCHAR(100) NULL")
+            print("Successfully checked/added team_name column in campers table.")
+        except Exception as ex:
+            print(f"Note: campers.team_name schema alter statement bypassed: {ex}")
+
         # Clear existing campers to prevent duplicates (will not commit until the end of transaction)
         cursor.execute("DELETE FROM checkins")
         cursor.execute("DELETE FROM tshirts")

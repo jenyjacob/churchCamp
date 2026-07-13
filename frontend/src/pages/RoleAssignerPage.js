@@ -32,15 +32,48 @@ export default function RoleAssignerPage() {
   const [loading, setLoading] = useState(true);
   const [savingMap, setSavingMap] = useState({}); // { 'role-page': 'saving' | 'saved' | 'error' }
   const [error, setError] = useState("");
+  
+  // Camp configuration settings
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
+  const [updatingSettings, setUpdatingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsSuccess, setSettingsSuccess] = useState("");
 
   useEffect(() => {
+    // Fetch privileges
     api.get("/api/permissions/")
       .then(res => {
         setGrid(res.data.permissions);
       })
       .catch(() => setError("Failed to load permissions grid."))
       .finally(() => setLoading(false));
+
+    // Fetch dynamic configs
+    api.get("/api/settings/")
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(res.data.settings);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleSaveSettings = (e) => {
+    e.preventDefault();
+    setUpdatingSettings(true);
+    setSettingsError("");
+    setSettingsSuccess("");
+    api.post("/api/settings/", settings)
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(res.data.settings);
+          setSettingsSuccess("Camp settings updated successfully!");
+          setTimeout(() => setSettingsSuccess(""), 4000);
+        }
+      })
+      .catch(() => setSettingsError("Failed to update camp settings."))
+      .finally(() => setUpdatingSettings(false));
+  };
 
   const handleAccessChange = async (role, pageKey, level) => {
     const key = `${role}-${pageKey}`;
@@ -77,6 +110,50 @@ export default function RoleAssignerPage() {
       </div>
 
       <div className="page-body">
+        {/* Camp Settings (Owner Only) */}
+        <div className="card" style={{ marginBottom: 28, padding: "20px" }}>
+          <h3 style={{ fontSize: "1rem", color: "var(--forest)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            ⚙️ Camp Customization Settings
+          </h3>
+          
+          {settingsSuccess && <div className="alert alert-success" style={{ marginBottom: 16 }}>{settingsSuccess}</div>}
+          {settingsError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{settingsError}</div>}
+
+          <form onSubmit={handleSaveSettings}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>First Team Name</label>
+                <input 
+                  className="form-input" 
+                  value={settings.team_1_name || ""} 
+                  onChange={e => setSettings(prev => ({ ...prev, team_1_name: e.target.value }))}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>Second Team Name</label>
+                <input 
+                  className="form-input" 
+                  value={settings.team_2_name || ""} 
+                  onChange={e => setSettings(prev => ({ ...prev, team_2_name: e.target.value }))}
+                  required 
+                />
+              </div>
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={updatingSettings}
+                style={{ padding: "8px 20px" }}
+              >
+                {updatingSettings ? "Saving Settings…" : "Update Team Names"}
+              </button>
+            </div>
+          </form>
+        </div>
+
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="card" style={{ marginBottom: 28 }}>

@@ -13,6 +13,8 @@ export default function CheckInPage() {
   const [stats, setStats] = useState({ total_registered: 0, checked_in: 0, waivers_submitted: 0 });
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
   const [allCampers, setAllCampers] = useState([]);
+  const [checkedInSummary, setCheckedInSummary] = useState(null); // array of campers recently checked in
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
   const [waiverModal, setWaiverModal] = useState({
     isOpen: false,
     title: "",
@@ -51,6 +53,15 @@ export default function CheckInPage() {
     fetchActive();
     fetchStats();
     fetchAllCampers();
+    
+    // Fetch dynamic configurations
+    api.get("/api/settings/")
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(res.data.settings);
+        }
+      })
+      .catch(() => {});
   }, [fetchActive, fetchStats, fetchAllCampers]);
 
   const searchCampers = useCallback(() => {
@@ -74,6 +85,12 @@ export default function CheckInPage() {
     try {
       await api.post("/api/checkin/", { camper_id: camperId });
       flash("success", `✅ ${fullName} checked in successfully!`);
+      
+      const camperDetails = allCampers.find(c => c.id === camperId);
+      if (camperDetails) {
+        setCheckedInSummary([camperDetails]);
+      }
+
       setSearch("");
       setCampers([]);
       fetchActive();
@@ -107,6 +124,12 @@ export default function CheckInPage() {
         await api.post("/api/checkin/", { camper_id: c.id });
       }
       flash("success", `✅ Family Group ${familyGroup} checked in successfully (${uncheckedCampers.length} members)!`);
+      
+      const detailsList = uncheckedCampers.map(uc => allCampers.find(c => c.id === uc.id)).filter(Boolean);
+      if (detailsList.length > 0) {
+        setCheckedInSummary(detailsList);
+      }
+
       setSearch("");
       setCampers([]);
       fetchActive();
@@ -464,6 +487,103 @@ export default function CheckInPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Check-In Details Confirmation Modal */}
+      {checkedInSummary && checkedInSummary.length > 0 && (
+        <div className="waiver-modal-overlay" style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1100,
+          backdropFilter: "blur(2px)"
+        }}>
+          <div className="waiver-modal-content" style={{
+            background: "#fff",
+            borderRadius: "12px",
+            padding: "24px",
+            maxWidth: "520px",
+            width: "90%",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            borderTop: "5px solid var(--forest)"
+          }}>
+            <h3 style={{ margin: "0 0 16px 0", color: "var(--forest)", fontSize: "1.2rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+              🎉 Check-In Successful!
+            </h3>
+            
+            <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", margin: "0 0 20px 0", lineHeight: 1.5 }}>
+              Please confirm the following assignments and details with the camper:
+            </p>
+
+            <div style={{ maxHeight: "300px", overflowY: "auto", marginBottom: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+              {checkedInSummary.map(camper => (
+                <div key={camper.id} style={{ 
+                  border: "1px solid var(--border)", 
+                  borderRadius: "8px", 
+                  padding: "14px", 
+                  background: "rgba(34, 76, 56, 0.02)" 
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--forest)", marginBottom: 8 }}>
+                    👤 {camper.full_name}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.85rem" }}>
+                    <div>
+                      <span className="text-muted" style={{ display: "block", fontSize: "0.72rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                        Cabin / Room
+                      </span>
+                      <strong style={{ color: "var(--charcoal)" }}>
+                        {camper.cabin_group || "Not Assigned"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted" style={{ display: "block", fontSize: "0.72rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                        T-Shirt Size
+                      </span>
+                      <strong style={{ color: "var(--charcoal)" }}>
+                        {camper.tshirt_size || camper.indian_size ? (
+                          <>
+                            {camper.tshirt_size && `${camper.tshirt_size} (US)`}
+                            {camper.tshirt_size && camper.indian_size && " / "}
+                            {camper.indian_size && `${camper.indian_size} (IN)`}
+                          </>
+                        ) : (
+                          "None Selected"
+                        )}
+                      </strong>
+                    </div>
+                    <div style={{ gridColumn: "span 2", marginTop: 4 }}>
+                      <span className="text-muted" style={{ display: "block", fontSize: "0.72rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                        Team
+                      </span>
+                      <span className={`badge ${
+                        camper.team_name === (settings.team_1_name || "Team Peter") 
+                          ? "badge-gold" 
+                          : camper.team_name === (settings.team_2_name || "Team Paul") 
+                          ? "badge-blue" 
+                          : "badge-gray"
+                      }`} style={{ display: "inline-block", marginTop: 4, padding: "4px 8px", fontSize: "0.8rem", fontWeight: 700 }}>
+                        🏆 {camper.team_name || "Not Allocated Yet"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => setCheckedInSummary(null)}
+                style={{ padding: "10px 24px", fontWeight: 600 }}
+              >
+                Complete & Close
+              </button>
+            </div>
           </div>
         </div>
       )}

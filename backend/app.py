@@ -16,6 +16,7 @@ from routes.users import users_bp
 from routes.schedule import schedule_bp
 from routes.permissions import permissions_bp
 from routes.finance import finance_bp
+from routes.settings import settings_bp
 
 def create_app():
     # Enforce environment checks in production mode
@@ -72,6 +73,7 @@ def create_app():
     app.register_blueprint(schedule_bp, url_prefix="/api/schedule")
     app.register_blueprint(permissions_bp, url_prefix="/api/permissions")
     app.register_blueprint(finance_bp, url_prefix="/api/finance")
+    app.register_blueprint(settings_bp, url_prefix="/api/settings")
 
     with app.app_context():
         db.create_all()

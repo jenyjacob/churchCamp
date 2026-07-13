@@ -11,4 +11,5 @@ from .token_blocklist import TokenBlocklist
 from .expense import Expense
 from .family_payment import FamilyPayment
 from .fee_rate import FeeRate
+from .setting import Setting
 
