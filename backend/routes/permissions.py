@@ -17,7 +17,8 @@ DEFAULT_PERMISSIONS = {
         "apparel": "edit",
         "users": "edit",
         "logs": "edit",
-        "role_assigner": "edit"
+        "role_assigner": "edit",
+        "finance": "edit"
     },
     "admin": {
         "dashboard": "read",
@@ -29,7 +30,8 @@ DEFAULT_PERMISSIONS = {
         "apparel": "edit",
         "users": "edit",
         "logs": "hide",
-        "role_assigner": "hide"
+        "role_assigner": "hide",
+        "finance": "edit"
     },
     "director": {
         "dashboard": "read",
@@ -41,7 +43,8 @@ DEFAULT_PERMISSIONS = {
         "apparel": "edit",
         "users": "hide",
         "logs": "hide",
-        "role_assigner": "hide"
+        "role_assigner": "hide",
+        "finance": "read"
     },
     "user": {
         "dashboard": "read",
@@ -53,7 +56,8 @@ DEFAULT_PERMISSIONS = {
         "apparel": "hide",
         "users": "hide",
         "logs": "hide",
-        "role_assigner": "hide"
+        "role_assigner": "hide",
+        "finance": "hide"
     }
 }
 

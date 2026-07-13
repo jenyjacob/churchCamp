@@ -8,6 +8,7 @@ import CampersPage from "./pages/CampersPage";
 import CheckInPage from "./pages/CheckInPage";
 import UsersPage from "./pages/UsersPage";
 import CabinsPage from "./pages/CabinsPage";
+import FinancePage from "./pages/FinancePage";
 import SchedulePage from "./pages/SchedulePage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import OutdoorPage from "./pages/OutdoorPage";
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="outdoor" element={<RequirePermission pageKey="outdoor"><OutdoorPage /></RequirePermission>} />
         <Route path="tshirts" element={<RequirePermission pageKey="apparel"><TShirtsPage /></RequirePermission>} />
         <Route path="users" element={<RequirePermission pageKey="users"><UsersPage /></RequirePermission>} />
+        <Route path="finance" element={<RequirePermission pageKey="finance"><FinancePage /></RequirePermission>} />
         <Route path="logs" element={<RequirePermission pageKey="logs"><AuditLogsPage /></RequirePermission>} />
         <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
       </Route>

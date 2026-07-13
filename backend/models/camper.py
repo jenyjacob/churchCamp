@@ -60,4 +60,5 @@ class Camper(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "tshirts": [t.to_dict() for t in self.tshirts],
             "tshirt_size": self.tshirts[0].tshirt_size if self.tshirts else "",
+            "indian_size": self.tshirts[0].indian_size if self.tshirts else "",
         }

@@ -32,30 +32,29 @@ export default function TShirtsPage() {
     fetchCampers();
   }, [fetchCampers]);
 
-  const handleSizeChange = async (camperId, newSize) => {
-    setSavingMap(prev => ({ ...prev, [camperId]: "saving" }));
+  const handleTshirtUpdate = async (camperId, field, value) => {
+    const key = `${camperId}-${field}`;
+    setSavingMap(prev => ({ ...prev, [key]: "saving" }));
     try {
-      await api.put(`/api/campers/${camperId}`, { tshirt_size: newSize });
-      setSavingMap(prev => ({ ...prev, [camperId]: "saved" }));
+      await api.put(`/api/campers/${camperId}`, { [field]: value });
+      setSavingMap(prev => ({ ...prev, [key]: "saved" }));
       
-      // Update local state
       setCampers(prev => prev.map(c => {
         if (c.id === camperId) {
-          return { ...c, tshirt_size: newSize };
+          return { ...c, [field]: value };
         }
         return c;
       }));
 
-      // Clear the "saved" status after 2 seconds
       setTimeout(() => {
         setSavingMap(prev => {
           const updated = { ...prev };
-          delete updated[camperId];
+          delete updated[key];
           return updated;
         });
       }, 2000);
     } catch {
-      setSavingMap(prev => ({ ...prev, [camperId]: "error" }));
+      setSavingMap(prev => ({ ...prev, [key]: "error" }));
     }
   };
 
@@ -180,34 +179,54 @@ export default function TShirtsPage() {
                   </div>
                   <div className="family-card-body">
                     {members.map(c => {
-                      const savingStatus = savingMap[c.id];
                       return (
                         <div key={c.id} className="family-member-row" style={{ padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
                               <div className="family-member-name" style={{ fontWeight: 600 }}>{c.full_name}</div>
-                              <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
-                                {c.age ? `Age: ${c.age}` : ""} {c.cabin_group ? `| Cabin: ${c.cabin_group}` : ""}
-                              </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <select 
-                                className="form-select" 
-                                style={{ width: 140, padding: "4px 8px", fontSize: "0.8rem", height: "auto" }}
-                                value={c.tshirt_size || ""}
-                                onChange={e => handleSizeChange(c.id, e.target.value)}
-                                disabled={!canEdit}
-                              >
-                                <option value="">— Select Size —</option>
-                                {TSHIRT_SIZES.map(sz => (
-                                  <option key={sz} value={sz}>{sz}</option>
-                                ))}
-                              </select>
-                              
-                              {/* Status Indicators */}
-                              {savingStatus === "saving" && <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />}
-                              {savingStatus === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.9rem", fontWeight: 700 }}>✓</span>}
-                              {savingStatus === "error" && <span style={{ color: "var(--red)", fontSize: "0.9rem", fontWeight: 700 }}>⚠️</span>}
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              {/* US Size Select */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>US Size</label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <select 
+                                    className="form-select" 
+                                    style={{ width: 110, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                    value={c.tshirt_size || ""}
+                                    onChange={e => handleTshirtUpdate(c.id, "tshirt_size", e.target.value)}
+                                    disabled={!canEdit}
+                                  >
+                                    <option value="">— Select —</option>
+                                    {TSHIRT_SIZES.map(sz => (
+                                      <option key={sz} value={sz}>{sz}</option>
+                                    ))}
+                                  </select>
+                                  {savingMap[`${c.id}-tshirt_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
+                                  {savingMap[`${c.id}-tshirt_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
+                                  {savingMap[`${c.id}-tshirt_size`] === "error" && <span style={{ color: "var(--red)", fontSize: "0.8rem", fontWeight: 700 }}>⚠️</span>}
+                                </div>
+                              </div>
+
+                              {/* Indian Size Input */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>Indian Size</label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <input 
+                                    type="text"
+                                    className="form-input" 
+                                    placeholder="e.g. M"
+                                    style={{ width: 80, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                    key={c.indian_size || ""}
+                                    defaultValue={c.indian_size || ""}
+                                    onBlur={e => handleTshirtUpdate(c.id, "indian_size", e.target.value)}
+                                    disabled={!canEdit}
+                                  />
+                                  {savingMap[`${c.id}-indian_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
+                                  {savingMap[`${c.id}-indian_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
+                                  {savingMap[`${c.id}-indian_size`] === "error" && <span style={{ color: "var(--red)", fontSize: "0.8rem", fontWeight: 700 }}>⚠️</span>}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -227,34 +246,54 @@ export default function TShirtsPage() {
                 </div>
                 <div className="family-card-body">
                   {individuals.map(c => {
-                    const savingStatus = savingMap[c.id];
                     return (
                       <div key={c.id} className="family-member-row" style={{ padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
                             <div className="family-member-name" style={{ fontWeight: 600 }}>{c.full_name}</div>
-                            <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
-                              {c.age ? `Age: ${c.age}` : ""} {c.cabin_group ? `| Cabin: ${c.cabin_group}` : ""}
-                            </div>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <select 
-                              className="form-select" 
-                              style={{ width: 140, padding: "4px 8px", fontSize: "0.8rem", height: "auto" }}
-                              value={c.tshirt_size || ""}
-                              onChange={e => handleSizeChange(c.id, e.target.value)}
-                              disabled={!canEdit}
-                            >
-                              <option value="">— Select Size —</option>
-                              {TSHIRT_SIZES.map(sz => (
-                                <option key={sz} value={sz}>{sz}</option>
-                              ))}
-                            </select>
-                            
-                            {/* Status Indicators */}
-                            {savingStatus === "saving" && <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />}
-                            {savingStatus === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.9rem", fontWeight: 700 }}>✓</span>}
-                            {savingStatus === "error" && <span style={{ color: "var(--red)", fontSize: "0.9rem", fontWeight: 700 }}>⚠️</span>}
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            {/* US Size Select */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>US Size</label>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <select 
+                                  className="form-select" 
+                                  style={{ width: 110, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                  value={c.tshirt_size || ""}
+                                  onChange={e => handleTshirtUpdate(c.id, "tshirt_size", e.target.value)}
+                                  disabled={!canEdit}
+                                >
+                                  <option value="">— Select —</option>
+                                  {TSHIRT_SIZES.map(sz => (
+                                    <option key={sz} value={sz}>{sz}</option>
+                                  ))}
+                                </select>
+                                {savingMap[`${c.id}-tshirt_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
+                                  {savingMap[`${c.id}-tshirt_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
+                                  {savingMap[`${c.id}-tshirt_size`] === "error" && <span style={{ color: "var(--red)", fontSize: "0.8rem", fontWeight: 700 }}>⚠️</span>}
+                              </div>
+                            </div>
+
+                            {/* Indian Size Input */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>Indian Size</label>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <input 
+                                  type="text"
+                                  className="form-input" 
+                                  placeholder="e.g. M"
+                                  style={{ width: 80, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                  key={c.indian_size || ""}
+                                  defaultValue={c.indian_size || ""}
+                                  onBlur={e => handleTshirtUpdate(c.id, "indian_size", e.target.value)}
+                                  disabled={!canEdit}
+                                />
+                                {savingMap[`${c.id}-indian_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
+                                  {savingMap[`${c.id}-indian_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
+                                  {savingMap[`${c.id}-indian_size`] === "error" && <span style={{ color: "var(--red)", fontSize: "0.8rem", fontWeight: 700 }}>⚠️</span>}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>

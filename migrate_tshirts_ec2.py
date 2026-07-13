@@ -90,32 +90,39 @@ def migrate():
     )
     cursor = conn.cursor(pymysql.cursors.DictCursor)
 
+    def normalize_size(val):
+        if not val:
+            return None
+        val = str(val).strip()
+        if not val:
+            return None
+        return val
+
     matched_count = 0
     created_count = 0
     updated_count = 0
     unmatched_campers = []
 
-    # Columns: 0: No, 1: Type, 2: Name, 3: T-Shirt Size, ..., 10: Family Group
+    # New Columns: 0: No, 1: Name, 2: Type, 3: T-Shirt Size (US), 4: Indian Size
     # Skip header row (index 0)
     for idx, row in enumerate(rows[1:], start=1):
         if not row or len(row) < 4:
             continue
             
-        name = row[2]
-        raw_size = row[3]
-        family_group = str(row[10]) if len(row) > 10 and row[10] is not None else ""
+        name = row[1]
+        raw_us_size = row[3]
+        raw_indian_size = row[4] if len(row) > 4 else None
         
-        if not name or not raw_size:
+        if not name:
             continue
             
         name = str(name).strip()
-        tshirt_size = normalize_size(raw_size)
-        if not tshirt_size:
-            continue
+        us_size = normalize_size(raw_us_size) or "Adult M"
+        indian_size = str(raw_indian_size).strip() if raw_indian_size is not None else None
             
-        # Match camper in the database
+        # Match camper in the database by first_name + ' ' + last_name
         query = """
-            SELECT id, first_name, last_name, family_group 
+            SELECT id, first_name, last_name 
             FROM campers 
             WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER(%s)
         """
@@ -123,18 +130,8 @@ def migrate():
         db_campers = cursor.fetchall()
         
         matched_camper = None
-        if len(db_campers) == 1:
+        if len(db_campers) >= 1:
             matched_camper = db_campers[0]
-        elif len(db_campers) > 1:
-            # Resolve by family group
-            for dbc in db_campers:
-                dbc_fg = str(dbc["family_group"]) if dbc["family_group"] is not None else ""
-                if dbc_fg == family_group:
-                    matched_camper = dbc
-                    break
-            if not matched_camper:
-                # fallback to first match
-                matched_camper = db_campers[0]
                 
         if matched_camper:
             matched_count += 1
@@ -142,24 +139,24 @@ def migrate():
             full_name = f"{matched_camper['first_name']} {matched_camper['last_name']}"
             
             # Check if Tshirt record exists
-            cursor.execute("SELECT id, tshirt_size FROM tshirts WHERE camper_id = %s", (camper_id,))
+            cursor.execute("SELECT id, tshirt_size, indian_size FROM tshirts WHERE camper_id = %s", (camper_id,))
             existing_tshirt = cursor.fetchone()
             
             if existing_tshirt:
-                if existing_tshirt["tshirt_size"] != tshirt_size:
+                if existing_tshirt["tshirt_size"] != us_size or existing_tshirt["indian_size"] != indian_size:
                     cursor.execute(
-                        "UPDATE tshirts SET tshirt_size = %s, attendee_name = %s WHERE id = %s",
-                        (tshirt_size, full_name, existing_tshirt["id"])
+                        "UPDATE tshirts SET tshirt_size = %s, indian_size = %s, attendee_name = %s WHERE id = %s",
+                        (us_size, indian_size, full_name, existing_tshirt["id"])
                     )
                     updated_count += 1
             else:
                 cursor.execute(
-                    "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size) VALUES (%s, %s, %s)",
-                    (camper_id, full_name, tshirt_size)
+                    "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size, indian_size) VALUES (%s, %s, %s, %s)",
+                    (camper_id, full_name, us_size, indian_size)
                 )
                 created_count += 1
         else:
-            unmatched_campers.append((name, family_group, raw_size))
+            unmatched_campers.append((name, raw_us_size, raw_indian_size))
 
     conn.commit()
     cursor.close()
@@ -174,8 +171,8 @@ def migrate():
 
     if unmatched_campers:
         print("\nUnmatched campers from T-Shirt Excel:")
-        for name, fg, size in unmatched_campers[:10]:
-            print(f" - Name: {name}, Family: {fg}, Size: {size}")
+        for name, us_sz, ind_sz in unmatched_campers[:15]:
+            print(f" - Name: {name}, US Size: {us_sz}, Indian Size: {ind_sz}")
 
 if __name__ == "__main__":
     migrate()

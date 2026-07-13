@@ -12,7 +12,7 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [familyGroup, setFamilyGroup] = useState("");
   const [attendees, setAttendees] = useState([
-    { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", kayaking: 0, boat_tour: 0 }
+    { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0 }
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +20,7 @@ export default function SignupPage() {
   const [registeredList, setRegisteredList] = useState([]);
 
   const addAttendee = () => {
-    setAttendees([...attendees, { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", kayaking: 0, boat_tour: 0 }]);
+    setAttendees([...attendees, { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0 }]);
   };
 
   const removeAttendee = (index) => {
@@ -73,6 +73,7 @@ export default function SignupPage() {
           gender: a.gender || null,
           allergies: a.allergies.trim() || null,
           tshirt_size: a.tshirt_size || null,
+          indian_size: a.indian_size || null,
           kayaking: a.kayaking !== "" ? parseInt(a.kayaking) : 0,
           boat_tour: a.boat_tour !== "" ? parseInt(a.boat_tour) : 0
         }))
@@ -102,20 +103,26 @@ export default function SignupPage() {
           <div style={{ textAlign: "left", background: "#f9fafb", borderRadius: 8, padding: 20, marginBottom: 24 }}>
             <h3 style={{ color: "var(--forest-mid)", marginBottom: 12, borderBottom: "1px solid #eee", paddingBottom: 8 }}>Registered Attendees:</h3>
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {registeredList.map((c, idx) => (
-                <li key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "0.95rem" }}>
-                  <span>👤 <strong>{c.full_name}</strong> {c.age ? `(Age: ${c.age})` : ""}</span>
-                  <span style={{ color: "var(--gold)", display: "flex", gap: 8, alignItems: "center" }}>
-                    <span>👕 {c.tshirts && c.tshirts.length > 0 ? c.tshirts[0].tshirt_size : "No T-shirt"}</span>
-                    {(c.kayaking > 0 || c.boat_tour > 0) && (
-                      <span style={{ fontSize: "0.85rem", color: "var(--forest-mid)", background: "#eef2f3", padding: "2px 6px", borderRadius: 4 }}>
-                        {c.kayaking > 0 ? `🛶 ${c.kayaking} ` : ""}
-                        {c.boat_tour > 0 ? `⛵ ${c.boat_tour}` : ""}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
+              {registeredList.map((c, idx) => {
+                const ts = c.tshirts && c.tshirts.length > 0 ? c.tshirts[0] : null;
+                const sizeStr = ts 
+                  ? (ts.indian_size ? `${ts.tshirt_size} (Indian: ${ts.indian_size})` : ts.tshirt_size)
+                  : "No T-shirt";
+                return (
+                  <li key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "0.95rem" }}>
+                    <span>👤 <strong>{c.full_name}</strong> {c.age ? `(Age: ${c.age})` : ""}</span>
+                    <span style={{ color: "var(--gold)", display: "flex", gap: 8, alignItems: "center" }}>
+                      <span>👕 {sizeStr}</span>
+                      {(c.kayaking > 0 || c.boat_tour > 0) && (
+                        <span style={{ fontSize: "0.85rem", color: "var(--forest-mid)", background: "#eef2f3", padding: "2px 6px", borderRadius: 4 }}>
+                          {c.kayaking > 0 ? `🛶 ${c.kayaking} ` : ""}
+                          {c.boat_tour > 0 ? `⛵ ${c.boat_tour}` : ""}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
@@ -124,7 +131,7 @@ export default function SignupPage() {
             setEmail("");
             setPhone("");
             setFamilyGroup("");
-            setAttendees([{ first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", kayaking: 0, boat_tour: 0 }]);
+            setAttendees([{ first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0 }]);
           }}>
             Register Another Family Group
           </button>
@@ -265,17 +272,27 @@ export default function SignupPage() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">T-shirt Size</label>
+                    <label className="form-label">T-shirt Size (US)</label>
                     <select 
                       className="form-select" 
                       value={att.tshirt_size} 
                       onChange={e => handleAttendeeChange(idx, "tshirt_size", e.target.value)}
                     >
-                      <option value="">— Select Size —</option>
+                      <option value="">— Select —</option>
                       {TSHIRT_SIZES.map(size => (
                         <option key={size} value={size}>{size}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Indian Size (Optional)</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. M or 40" 
+                      value={att.indian_size || ""} 
+                      onChange={e => handleAttendeeChange(idx, "indian_size", e.target.value)} 
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Allergies (Optional)</label>

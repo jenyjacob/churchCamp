@@ -20,6 +20,7 @@ const navItems = [
 ];
 
 const adminItems = [
+  { to: "/finance", icon: "💰", label: "Finance", pageKey: "finance" },
   { to: "/users",   icon: "⚙️", label: "Users", pageKey: "users" },
   { to: "/logs",    icon: "📄", label: "Audit Logs", pageKey: "logs" },
   { to: "/role-assigner", icon: "🛡️", label: "Role Assigner", pageKey: "role_assigner" },

@@ -9,6 +9,7 @@ const PAGES = [
   { key: "schedule", label: "📅 Schedule" },
   { key: "outdoor", label: "🛶 Outdoor Activities" },
   { key: "apparel", label: "👕 Apparel" },
+  { key: "finance", label: "💰 Finance" },
   { key: "users", label: "⚙️ Users" },
   { key: "logs", label: "📄 Audit Logs" }
 ];

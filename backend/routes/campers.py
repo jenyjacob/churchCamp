@@ -189,6 +189,7 @@ def public_signup():
         gender = att.get("gender")
         allergies = att.get("allergies")
         tshirt_size = att.get("tshirt_size")
+        indian_size = att.get("indian_size")
 
         kayaking = 0
         if att.get("kayaking") is not None:
@@ -235,11 +236,12 @@ def public_signup():
         db.session.add(camper)
         db.session.flush()
 
-        if tshirt_size:
+        if tshirt_size or indian_size:
             tshirt = Tshirt(
                 camper_id=camper.id,
                 attendee_name=f"{first_name} {last_name}",
-                tshirt_size=tshirt_size
+                tshirt_size=tshirt_size or "Adult M",
+                indian_size=indian_size
             )
             db.session.add(tshirt)
 
@@ -299,22 +301,27 @@ def update_camper(camper_id):
                         val = 0
                 setattr(camper, field, val)
 
-        if "tshirt_size" in data:
-            t_size = data["tshirt_size"]
-            if t_size:
-                tshirt = Tshirt.query.filter_by(camper_id=camper.id).first()
+        if "tshirt_size" in data or "indian_size" in data:
+            tshirt = Tshirt.query.filter_by(camper_id=camper.id).first()
+            t_size = data["tshirt_size"] if "tshirt_size" in data else (tshirt.tshirt_size if tshirt else "")
+            ind_size = data["indian_size"] if "indian_size" in data else (tshirt.indian_size if tshirt else None)
+
+            if t_size or ind_size:
                 if tshirt:
-                    tshirt.tshirt_size = t_size
+                    tshirt.tshirt_size = t_size or "Adult M"
+                    tshirt.indian_size = ind_size
                     tshirt.attendee_name = f"{camper.first_name} {camper.last_name}"
                 else:
                     tshirt = Tshirt(
                         camper_id=camper.id,
                         attendee_name=f"{camper.first_name} {camper.last_name}",
-                        tshirt_size=t_size
+                        tshirt_size=t_size or "Adult M",
+                        indian_size=ind_size
                     )
                     db.session.add(tshirt)
             else:
-                Tshirt.query.filter_by(camper_id=camper.id).delete()
+                if tshirt:
+                    db.session.delete(tshirt)
 
         if waiver_changed and camper.family_group:
             Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": camper.waiver_submitted})
