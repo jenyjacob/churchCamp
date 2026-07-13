@@ -382,27 +382,40 @@ export default function FinancePage() {
   return (
     <div className="container" style={{ padding: "20px 0" }}>
       {/* Page Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div>
+      <div style={{ 
+        display: "flex", 
+        flexDirection: "row", 
+        flexWrap: "wrap", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        gap: "16px",
+        marginBottom: 28 
+      }}>
+        <div style={{ minWidth: "280px", flex: "1 1 auto" }}>
           <h1 style={{ margin: 0, fontSize: "1.75rem", fontWeight: 600 }}>💰 Finance Manager</h1>
           <p style={{ margin: "4px 0 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
             Track itemized camp expenses and collection of tiered family registration fees.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={handlePrintPDF}>
+        <div style={{ 
+          display: "flex", 
+          flexWrap: "wrap", 
+          gap: "8px", 
+          alignItems: "center"
+        }}>
+          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handlePrintPDF}>
             📄 Print Report (PDF)
           </button>
-          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={handleExportCSV}>
+          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleExportCSV}>
             📊 Export CSV (Excel)
           </button>
           {activeTab === "fees" && (
-            <button className="btn btn-secondary" onClick={handleOpenRatesModal}>
+            <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
               ⚙️ Configure Pricing
             </button>
           )}
           {activeTab === "expenses" && (
-            <button className="btn btn-primary" onClick={() => handleOpenExpenseModal()}>
+            <button className="btn btn-primary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenExpenseModal()}>
               ➕ Add Expense
             </button>
           )}
