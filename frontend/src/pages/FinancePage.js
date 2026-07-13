@@ -213,6 +213,157 @@ export default function FinancePage() {
     }
   };
 
+  const handlePrintPDF = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print/export PDF.");
+      return;
+    }
+    
+    const statsHTML = `
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Expected Fees</div>
+          <div class="metric-value">$${stats.total_expected_fees.toFixed(2)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Collected Fees</div>
+          <div class="metric-value">$${stats.total_collected_fees.toFixed(2)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Expenses</div>
+          <div class="metric-value">$${stats.total_expenses.toFixed(2)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Net Balance</div>
+          <div class="metric-value" style="color: ${stats.net_balance >= 0 ? '#27ae60' : '#c0392b'}">$${stats.net_balance.toFixed(2)}</div>
+        </div>
+      </div>
+    `;
+
+    const feesRows = families.map(f => `
+      <tr>
+        <td>Family #${f.family_group} (${f.display_name})</td>
+        <td>${f.eligible_count}</td>
+        <td>$${f.calculated_fee.toFixed(2)}</td>
+        <td>$${f.amount_paid.toFixed(2)}</td>
+        <td>${f.status.toUpperCase()}</td>
+      </tr>
+    `).join("");
+
+    const expensesRows = expenses.map(e => `
+      <tr>
+        <td>${e.date}</td>
+        <td>${e.category}</td>
+        <td>${e.description}</td>
+        <td>$${e.amount.toFixed(2)}</td>
+      </tr>
+    `).join("");
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Camp Finance Report</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #2c3e50; padding: 20px; }
+            h1 { color: #1e4d2b; border-bottom: 2px solid #1e4d2b; padding-bottom: 10px; margin-bottom: 20px; }
+            h2 { color: #1e4d2b; margin-top: 30px; font-size: 1.25rem; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+            .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+            .metric-card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; text-align: center; }
+            .metric-label { font-size: 0.75rem; text-transform: uppercase; color: #7f8c8d; font-weight: 600; margin-bottom: 5px; }
+            .metric-value { font-size: 1.5rem; font-weight: 700; color: #2c3e50; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.875rem; }
+            th, td { border: 1px solid #e0e0e0; padding: 10px 12px; text-align: left; }
+            th { background-color: #f5f5f5; font-weight: 600; }
+            tr:nth-child(even) { background-color: #fafafa; }
+            .print-btn-bar { margin-bottom: 20px; display: flex; gap: 10px; }
+            @media print {
+              .print-btn-bar { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-btn-bar">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #1e4d2b; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">🖨️ Print / Save as PDF</button>
+            <button onclick="window.close()" style="padding: 10px 20px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">Close</button>
+          </div>
+          <h1>Grace Christian Assembly Camp - Financial Report</h1>
+          
+          ${statsHTML}
+
+          <h2>Camp Registration Fees</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Family Group</th>
+                <th>Eligible Members</th>
+                <th>Assessed Fee</th>
+                <th>Amount Paid</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${feesRows}
+            </tbody>
+          </table>
+
+          <h2>Itemized Expenses</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${expensesRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handleExportCSV = () => {
+    let csvContent = "\ufeff"; // Add UTF-8 BOM for Excel compatibility
+    
+    // 1. Title & Summary Metrics
+    csvContent += "Grace Christian Assembly Camp - Financial Report\n\n";
+    csvContent += "SUMMARY METRICS\n";
+    csvContent += "Expected Fees,Collected Fees,Total Expenses,Net Balance\n";
+    csvContent += `"${stats.total_expected_fees.toFixed(2)}","${stats.total_collected_fees.toFixed(2)}","${stats.total_expenses.toFixed(2)}","${stats.net_balance.toFixed(2)}"\n\n`;
+
+    // 2. Family Camp Fees Table
+    csvContent += "CAMP REGISTRATION FEES\n";
+    csvContent += "Family Group,Display Name,Eligible Member Count,Assessed Fee,Paid Amount,Payment Status,Notes\n";
+    families.forEach(f => {
+      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${f.calculated_fee.toFixed(2)}","${f.amount_paid.toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
+    });
+    csvContent += "\n";
+
+    // 3. Expenses Table
+    csvContent += "ITEMIZED EXPENSES\n";
+    csvContent += "Date,Category,Description,Amount\n";
+    expenses.forEach(e => {
+      csvContent += `"${e.date}","${e.category}","${(e.description || "").replace(/"/g, '""')}","${e.amount.toFixed(2)}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_camp_financial_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filters
   const filteredFamilies = families.filter(f => {
     const matchesSearch = f.display_name.toLowerCase().includes(familySearch.toLowerCase()) || 
@@ -239,6 +390,12 @@ export default function FinancePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={handlePrintPDF}>
+            📄 Print Report (PDF)
+          </button>
+          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6 }} onClick={handleExportCSV}>
+            📊 Export CSV (Excel)
+          </button>
           {activeTab === "fees" && (
             <button className="btn btn-secondary" onClick={handleOpenRatesModal}>
               ⚙️ Configure Pricing

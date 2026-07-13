@@ -103,15 +103,37 @@ def migrate():
     updated_count = 0
     unmatched_campers = []
 
-    # New Columns: 0: No, 1: Name, 2: Type, 3: T-Shirt Size (US), 4: Indian Size
+    # Locate column indexes dynamically from the header row
+    header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
+    name_idx = -1
+    tshirt_idx = -1
+    indian_idx = -1
+
+    for i, col in enumerate(header):
+        if "name" in col:
+            name_idx = i
+        elif "t-shirt" in col or "tshirt" in col or "size" in col:
+            if "indian" not in col and tshirt_idx == -1:
+                tshirt_idx = i
+        if "indian" in col:
+            indian_idx = i
+
+    # Fallbacks if dynamic detection fails
+    if name_idx == -1:
+        name_idx = 1
+    if tshirt_idx == -1:
+        tshirt_idx = 3
+    if indian_idx == -1:
+        indian_idx = 4
+
     # Skip header row (index 0)
     for idx, row in enumerate(rows[1:], start=1):
-        if not row or len(row) < 4:
+        if not row or len(row) <= max(name_idx, tshirt_idx):
             continue
             
-        name = row[1]
-        raw_us_size = row[3]
-        raw_indian_size = row[4] if len(row) > 4 else None
+        name = row[name_idx]
+        raw_us_size = row[tshirt_idx]
+        raw_indian_size = row[indian_idx] if indian_idx != -1 and len(row) > indian_idx else None
         
         if not name:
             continue

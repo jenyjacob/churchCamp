@@ -97,7 +97,7 @@ export default function SignupPage() {
           <div style={{ fontSize: "3rem", marginBottom: 20 }}>🎉</div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", color: "var(--forest)", marginBottom: 12 }}>Registration Successful!</h1>
           <p className="text-muted" style={{ marginBottom: 24 }}>
-            Thank you for registering with Grace Covenant Academy Camp. Your family group code is <strong>#{familyGroup}</strong>.
+            Thank you for registering with Grace Christian Assembly Camp. Your family group code is <strong>#{familyGroup}</strong>.
           </p>
 
           <div style={{ textAlign: "left", background: "#f9fafb", borderRadius: 8, padding: 20, marginBottom: 24 }}>
