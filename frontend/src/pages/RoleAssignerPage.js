@@ -17,6 +17,7 @@ const PAGES = [
 const ROLES = [
   { key: "user", label: "Registration Team (user)" },
   { key: "director", label: "Camp Director" },
+  { key: "finance", label: "Finance Dept" },
   { key: "admin", label: "Camp Admin" }
 ];
 

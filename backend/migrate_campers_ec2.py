@@ -83,6 +83,13 @@ def migrate():
     cursor = conn.cursor()
     
     try:
+        # Run schema updates (Enum modifications) dynamically
+        try:
+            cursor.execute("ALTER TABLE users MODIFY COLUMN role ENUM('owner', 'admin', 'user', 'director', 'finance') NOT NULL DEFAULT 'user'")
+            print("Successfully updated users.role column enum to include finance role.")
+        except Exception as ex:
+            print(f"Note: users.role schema alter statement bypassed: {ex}")
+
         # Clear existing campers to prevent duplicates (will not commit until the end of transaction)
         cursor.execute("DELETE FROM checkins")
         cursor.execute("DELETE FROM campers")

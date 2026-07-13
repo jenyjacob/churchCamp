@@ -58,6 +58,19 @@ DEFAULT_PERMISSIONS = {
         "logs": "hide",
         "role_assigner": "hide",
         "finance": "hide"
+    },
+    "finance": {
+        "dashboard": "read",
+        "campers": "hide",
+        "checkin": "hide",
+        "cabins": "hide",
+        "schedule": "hide",
+        "outdoor": "hide",
+        "apparel": "hide",
+        "users": "hide",
+        "logs": "hide",
+        "role_assigner": "hide",
+        "finance": "edit"
     }
 }
 
@@ -92,7 +105,7 @@ def get_all_permissions():
 
     # Build the full grid containing default settings and custom overrides
     grid = {}
-    for target_role in ["admin", "director", "user"]:
+    for target_role in ["admin", "director", "finance", "user"]:
         grid[target_role] = dict(DEFAULT_PERMISSIONS[target_role])
         db_perms = PagePermission.query.filter_by(role=target_role).all()
         for p in db_perms:
@@ -119,7 +132,7 @@ def update_permission():
     if not role or not page_key or not access_level:
         return jsonify({"error": "role, page_key, and access_level are required"}), 400
 
-    if role not in ["admin", "director", "user"]:
+    if role not in ["admin", "director", "finance", "user"]:
         return jsonify({"error": f"Cannot modify permissions for role: {role}"}), 400
 
     if page_key not in DEFAULT_PERMISSIONS["owner"].keys():
