@@ -16,6 +16,7 @@ export default function TShirtsPage() {
   const [search, setSearch] = useState("");
   const [savingMap, setSavingMap] = useState({}); // { camperId: "saving" | "saved" | "error" }
   const [error, setError] = useState("");
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
   const fetchCampers = useCallback(() => {
     setLoading(true);
@@ -103,13 +104,24 @@ export default function TShirtsPage() {
     return a.localeCompare(b);
   });
 
-  // Calculate size counts for the summary widget
-  const sizeCounts = {};
-  filteredCampers.forEach(c => {
+  // Calculate size counts for the summary widget (both US and Indian sizes)
+  const usSizeCounts = {};
+  const indianSizeCounts = {};
+  
+  campers.forEach(c => {
     if (c.tshirt_size) {
-      sizeCounts[c.tshirt_size] = (sizeCounts[c.tshirt_size] || 0) + 1;
+      usSizeCounts[c.tshirt_size] = (usSizeCounts[c.tshirt_size] || 0) + 1;
+    }
+    if (c.indian_size) {
+      const cleanInd = String(c.indian_size).trim().toUpperCase();
+      if (cleanInd) {
+        indianSizeCounts[cleanInd] = (indianSizeCounts[cleanInd] || 0) + 1;
+      }
     }
   });
+
+  const totalUsCount = Object.values(usSizeCounts).reduce((a, b) => a + b, 0);
+  const totalIndianCount = Object.values(indianSizeCounts).reduce((a, b) => a + b, 0);
 
   return (
     <>
@@ -135,28 +147,81 @@ export default function TShirtsPage() {
 
         {/* T-Shirt Inventory/Order Summary Stats Widget */}
         {!loading && campers.length > 0 && (
-          <div className="card" style={{ marginBottom: 28 }}>
-            <h3 style={{ fontSize: "1rem", color: "var(--forest)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-              👕 Apparel Order Summary
-            </h3>
-            {Object.keys(sizeCounts).length === 0 ? (
-              <p className="text-muted" style={{ fontSize: "0.875rem" }}>No T-shirt sizes selected yet.</p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10 }}>
-                {TSHIRT_SIZES.filter(sz => sizeCounts[sz]).map(sz => (
-                  <div key={sz} style={{ 
-                    background: "rgba(34, 76, 56, 0.03)", 
-                    border: "1px solid var(--border)", 
-                    borderRadius: "var(--radius-sm)", 
-                    padding: "8px 12px", 
-                    textAlign: "center" 
-                  }}>
-                    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--forest)" }}>{sz}</div>
-                    <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--charcoal)", marginTop: 4 }}>
-                      {sizeCounts[sz]}
-                    </div>
+          <div className="card" style={{ marginBottom: 28, padding: "16px" }}>
+            <div 
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}
+              onClick={() => setIsSummaryExpanded(prev => !prev)}
+            >
+              <h3 style={{ fontSize: "1rem", color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span>👕 Apparel Order Summary</span>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "normal", background: "rgba(34, 76, 56, 0.06)", padding: "3px 10px", borderRadius: 12 }}>
+                  Total: {totalUsCount} US Size / {totalIndianCount} Indian Size
+                </span>
+              </h3>
+              <span style={{ fontSize: "1.2rem", color: "var(--muted)", fontWeight: "bold" }}>
+                {isSummaryExpanded ? "▼" : "▶"}
+              </span>
+            </div>
+            
+            {isSummaryExpanded && (
+              <div style={{ marginTop: 20, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+                  
+                  {/* US Sizes Column */}
+                  <div>
+                    <h4 style={{ fontSize: "0.875rem", color: "var(--forest-mid)", marginBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.05)", paddingBottom: 6 }}>
+                      US Size
+                    </h4>
+                    {Object.keys(usSizeCounts).length === 0 ? (
+                      <p className="text-muted" style={{ fontSize: "0.8rem" }}>No US sizes selected yet.</p>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
+                        {TSHIRT_SIZES.filter(sz => usSizeCounts[sz]).map(sz => (
+                          <div key={sz} style={{ 
+                            background: "rgba(34, 76, 56, 0.03)", 
+                            border: "1px solid var(--border)", 
+                            borderRadius: "var(--radius-sm)", 
+                            padding: "6px 8px", 
+                            textAlign: "center" 
+                          }}>
+                            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--forest)" }}>{sz}</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--charcoal)", marginTop: 2 }}>
+                              {usSizeCounts[sz]}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
+
+                  {/* Indian Sizes Column */}
+                  <div>
+                    <h4 style={{ fontSize: "0.875rem", color: "var(--forest-mid)", marginBottom: 12, borderBottom: "1px solid rgba(0,0,0,0.05)", paddingBottom: 6 }}>
+                      Indian Size
+                    </h4>
+                    {Object.keys(indianSizeCounts).length === 0 ? (
+                      <p className="text-muted" style={{ fontSize: "0.8rem" }}>No Indian sizes selected yet.</p>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 8 }}>
+                        {Object.keys(indianSizeCounts).sort().map(sz => (
+                          <div key={sz} style={{ 
+                            background: "rgba(34, 76, 56, 0.03)", 
+                            border: "1px solid var(--border)", 
+                            borderRadius: "var(--radius-sm)", 
+                            padding: "6px 8px", 
+                            textAlign: "center" 
+                          }}>
+                            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--forest)" }}>{sz}</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--charcoal)", marginTop: 2 }}>
+                              {indianSizeCounts[sz]}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
               </div>
             )}
           </div>

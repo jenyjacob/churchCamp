@@ -381,6 +381,17 @@ export default function FinancePage() {
 
   return (
     <div className="container" style={{ padding: "20px 0" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .mobile-fab-btn {
+            display: flex !important;
+          }
+          .header-action-btn-desktop {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       {/* Page Header */}
       <div style={{ 
         display: "flex", 
@@ -415,7 +426,7 @@ export default function FinancePage() {
             </button>
           )}
           {activeTab === "expenses" && (
-            <button className="btn btn-primary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenExpenseModal()}>
+            <button className="btn btn-primary header-action-btn-desktop" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenExpenseModal()}>
               ➕ Add Expense
             </button>
           )}
@@ -962,6 +973,35 @@ export default function FinancePage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Mobile Floating Action Button for Adding Expense */}
+      {activeTab === "expenses" && (
+        <button 
+          className="mobile-fab-btn" 
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            background: "var(--primary)",
+            color: "#fff",
+            border: "none",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            display: "none",
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: "1.5rem",
+            zIndex: 1000,
+            cursor: "pointer"
+          }}
+          onClick={() => handleOpenExpenseModal()}
+          title="Add Expense"
+        >
+          ➕
+        </button>
       )}
     </div>
   );
