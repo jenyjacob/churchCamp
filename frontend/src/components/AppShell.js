@@ -213,8 +213,8 @@ export default function AppShell() {
       {/* Mobile Sticky Header */}
       <header className="mobile-header">
         <Link to="/" className="mobile-brand" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
-          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 28, width: 28, objectFit: "contain", background: "white", borderRadius: "50%", padding: 1 }} />
-          <span>GCA Camp Manager</span>
+          <img src="/gca-logo-white.png" alt="GCA Logo" style={{ height: 22, width: "auto", objectFit: "contain" }} />
+          <span style={{ fontSize: "0.9rem", fontWeight: 700, letterSpacing: "0.3px" }}>Camp Manager</span>
         </Link>
         <button 
           className="mobile-menu-toggle"
@@ -233,8 +233,8 @@ export default function AppShell() {
       <aside className={`sidebar ${isMobileMenuOpen ? "mobile-open" : ""}`}>
         <div className="sidebar-brand" style={{ paddingBottom: 16 }}>
           <Link to="/" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", textDecoration: "none", color: "inherit" }}>
-            <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 52, width: 52, marginBottom: 12, objectFit: "contain", background: "white", borderRadius: "50%", padding: 2, cursor: "pointer" }} />
-            <h2 style={{ fontSize: "1rem", cursor: "pointer" }}>GCA Camp Registration</h2>
+            <img src="/gca-logo-white.png" alt="GCA Logo" style={{ width: 140, height: "auto", marginBottom: 10, objectFit: "contain", cursor: "pointer" }} />
+            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.8px" }}>Camp Registration</span>
           </Link>
         </div>
 

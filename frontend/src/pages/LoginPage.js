@@ -85,23 +85,172 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <img src="/grace-logo.png" alt="Grace Christian Assembly" className="login-logo" />
-        <h1>Welcome Back</h1>
-        <p className="tagline">GCA Camp Registration & Check-In</p>
+    <div className="login-page-container">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        .login-page-container {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #0f1d13;
+          background-image: 
+            radial-gradient(circle at 10% 20%, rgba(34, 76, 56, 0.45) 0%, transparent 50%),
+            radial-gradient(circle at 90% 80%, rgba(180, 151, 90, 0.25) 0%, transparent 50%);
+          padding: 24px;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          box-sizing: border-box;
+          width: 100%;
+        }
+        .login-glass-card {
+          background: rgba(255, 255, 255, 0.96);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          padding: 48px 40px;
+          width: 100%;
+          max-width: 420px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+          text-align: center;
+          box-sizing: border-box;
+        }
+        .login-logo-img {
+          width: 220px;
+          height: auto;
+          object-fit: contain;
+          margin: 0 auto -6px;
+          display: block;
+        }
+        .login-title {
+          color: #224C38;
+          font-size: 1.8rem;
+          font-weight: 700;
+          font-family: 'Playfair Display', serif;
+          margin: 0 0 6px 0;
+          letter-spacing: -0.5px;
+          line-height: 1.25;
+        }
+        .login-tagline {
+          color: #64748b;
+          font-size: 0.88rem;
+          font-weight: 500;
+          margin: 0 0 32px 0;
+        }
+        .login-field-group {
+          text-align: left;
+          margin-bottom: 20px;
+        }
+        .login-field-label {
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: #334155;
+          margin-bottom: 6px;
+          display: block;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .login-field-input {
+          width: 100%;
+          height: 44px;
+          background-color: #ffffff !important;
+          border: 1px solid #cbd5e1 !important;
+          color: #1e293b !important;
+          border-radius: 8px !important;
+          padding: 10px 14px;
+          font-size: 14px;
+          box-sizing: border-box;
+          transition: all 0.2s ease;
+        }
+        .login-field-input:focus {
+          outline: none;
+          border-color: #224C38 !important;
+          box-shadow: 0 0 0 3px rgba(34, 76, 56, 0.15) !important;
+        }
+        .login-submit-btn {
+          background-color: #224C38;
+          color: #ffffff;
+          border: 1px solid #224C38;
+          border-radius: 8px;
+          height: 44px;
+          font-size: 15px;
+          font-weight: 600;
+          width: 100%;
+          cursor: pointer;
+          transition: background-color 0.2s, transform 0.1s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 24px;
+          box-sizing: border-box;
+        }
+        .login-submit-btn:hover {
+          background-color: #2e674c;
+        }
+        .login-submit-btn:active {
+          transform: scale(0.98);
+        }
+        .login-submit-btn:disabled {
+          background-color: #94a3b8;
+          border-color: #94a3b8;
+          cursor: not-allowed;
+        }
+        .login-passkey-btn {
+          background-color: #ffffff;
+          color: #224C38;
+          border: 1px solid #224C38;
+          border-radius: 8px;
+          height: 44px;
+          font-size: 14px;
+          font-weight: 600;
+          width: 100%;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          box-sizing: border-box;
+        }
+        .login-passkey-btn:hover {
+          background-color: #f1f5f9;
+        }
+        .login-divider {
+          display: flex;
+          align-items: center;
+          margin: 24px 0 18px;
+        }
+        .login-divider-line {
+          flex: 1;
+          height: 1px;
+          background: #e2e8f0;
+        }
+        .login-divider-text {
+          margin: 0 12px;
+          font-size: 0.72rem;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-weight: 600;
+        }
+      `}</style>
+
+      <div className="login-glass-card">
+        <img src="/grace-logo.png" alt="Grace Christian Assembly" className="login-logo-img" />
+        <h1 className="login-title">Welcome Back</h1>
+        <p className="login-tagline">GCA Camp Registration & Check-In</p>
 
         {error && (
-          <div className="alert alert-error">
+          <div className="alert alert-error" style={{ marginBottom: 20 }}>
             <span>⚠️</span> {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Username</label>
+          <div className="login-field-group">
+            <label className="login-field-label">Username</label>
             <input
-              className="form-input"
+              className="login-field-input"
               type="text"
               autoComplete="username"
               value={form.username}
@@ -111,10 +260,10 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Password</label>
+          <div className="login-field-group" style={{ marginBottom: 8 }}>
+            <label className="login-field-label">Password</label>
             <input
-              className="form-input"
+              className="login-field-input"
               type="password"
               autoComplete="current-password"
               value={form.password}
@@ -126,8 +275,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="btn btn-primary btn-lg w-full"
-            style={{ marginTop: 8, justifyContent: "center" }}
+            className="login-submit-btn"
             disabled={loading}
           >
             {loading ? <span className="spinner" /> : "Sign In"}
@@ -136,25 +284,16 @@ export default function LoginPage() {
 
         {isWebAuthnSupported() && (
           <>
-            <div style={{ display: "flex", alignItems: "center", margin: "20px 0 16px" }}>
-              <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
-              <span style={{ margin: "0 10px", fontSize: "0.72rem", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>or</span>
-              <div style={{ flex: 1, height: 1, background: "#E5E7EB" }} />
+            <div className="login-divider">
+              <div className="login-divider-line" />
+              <span className="login-divider-text">or</span>
+              <div className="login-divider-line" />
             </div>
 
             <button
               type="button"
               onClick={handlePasskeySignIn}
-              className="btn btn-lg w-full"
-              style={{
-                justifyContent: "center",
-                gap: 10,
-                background: "transparent",
-                border: "1px solid #1E4D2B",
-                color: "#1E4D2B",
-                fontWeight: 600,
-                transition: "all 0.2s ease"
-              }}
+              className="login-passkey-btn"
               disabled={loading}
             >
               <span>🛡️</span> Sign In with Biometric / Passkey
@@ -162,7 +301,7 @@ export default function LoginPage() {
           </>
         )}
 
-        <p style={{ marginTop: 20, fontSize: "0.78rem", color: "#9CA3AF" }}>
+        <p style={{ marginTop: 28, fontSize: "0.78rem", color: "#94a3b8", margin: "28px 0 0 0" }}>
           Trouble signing in? Contact your camp administrator.
         </p>
       </div>

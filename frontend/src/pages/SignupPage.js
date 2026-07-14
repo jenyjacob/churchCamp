@@ -300,22 +300,26 @@ export default function SignupPage() {
           width: 100%;
           background-color: #ffffff;
           color: var(--charcoal, #2d312e);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-          border: 1px solid var(--border, #cbd5e1);
-          border-radius: 8px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+          border: 1px solid rgba(34, 76, 56, 0.15);
+          border-top: 6px solid var(--forest, #224C38);
+          border-radius: 12px;
           overflow: hidden;
         }
         .form-header-banner {
           background-color: #ffffff;
           border-bottom: 1px solid var(--border, #cbd5e1);
-          padding: 30px 40px;
+          padding: 36px 40px 28px 40px;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 24px;
+          text-align: center;
+          gap: 4px;
         }
         .form-header-logo {
-          width: 90px;
+          width: 240px;
           height: auto;
+          margin-bottom: -10px;
         }
         .form-title-text {
           margin: 0;
@@ -482,8 +486,8 @@ export default function SignupPage() {
         <div className="form-header-banner">
           <img 
             className="form-header-logo" 
-            src="https://www.jotform.com/uploads/jacob.jeni/form_files/Church%20Logo.6a236d59eb68c8.18475458.png" 
-            alt="Church Logo" 
+            src="/gca-logo-black.png" 
+            alt="GCA Logo" 
           />
           <div>
             <h1 className="form-title-text">{settings.signup_title}</h1>

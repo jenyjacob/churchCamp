@@ -443,7 +443,7 @@ export default function SchedulePage() {
         borderBottom: "2px solid var(--gold)"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 28, width: 28, objectFit: "contain", background: "white", borderRadius: "50%", padding: 1 }} />
+          <img src="/gca-logo-white.png" alt="GCA Logo" style={{ height: 22, width: "auto", objectFit: "contain" }} />
           <span style={{ fontFamily: "Playfair Display, serif", color: "var(--white)", fontSize: "1.25rem", fontWeight: 600 }}>
             GCA Camp Schedule
           </span>
