@@ -1,31 +1,111 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from "../utils/api";
 
-const TSHIRT_SIZES = [
-  "2T", "3T", "4T", "5T",
-  "YXXS", "YXS", "YS", "YM", "YL", "YXL",
-  "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"
-];
+
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [familyGroup, setFamilyGroup] = useState("");
   const [attendees, setAttendees] = useState([
-    { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0 }
+    { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: false }
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // Public customization settings
+  const [settings, setSettings] = useState({
+    signup_title: "GCA 2026 Church Camp Sign-Up Form",
+    signup_dates: "August 14–16, 2026",
+    signup_location: "Camp Prothro",
+    activity_names: '["KAYAKING", "BOAT TOUR"]'
+  });
+
+  const [activitiesResponses, setActivitiesResponses] = useState({
+    0: { interest: "No", count: "" },
+    1: { interest: "No", count: "" }
+  });
+
+  const getActivityNamesArray = () => {
+    try {
+      const parsed = JSON.parse(settings.activity_names);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    return ["KAYAKING", "BOAT TOUR"];
+  };
+
+  const activitiesArray = getActivityNamesArray();
+
+  useEffect(() => {
+    api.get("/api/settings/public")
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(res.data.settings);
+          try {
+            const parsed = JSON.parse(res.data.settings.activity_names);
+            if (Array.isArray(parsed)) {
+              setActivitiesResponses(prev => {
+                const updated = { ...prev };
+                parsed.forEach((_, idx) => {
+                  if (!updated[idx]) {
+                    updated[idx] = { interest: "No", count: "" };
+                  }
+                });
+                return updated;
+              });
+            }
+          } catch (e) {}
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [success, setSuccess] = useState(false);
   const [registeredList, setRegisteredList] = useState([]);
+  
+  // Jotform questionnaire states
+  const [hasChildren, setHasChildren] = useState("No");
+  const [hasAllergies, setHasAllergies] = useState("No");
+  const [allergyDetails, setAllergyDetails] = useState("");
+
+  const handleActivityResponseChange = (idx, field, value) => {
+    setActivitiesResponses(prev => ({
+      ...prev,
+      [idx]: {
+        ...prev[idx],
+        [field]: value
+      }
+    }));
+  };
 
   const addAttendee = () => {
-    setAttendees([...attendees, { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0 }]);
+    setAttendees([...attendees, { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: false }]);
+  };
+
+  const addChildAttendee = () => {
+    setAttendees([...attendees, { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: true }]);
   };
 
   const removeAttendee = (index) => {
     if (attendees.length === 1) return;
     setAttendees(attendees.filter((_, i) => i !== index));
+  };
+
+  const handleHasChildrenChange = (val) => {
+    setHasChildren(val);
+    if (val === "Yes") {
+      // Add first child attendee if none exists
+      if (!attendees.some(a => a.is_child)) {
+        setAttendees([...attendees, { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: true }]);
+      }
+    } else {
+      // Filter out child attendees
+      const remaining = attendees.filter(a => !a.is_child);
+      if (remaining.length === 0) {
+        setAttendees([{ first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: false }]);
+      } else {
+        setAttendees(remaining);
+      }
+    }
   };
 
   const handleAttendeeChange = (index, field, value) => {
@@ -40,43 +120,97 @@ export default function SignupPage() {
     setLoading(true);
 
     // Validate phone and family group
-    if (!phone.strip) {
-      // standard validation
+    if (!phone.trim()) {
+      setError("Guardian Phone is required.");
+      setLoading(false);
+      return;
+    }
+
+    // Filter list to separate adults/children
+    const adultAttendees = attendees.filter(a => !a.is_child);
+    const childAttendees = hasChildren === "Yes" ? attendees.filter(a => a.is_child) : [];
+    const finalAttendeesList = [...adultAttendees, ...childAttendees];
+
+    if (finalAttendeesList.length === 0) {
+      setError("At least one attendee is required.");
+      setLoading(false);
+      return;
     }
 
     // Client side validation for child age
-    for (let i = 0; i < attendees.length; i++) {
-      const att = attendees[i];
+    for (let i = 0; i < finalAttendeesList.length; i++) {
+      const att = finalAttendeesList[i];
+      const displayName = att.first_name.trim() ? `${att.first_name} ${att.last_name}` : `Attendee #${i + 1}`;
+      
       if (!att.first_name.trim() || !att.last_name.trim()) {
-        setError(`First name and Last name are required for Attendee #${i + 1}`);
+        setError(`First name and Last name are required for ${displayName}`);
         setLoading(false);
         return;
       }
-      const ageVal = parseInt(att.age);
-      if (!isNaN(ageVal) && ageVal < 18) {
-        if (att.age === "" || att.age === null || ageVal < 0) {
-          setError(`Please specify a valid age for child attendee: ${att.first_name}`);
+      
+      if (att.is_child) {
+        if (!att.age || !att.age.toString().trim()) {
+          setError(`Please specify the age for child attendee: ${displayName}`);
+          setLoading(false);
+          return;
+        }
+        const ageVal = parseInt(att.age);
+        if (isNaN(ageVal) || ageVal < 0 || ageVal >= 18) {
+          setError(`Age must be under 18 for child attendee: ${displayName}`);
           setLoading(false);
           return;
         }
       }
     }
 
+    // Activity counts mapping
+    const kCount = (activitiesResponses[0] && activitiesResponses[0].interest === "Yes") ? parseInt(activitiesResponses[0].count) || 1 : 0;
+    const bCount = (activitiesResponses[1] && activitiesResponses[1].interest === "Yes") ? parseInt(activitiesResponses[1].count) || 1 : 0;
+
+    const otherActivities = [];
+    activitiesArray.forEach((activityName, idx) => {
+      if (idx >= 2) {
+        const resp = activitiesResponses[idx];
+        if (resp && resp.interest === "Yes") {
+          const countVal = parseInt(resp.count) || 1;
+          otherActivities.push(`${activityName} (${countVal} participants)`);
+        }
+      }
+    });
+
     try {
       const payload = {
         email: email.trim() || null,
         phone: phone.trim(),
-        attendees: attendees.map(a => ({
-          first_name: a.first_name.trim(),
-          last_name: a.last_name.trim(),
-          age: a.age !== "" ? parseInt(a.age) : null,
-          gender: a.gender || null,
-          allergies: a.allergies.trim() || null,
-          tshirt_size: a.tshirt_size || null,
-          indian_size: a.indian_size || null,
-          kayaking: a.kayaking !== "" ? parseInt(a.kayaking) : 0,
-          boat_tour: a.boat_tour !== "" ? parseInt(a.boat_tour) : 0
-        }))
+        attendees: finalAttendeesList.map((a, idx) => {
+          // Set kayaking and boat tour count for the first K/B participants
+          const isKayaking = idx < kCount ? 1 : 0;
+          const isBoatTour = idx < bCount ? 1 : 0;
+          
+          // Save the dietary allergy string to the first attendee in the list
+          let allergiesVal = null;
+          if (hasAllergies === "Yes" && idx === 0) {
+            allergiesVal = allergyDetails.trim() || "Yes (details unspecified)";
+          }
+
+          let camperNotes = null;
+          if (idx === 0 && otherActivities.length > 0) {
+            camperNotes = `Selected Custom Activities: ${otherActivities.join(", ")}`;
+          }
+
+          return {
+            first_name: a.first_name.trim(),
+            last_name: a.last_name.trim(),
+            age: a.is_child && a.age !== "" ? parseInt(a.age) : null,
+            gender: null,
+            allergies: allergiesVal,
+            notes: camperNotes,
+            tshirt_size: a.tshirt_size || null,
+            indian_size: null,
+            kayaking: isKayaking,
+            boat_tour: isBoatTour
+          };
+        })
       };
 
       const res = await api.post("/api/campers/public-signup", payload);
@@ -131,7 +265,14 @@ export default function SignupPage() {
             setEmail("");
             setPhone("");
             setFamilyGroup("");
-            setAttendees([{ first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0 }]);
+            setHasChildren("No");
+            setHasAllergies("No");
+            setAllergyDetails("");
+            setActivitiesResponses({
+              0: { interest: "No", count: "" },
+              1: { interest: "No", count: "" }
+            });
+            setAttendees([{ first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: false }]);
           }}>
             Register Another Family Group
           </button>
@@ -141,205 +282,556 @@ export default function SignupPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f6f8", display: "flex", flexDirection: "column", padding: "40px 20px" }}>
-      <div style={{ maxWidth: 800, width: "100%", margin: "0 auto" }}>
+    <div className="signup-body">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        .signup-body {
+          min-height: 100vh;
+          background: #f4f6f8;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          padding: 40px 20px;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .form-container {
+          max-width: 752px;
+          width: 100%;
+          background-color: #ffffff;
+          color: var(--charcoal, #2d312e);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+          border: 1px solid var(--border, #cbd5e1);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .form-header-banner {
+          background-color: #ffffff;
+          border-bottom: 1px solid var(--border, #cbd5e1);
+          padding: 30px 40px;
+          display: flex;
+          align-items: center;
+          gap: 24px;
+        }
+        .form-header-logo {
+          width: 90px;
+          height: auto;
+        }
+        .form-title-text {
+          margin: 0;
+          color: var(--forest, #224C38);
+          font-size: 1.85rem;
+          font-weight: 700;
+          font-family: 'Playfair Display', serif;
+          letter-spacing: -0.5px;
+          line-height: 1.25;
+        }
+        .form-subtitle-text {
+          margin: 6px 0 0 0;
+          color: var(--muted, #8a908c);
+          font-size: 0.95rem;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .form-section-card {
+          background: #ffffff !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 24px 40px !important;
+          margin-bottom: 0 !important;
+        }
+        .form-section-title {
+          font-size: 1rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--forest-mid, #2e674c);
+          margin-bottom: 18px;
+          border-bottom: 1px solid var(--border, #cbd5e1);
+          padding-bottom: 8px;
+        }
+        .jotform-input {
+          background-color: #FFFFFF !important;
+          border: 1px solid var(--border, #cbd5e1) !important;
+          color: var(--charcoal, #2d312e) !important;
+          border-radius: 6px !important;
+          height: 40px;
+          padding: 8px 12px;
+          font-size: 14px;
+          width: 100%;
+          box-sizing: border-box;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .jotform-input:focus {
+          outline: none;
+          border-color: var(--forest, #224C38) !important;
+          box-shadow: 0 0 0 3px rgba(34, 76, 56, 0.15) !important;
+        }
+        .jotform-select {
+          background-color: #FFFFFF !important;
+          border: 1px solid var(--border, #cbd5e1) !important;
+          color: var(--charcoal, #2d312e) !important;
+          border-radius: 6px !important;
+          height: 40px;
+          padding: 8px 12px;
+          font-size: 14px;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .jotform-select:focus {
+          outline: none;
+          border-color: var(--forest, #224C38) !important;
+        }
+        .jotform-textarea {
+          background-color: #FFFFFF !important;
+          border: 1px solid var(--border, #cbd5e1) !important;
+          color: var(--charcoal, #2d312e) !important;
+          border-radius: 6px !important;
+          padding: 10px 12px;
+          font-size: 14px;
+          width: 100%;
+          box-sizing: border-box;
+          height: 100px;
+          resize: vertical;
+        }
+        .jotform-textarea:focus {
+          outline: none;
+          border-color: var(--forest, #224C38) !important;
+          box-shadow: 0 0 0 3px rgba(34, 76, 56, 0.15) !important;
+        }
+        .jotform-label {
+          font-weight: 600;
+          color: var(--charcoal, #2d312e);
+          margin-bottom: 8px;
+          display: block;
+          font-size: 0.9rem;
+        }
+        .jotform-radio-group {
+          display: flex;
+          flex-direction: row;
+          gap: 24px;
+          margin-top: 8px;
+        }
+        .jotform-radio-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          color: var(--charcoal, #2d312e);
+          font-size: 0.95rem;
+        }
+        .jotform-radio-input {
+          width: 18px;
+          height: 18px;
+          accent-color: var(--forest, #224C38);
+          cursor: pointer;
+          margin: 0;
+        }
+        .jotform-btn-submit {
+          background-color: var(--forest, #224C38);
+          color: #ffffff;
+          border: 1px solid var(--forest, #224C38);
+          border-radius: 6px;
+          padding: 12px 36px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background-color 0.2s;
+          min-width: 180px;
+        }
+        .jotform-btn-submit:hover {
+          background-color: var(--forest-mid, #2e674c);
+        }
+        .jotform-btn-submit:disabled {
+          background-color: var(--muted, #8a908c);
+          cursor: not-allowed;
+        }
+        .jotform-btn-secondary {
+          background-color: var(--forest-light, #e9f0ec);
+          color: var(--forest, #224C38);
+          border: 1px solid var(--forest-light, #e9f0ec);
+          border-radius: 6px;
+          padding: 6px 14px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+        .jotform-btn-secondary:hover {
+          background-color: #dbe7e1;
+        }
+        .jotform-card-attendee {
+          background: #f8fafc;
+          border: 1px solid var(--border, #cbd5e1);
+          border-radius: 6px;
+          padding: 20px;
+          margin-bottom: 20px;
+        }
+        .jotform-card-attendee-child {
+          background: var(--gold-light, #fbf9f4);
+          border: 1px solid rgba(180, 151, 90, 0.35);
+          border-radius: 6px;
+          padding: 20px;
+          margin-bottom: 20px;
+        }
+      `}</style>
+
+      <div className="form-container">
         
-        {/* Header Branding */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <img src="/grace-logo.png" alt="GCA Logo" style={{ height: 72, width: 72, marginBottom: 16, background: "white", borderRadius: "50%", padding: 2, boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }} />
-          <h1 style={{ fontFamily: "'Playfair Display', serif", color: "var(--forest)", fontSize: "2.25rem", margin: 0 }}>GCA Camp Registration</h1>
-          <p className="text-muted" style={{ marginTop: 8, fontSize: "1rem" }}>Please fill in the form below to sign up your family.</p>
+        {/* Header Banner */}
+        <div className="form-header-banner">
+          <img 
+            className="form-header-logo" 
+            src="https://www.jotform.com/uploads/jacob.jeni/form_files/Church%20Logo.6a236d59eb68c8.18475458.png" 
+            alt="Church Logo" 
+          />
+          <div>
+            <h1 className="form-title-text">{settings.signup_title}</h1>
+            <p className="form-subtitle-text">📍 {settings.signup_location} | 📅 {settings.signup_dates}</p>
+          </div>
         </div>
 
-        {error && <div className="alert alert-error" style={{ marginBottom: 24 }}><span>⚠️</span> {error}</div>}
+        {error && (
+          <div style={{ margin: "20px 40px 0 40px", padding: "12px 20px", background: "#f8d7da", border: "1px solid #f5c6cb", color: "#721c24", borderRadius: 4, fontWeight: 600 }}>
+            ⚠️ {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ paddingBottom: 40 }}>
           
           {/* Section 1: Contact Information */}
-          <div className="card" style={{ marginBottom: 24, padding: "24px 30px" }}>
-            <h2 style={{ fontSize: "1.2rem", color: "var(--forest-mid)", borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 20 }}>
-              📞 Contact Information
-            </h2>
-            <div className="form-grid">
+          <div className="form-section-card">
+            <h2 className="form-section-title">📞 Primary Contact</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
               <div className="form-group">
-                <label className="form-label">Phone Number *</label>
+                <label className="jotform-label">Phone Number *</label>
                 <input 
                   type="tel" 
-                  className="form-input" 
+                  className="jotform-input" 
                   value={phone} 
                   onChange={e => setPhone(e.target.value)} 
-                  placeholder="e.g. 555-0199" 
+                  placeholder="(000) 000-0000" 
                   required 
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Email Address (Optional)</label>
+                <label className="jotform-label">Email Address (Optional)</label>
                 <input 
                   type="email" 
-                  className="form-input" 
+                  className="jotform-input" 
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
-                  placeholder="e.g. parent@example.com" 
+                  placeholder="example@example.com" 
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Attendees */}
-          <div className="card" style={{ padding: "24px 30px", marginBottom: 24 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 20 }}>
-              <h2 style={{ fontSize: "1.2rem", color: "var(--forest-mid)", margin: 0 }}>
-                👥 Attendees
+          {/* Section 2: Attendee Information */}
+          <div className="form-section-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(50, 31, 22, 0.15)", paddingBottom: 8, marginBottom: 18 }}>
+              <h2 style={{ fontSize: "1.05rem", fontWeight: 700, textTransform: "uppercase", color: "#321F16", margin: 0 }}>
+                👥 Attendee Information *
               </h2>
               <button 
                 type="button" 
-                className="btn btn-ghost btn-sm" 
+                className="jotform-btn-secondary" 
                 onClick={addAttendee}
-                style={{ color: "var(--forest)", border: "1px solid var(--forest)", display: "flex", alignItems: "center", gap: 6 }}
               >
-                ➕ Add Attendee
+                Add More Attendees
               </button>
             </div>
 
-            {attendees.map((att, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  background: "#f9fafb", 
-                  border: "1px solid #e5e7eb", 
-                  borderRadius: 8, 
-                  padding: 20, 
-                  marginBottom: idx < attendees.length - 1 ? 24 : 0,
-                  position: "relative"
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <span style={{ fontWeight: 700, color: "var(--forest-mid)", fontSize: "0.95rem" }}>
-                    Attendee #{idx + 1}
-                  </span>
-                  {attendees.length > 1 && (
-                    <button 
-                      type="button" 
-                      onClick={() => removeAttendee(idx)}
-                      style={{ background: "none", border: "none", color: "#ef4444", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
-                    >
-                      ✕ Remove
-                    </button>
-                  )}
-                </div>
-
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">First Name *</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={att.first_name} 
-                      onChange={e => handleAttendeeChange(idx, "first_name", e.target.value)} 
-                      required 
-                    />
+            {attendees.filter(a => !a.is_child).map((att, idx) => {
+              const realIndex = attendees.indexOf(att);
+              return (
+                <div key={realIndex} className="jotform-card-attendee">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                    <span style={{ fontWeight: 700, color: "#321F16" }}>Attendee #{idx + 1}</span>
+                    {attendees.filter(a => !a.is_child).length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeAttendee(realIndex)}
+                        style={{ background: "none", border: "none", color: "#b91c1c", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
+                      >
+                        x Remove
+                      </button>
+                    )}
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Last Name *</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={att.last_name} 
-                      onChange={e => handleAttendeeChange(idx, "last_name", e.target.value)} 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Age {parseInt(att.age) < 18 ? "*" : "(Optional)"}</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={att.age} 
-                      placeholder="Required if under 18" 
-                      onChange={e => handleAttendeeChange(idx, "age", e.target.value)} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Gender</label>
-                    <select 
-                      className="form-select" 
-                      value={att.gender} 
-                      onChange={e => handleAttendeeChange(idx, "gender", e.target.value)}
-                    >
-                      <option value="">— Select —</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">T-shirt Size (US)</label>
-                    <select 
-                      className="form-select" 
-                      value={att.tshirt_size} 
-                      onChange={e => handleAttendeeChange(idx, "tshirt_size", e.target.value)}
-                    >
-                      <option value="">— Select —</option>
-                      {TSHIRT_SIZES.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Indian Size (Optional)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="e.g. M or 40" 
-                      value={att.indian_size || ""} 
-                      onChange={e => handleAttendeeChange(idx, "indian_size", e.target.value)} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Allergies (Optional)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={att.allergies} 
-                      placeholder="e.g. Peanuts, none" 
-                      onChange={e => handleAttendeeChange(idx, "allergies", e.target.value)} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Kayaking Spots</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={att.kayaking} 
-                      min="0"
-                      max="10"
-                      onChange={e => handleAttendeeChange(idx, "kayaking", e.target.value)} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Boat Tour Spots</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={att.boat_tour} 
-                      min="0"
-                      max="10"
-                      onChange={e => handleAttendeeChange(idx, "boat_tour", e.target.value)} 
-                    />
+                  
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+                    <div className="form-group">
+                      <label className="jotform-label">First Name *</label>
+                      <input 
+                        type="text" 
+                        className="jotform-input" 
+                        value={att.first_name} 
+                        onChange={e => handleAttendeeChange(realIndex, "first_name", e.target.value)} 
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="jotform-label">Last Name *</label>
+                      <input 
+                        type="text" 
+                        className="jotform-input" 
+                        value={att.last_name} 
+                        onChange={e => handleAttendeeChange(realIndex, "last_name", e.target.value)} 
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="jotform-label">T-shirt Size *</label>
+                      <select 
+                        className="jotform-select" 
+                        value={att.tshirt_size} 
+                        onChange={e => handleAttendeeChange(realIndex, "tshirt_size", e.target.value)}
+                        required
+                      >
+                        <option value="">— Select Size —</option>
+                        {["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"].map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Action Footer */}
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          {/* Section 3: Children Questions & Information */}
+          <div className="form-section-card">
+            <div style={{ marginBottom: 20 }}>
+              <label className="jotform-label" style={{ fontSize: "0.95rem" }}>Are you registering any children (under age 18)? *</label>
+              <div className="jotform-radio-group">
+                <label className="jotform-radio-label">
+                  <input 
+                    type="radio" 
+                    className="jotform-radio-input"
+                    name="hasChildrenRadio" 
+                    value="Yes" 
+                    checked={hasChildren === "Yes"} 
+                    onChange={() => handleHasChildrenChange("Yes")} 
+                  />
+                  Yes
+                </label>
+                <label className="jotform-radio-label">
+                  <input 
+                    type="radio" 
+                    className="jotform-radio-input"
+                    name="hasChildrenRadio" 
+                    value="No" 
+                    checked={hasChildren === "No"} 
+                    onChange={() => handleHasChildrenChange("No")} 
+                  />
+                  No
+                </label>
+              </div>
+            </div>
+
+            {hasChildren === "Yes" && (
+              <div style={{ marginTop: 20, padding: "10px 0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(50, 31, 22, 0.15)", paddingBottom: 8, marginBottom: 18 }}>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#b45309", margin: 0 }}>
+                    👶 Children's Information
+                  </h3>
+                  <button 
+                    type="button" 
+                    className="jotform-btn-secondary"
+                    onClick={addChildAttendee}
+                    style={{ background: "#b45309", borderColor: "rgba(180, 151, 90, 0.5)" }}
+                  >
+                    Add Child
+                  </button>
+                </div>
+
+                {attendees.filter(a => a.is_child).map((att, idx) => {
+                  const realIndex = attendees.indexOf(att);
+                  return (
+                    <div key={realIndex} className="jotform-card-attendee-child">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                        <span style={{ fontWeight: 700, color: "#b45309" }}>Child #{idx + 1}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => removeAttendee(realIndex)}
+                          style={{ background: "none", border: "none", color: "#b91c1c", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
+                        >
+                          x Remove
+                        </button>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+                        <div className="form-group">
+                          <label className="jotform-label">First Name *</label>
+                          <input 
+                            type="text" 
+                            className="jotform-input" 
+                            value={att.first_name} 
+                            onChange={e => handleAttendeeChange(realIndex, "first_name", e.target.value)} 
+                            required 
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="jotform-label">Last Name *</label>
+                          <input 
+                            type="text" 
+                            className="jotform-input" 
+                            value={att.last_name} 
+                            onChange={e => handleAttendeeChange(realIndex, "last_name", e.target.value)} 
+                            required 
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="jotform-label">Age *</label>
+                          <input 
+                            type="number" 
+                            className="jotform-input" 
+                            value={att.age} 
+                            placeholder="Age" 
+                            min="0"
+                            max="17"
+                            onChange={e => handleAttendeeChange(realIndex, "age", e.target.value)} 
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="jotform-label">T-shirt Size *</label>
+                          <select 
+                            className="jotform-select" 
+                            value={att.tshirt_size} 
+                            onChange={e => handleAttendeeChange(realIndex, "tshirt_size", e.target.value)}
+                            required
+                          >
+                            <option value="">— Select Size —</option>
+                            {["YXXS", "YXS", "YS", "YM", "YL", "YXL", "XS", "S", "M", "L"].map(size => (
+                              <option key={size} value={size}>{size}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Section 4: Dietary Allergies */}
+          <div className="form-section-card">
+            <h2 className="form-section-title">🥜 Dietary Allergies</h2>
+            <div style={{ marginBottom: 20 }}>
+              <label className="jotform-label">Do you have any dietary allergies? *</label>
+              <div className="jotform-radio-group">
+                <label className="jotform-radio-label">
+                  <input 
+                    type="radio" 
+                    className="jotform-radio-input"
+                    name="hasAllergiesRadio" 
+                    value="Yes" 
+                    checked={hasAllergies === "Yes"} 
+                    onChange={() => setHasAllergies("Yes")} 
+                  />
+                  Yes
+                </label>
+                <label className="jotform-radio-label">
+                  <input 
+                    type="radio" 
+                    className="jotform-radio-input"
+                    name="hasAllergiesRadio" 
+                    value="No" 
+                    checked={hasAllergies === "No"} 
+                    onChange={() => setHasAllergies("No")} 
+                  />
+                  No
+                </label>
+              </div>
+            </div>
+
+            {hasAllergies === "Yes" && (
+              <div style={{ marginTop: 12 }}>
+                <label className="jotform-label">If yes, please specify your dietary allergies *</label>
+                <textarea 
+                  className="jotform-textarea" 
+                  value={allergyDetails} 
+                  onChange={e => setAllergyDetails(e.target.value)} 
+                  placeholder="Please specify here..." 
+                  required
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Section 5: Activities */}
+          {activitiesArray.length > 0 && (
+            <div className="form-section-card">
+              <h2 className="form-section-title">🛶 Activity Options</h2>
+              <p style={{ fontSize: "0.85rem", color: "#796F6B", marginTop: -10, marginBottom: 20 }}>
+                Interested in any of the activities below? Select all that apply. (Additional fees will be charged.)
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 24 }}>
+                {activitiesArray.map((activityName, idx) => {
+                  const response = activitiesResponses[idx] || { interest: "No", count: "" };
+                  return (
+                    <div key={idx} style={{ background: "rgba(255,255,255,0.25)", padding: 18, borderRadius: 4, border: "1px solid rgba(50,31,22,0.15)" }}>
+                      <label className="jotform-label" style={{ fontSize: "0.95rem" }}>• {activityName}</label>
+                      <div className="jotform-radio-group" style={{ marginBottom: 12 }}>
+                        <label className="jotform-radio-label">
+                          <input 
+                            type="radio" 
+                            className="jotform-radio-input"
+                            name={`activityInterestRadio_${idx}`} 
+                            value="Yes" 
+                            checked={response.interest === "Yes"} 
+                            onChange={() => handleActivityResponseChange(idx, "interest", "Yes")} 
+                          />
+                          Yes
+                        </label>
+                        <label className="jotform-radio-label">
+                          <input 
+                            type="radio" 
+                            className="jotform-radio-input"
+                            name={`activityInterestRadio_${idx}`} 
+                            value="No" 
+                            checked={response.interest === "No"} 
+                            onChange={() => {
+                              handleActivityResponseChange(idx, "interest", "No");
+                              handleActivityResponseChange(idx, "count", "");
+                            }} 
+                          />
+                          No
+                        </label>
+                      </div>
+                      
+                      {response.interest === "Yes" && (
+                        <div>
+                          <label className="jotform-label" style={{ fontSize: "0.8rem" }}>Number of participants (optional):</label>
+                          <input 
+                            type="number" 
+                            className="jotform-input" 
+                            value={response.count} 
+                            onChange={e => handleActivityResponseChange(idx, "count", e.target.value)} 
+                            placeholder="Defaults to 1" 
+                            min="1"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Form Action Buttons */}
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 32, padding: "0 40px" }}>
             <button 
               type="submit" 
-              className="btn btn-primary" 
+              className="jotform-btn-submit" 
               disabled={loading}
-              style={{ padding: "12px 32px", fontSize: "1rem", fontWeight: 600 }}
             >
-              {loading ? "Submitting Registration..." : "Submit Registration"}
+              {loading ? "Please wait..." : "Submit"}
             </button>
           </div>
 

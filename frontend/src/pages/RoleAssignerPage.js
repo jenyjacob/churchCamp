@@ -35,6 +35,7 @@ export default function RoleAssignerPage() {
   
   // Camp configuration settings
   const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
+  const [activitiesList, setActivitiesList] = useState(["KAYAKING", "BOAT TOUR"]);
   const [updatingSettings, setUpdatingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState("");
   const [settingsSuccess, setSettingsSuccess] = useState("");
@@ -53,20 +54,52 @@ export default function RoleAssignerPage() {
       .then(res => {
         if (res.data.settings) {
           setSettings(res.data.settings);
+          try {
+            const parsed = JSON.parse(res.data.settings.activity_names);
+            if (Array.isArray(parsed)) {
+              setActivitiesList(parsed);
+            }
+          } catch (e) {}
         }
       })
       .catch(() => {});
   }, []);
+
+  const handleActivityChange = (index, val) => {
+    const updated = [...activitiesList];
+    updated[index] = val;
+    setActivitiesList(updated);
+  };
+
+  const addActivity = () => {
+    setActivitiesList([...activitiesList, ""]);
+  };
+
+  const removeActivity = (index) => {
+    setActivitiesList(activitiesList.filter((_, i) => i !== index));
+  };
 
   const handleSaveSettings = (e) => {
     e.preventDefault();
     setUpdatingSettings(true);
     setSettingsError("");
     setSettingsSuccess("");
-    api.post("/api/settings/", settings)
+
+    const payload = {
+      ...settings,
+      activity_names: JSON.stringify(activitiesList.filter(act => act.trim() !== ""))
+    };
+
+    api.post("/api/settings/", payload)
       .then(res => {
         if (res.data.settings) {
           setSettings(res.data.settings);
+          try {
+            const parsed = JSON.parse(res.data.settings.activity_names);
+            if (Array.isArray(parsed)) {
+              setActivitiesList(parsed);
+            }
+          } catch (e) {}
           setSettingsSuccess("Camp settings updated successfully!");
           setTimeout(() => setSettingsSuccess(""), 4000);
         }
@@ -120,7 +153,88 @@ export default function RoleAssignerPage() {
           {settingsError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{settingsError}</div>}
 
           <form onSubmit={handleSaveSettings}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+            {/* Group 1: Registration Form Details */}
+            <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 14, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
+              📝 Registration Page Branding & Activities
+            </h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div className="form-group" style={{ gridColumn: "span 2" }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Registration Form Heading Title</label>
+                <input 
+                  className="form-input" 
+                  value={settings.signup_title || ""} 
+                  onChange={e => setSettings(prev => ({ ...prev, signup_title: e.target.value }))}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>Camp Dates Description</label>
+                <input 
+                  className="form-input" 
+                  value={settings.signup_dates || ""} 
+                  onChange={e => setSettings(prev => ({ ...prev, signup_dates: e.target.value }))}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>Camp Location Description</label>
+                <input 
+                  className="form-input" 
+                  value={settings.signup_location || ""} 
+                  onChange={e => setSettings(prev => ({ ...prev, signup_location: e.target.value }))}
+                  required 
+                />
+              </div>
+            </div>
+
+            {/* Dynamic Activity Options nested under Registration Page Branding */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--border)", paddingBottom: 6, margin: "16px 0 14px 0" }}>
+              <h5 style={{ fontSize: "0.78rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, fontWeight: 700 }}>
+                🛶 Activity Option Labels
+              </h5>
+              <button 
+                type="button" 
+                onClick={addActivity}
+                style={{ background: "none", border: "1px solid var(--forest)", borderRadius: 4, color: "var(--forest)", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", padding: "2px 8px" }}
+              >
+                + Add Activity
+              </button>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+              {activitiesList.map((activity, idx) => (
+                <div key={idx} className="form-group" style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <label className="form-label" style={{ fontWeight: 600, margin: 0 }}>Activity #{idx + 1} Name</label>
+                    <button 
+                      type="button" 
+                      onClick={() => removeActivity(idx)}
+                      style={{ background: "none", border: "none", color: "#ef4444", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <input 
+                    className="form-input" 
+                    value={activity} 
+                    onChange={e => handleActivityChange(idx, e.target.value)}
+                    placeholder={`e.g. Activity #${idx + 1}`}
+                    required 
+                  />
+                </div>
+              ))}
+              {activitiesList.length === 0 && (
+                <div style={{ gridColumn: "span 2", padding: "12px", background: "#f8fafc", borderRadius: 6, color: "var(--muted)", fontSize: "0.85rem", textAlign: "center" }}>
+                  No activities configured. The activities section will be hidden on the signup page.
+                </div>
+              )}
+            </div>
+
+            {/* Group 2: Game Teams */}
+            <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 14, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
+              🏆 Game Teams Configurations
+            </h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 12 }}>
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: 600 }}>First Team Name</label>
                 <input 
@@ -141,14 +255,14 @@ export default function RoleAssignerPage() {
               </div>
             </div>
             
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
               <button 
                 type="submit" 
                 className="btn btn-primary" 
                 disabled={updatingSettings}
-                style={{ padding: "8px 20px" }}
+                style={{ padding: "8px 24px" }}
               >
-                {updatingSettings ? "Saving Settings…" : "Update Team Names"}
+                {updatingSettings ? "Saving Settings…" : "Save Customizations"}
               </button>
             </div>
           </form>

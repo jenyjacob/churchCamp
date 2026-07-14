@@ -6,10 +6,31 @@ from utils.logging import log_action
 
 settings_bp = Blueprint("settings", __name__)
 
+
+
+
+
 DEFAULT_SETTINGS = {
     "team_1_name": "Team Peter",
-    "team_2_name": "Team Paul"
+    "team_2_name": "Team Paul",
+    "signup_title": "GCA 2026 Church Camp Sign-Up Form",
+    "signup_dates": "August 14–16, 2026",
+    "signup_location": "Camp Prothro",
+    "activity_names": '["KAYAKING", "BOAT TOUR"]'
 }
+
+@settings_bp.route("/public", methods=["GET"])
+def get_public_settings():
+    settings_dict = dict(DEFAULT_SETTINGS)
+    try:
+        db_settings = Setting.query.all()
+        for s in db_settings:
+            settings_dict[s.key] = s.value
+    except Exception:
+        pass
+    return jsonify({
+        "settings": settings_dict
+    }), 200
 
 @settings_bp.route("/", methods=["GET"])
 @jwt_required()
