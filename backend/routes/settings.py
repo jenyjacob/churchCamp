@@ -16,7 +16,9 @@ DEFAULT_SETTINGS = {
     "signup_title": "GCA 2026 Church Camp Sign-Up Form",
     "signup_dates": "August 14–16, 2026",
     "signup_location": "Camp Prothro",
-    "activity_names": '["KAYAKING", "BOAT TOUR"]'
+    "activity_names": '["KAYAKING", "BOAT TOUR"]',
+    "activity_1_price": "10.0",
+    "activity_2_price": "20.0"
 }
 
 @settings_bp.route("/public", methods=["GET"])

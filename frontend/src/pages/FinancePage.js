@@ -25,6 +25,11 @@ export default function FinancePage() {
   const [familyFilter, setFamilyFilter] = useState("all"); // all, unpaid, partial, paid
   const [expandedFamilies, setExpandedFamilies] = useState({});
 
+  // Dynamic Activity Configs
+  const [activityNames, setActivityNames] = useState(["Kayaking", "Boat Tour"]);
+  const [activityPrices, setActivityPrices] = useState([10.0, 20.0]);
+  const [actPricesForm, setActPricesForm] = useState(["10.0", "20.0"]);
+
   // Expenses State
   const [expenses, setExpenses] = useState([]);
   const [expenseSearch, setExpenseSearch] = useState("");
@@ -77,6 +82,12 @@ export default function FinancePage() {
       setFamilies(feesRes.data.families);
       setExpenses(expensesRes.data.expenses);
       setRates(ratesRes.data.rates);
+      if (feesRes.data.activity_names) {
+        setActivityNames(feesRes.data.activity_names);
+      }
+      if (feesRes.data.activity_prices) {
+        setActivityPrices(feesRes.data.activity_prices);
+      }
     } catch (err) {
       flashError(err.response?.data?.error || "Failed to load financial records.");
     } finally {
@@ -189,6 +200,11 @@ export default function FinancePage() {
   // Rates Pricing Configuration handlers
   const handleOpenRatesModal = () => {
     setRatesForm(rates.map(r => ({ ...r })));
+    setActPricesForm(
+      activityNames.map((name, idx) => {
+        return activityPrices[idx] !== undefined ? String(activityPrices[idx]) : "15.0";
+      })
+    );
     setIsRatesModalOpen(true);
   };
 
@@ -205,7 +221,14 @@ export default function FinancePage() {
     setError("");
     try {
       await api.post("/api/finance/rates", { rates: ratesForm });
-      flashSuccess("Fee tier pricing rates saved successfully!");
+      if (user?.role === "owner") {
+        const payload = {};
+        activityNames.forEach((name, idx) => {
+          payload[`activity_${idx + 1}_price`] = actPricesForm[idx] || "15.0";
+        });
+        await api.post("/api/settings/", payload);
+      }
+      flashSuccess("Pricing rates saved successfully!");
       setIsRatesModalOpen(false);
       fetchFinanceData();
     } catch (err) {
@@ -224,39 +247,56 @@ export default function FinancePage() {
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-label">Expected Fees</div>
-          <div class="metric-value">$${stats.total_expected_fees.toFixed(2)}</div>
+          <div class="metric-value">$${(stats.total_expected_fees || 0).toFixed(2)}</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Collected Fees</div>
-          <div class="metric-value">$${stats.total_collected_fees.toFixed(2)}</div>
+          <div class="metric-value">$${(stats.total_collected_fees || 0).toFixed(2)}</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Total Expenses</div>
-          <div class="metric-value">$${stats.total_expenses.toFixed(2)}</div>
+          <div class="metric-value">$${(stats.total_expenses || 0).toFixed(2)}</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Net Balance</div>
-          <div class="metric-value" style="color: ${stats.net_balance >= 0 ? '#27ae60' : '#c0392b'}">$${stats.net_balance.toFixed(2)}</div>
+          <div class="metric-value" style="color: ${stats.net_balance >= 0 ? '#27ae60' : '#c0392b'}">$${(stats.net_balance || 0).toFixed(2)}</div>
         </div>
       </div>
     `;
+
+    const totalReg = families.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
+    const totalAct = families.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
+    const totalExp = families.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
+    const totalPaid = families.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
 
     const feesRows = families.map(f => `
       <tr>
         <td>Family #${f.family_group} (${f.display_name})</td>
         <td>${f.eligible_count}</td>
-        <td>$${f.calculated_fee.toFixed(2)}</td>
-        <td>$${f.amount_paid.toFixed(2)}</td>
+        <td>$${(f.calculated_fee || 0).toFixed(2)}</td>
+        <td>$${(f.activity_fee || 0).toFixed(2)}</td>
+        <td>$${(f.total_expected_fee || 0).toFixed(2)}</td>
+        <td>$${(f.amount_paid || 0).toFixed(2)}</td>
         <td>${f.status.toUpperCase()}</td>
       </tr>
-    `).join("");
+    `).join("") + `
+      <tr style="font-weight: bold; background-color: #eee;">
+        <td>Total</td>
+        <td></td>
+        <td>$${totalReg.toFixed(2)}</td>
+        <td>$${totalAct.toFixed(2)}</td>
+        <td>$${totalExp.toFixed(2)}</td>
+        <td>$${totalPaid.toFixed(2)}</td>
+        <td></td>
+      </tr>
+    `;
 
     const expensesRows = expenses.map(e => `
       <tr>
         <td>${e.date}</td>
         <td>${e.category}</td>
         <td>${e.description}</td>
-        <td>$${e.amount.toFixed(2)}</td>
+        <td>$${(e.amount || 0).toFixed(2)}</td>
       </tr>
     `).join("");
 
@@ -297,7 +337,9 @@ export default function FinancePage() {
               <tr>
                 <th>Family Group</th>
                 <th>Eligible Members</th>
-                <th>Assessed Fee</th>
+                <th>Registration Fee</th>
+                <th>Activity Fee</th>
+                <th>Total expected</th>
                 <th>Amount Paid</th>
                 <th>Status</th>
               </tr>
@@ -337,21 +379,26 @@ export default function FinancePage() {
     csvContent += "Grace Christian Assembly Camp - Financial Report\n\n";
     csvContent += "SUMMARY METRICS\n";
     csvContent += "Expected Fees,Collected Fees,Total Expenses,Net Balance\n";
-    csvContent += `"${stats.total_expected_fees.toFixed(2)}","${stats.total_collected_fees.toFixed(2)}","${stats.total_expenses.toFixed(2)}","${stats.net_balance.toFixed(2)}"\n\n`;
+    csvContent += `"${(stats.total_expected_fees || 0).toFixed(2)}","${(stats.total_collected_fees || 0).toFixed(2)}","${(stats.total_expenses || 0).toFixed(2)}","${(stats.net_balance || 0).toFixed(2)}"\n\n`;
 
     // 2. Family Camp Fees Table
     csvContent += "CAMP REGISTRATION FEES\n";
-    csvContent += "Family Group,Display Name,Eligible Member Count,Assessed Fee,Paid Amount,Payment Status,Notes\n";
+    csvContent += "Family Group,Display Name,Eligible Member Count,Registration Fee,Activity Fee,Total Expected Fee,Paid Amount,Payment Status,Notes\n";
     families.forEach(f => {
-      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${f.calculated_fee.toFixed(2)}","${f.amount_paid.toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
+      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${(f.calculated_fee || 0).toFixed(2)}","${(f.activity_fee || 0).toFixed(2)}","${(f.total_expected_fee || 0).toFixed(2)}","${(f.amount_paid || 0).toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
     });
+    const totalReg = families.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
+    const totalAct = families.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
+    const totalExp = families.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
+    const totalPaid = families.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
+    csvContent += `"Total","","","${totalReg.toFixed(2)}","${totalAct.toFixed(2)}","${totalExp.toFixed(2)}","${totalPaid.toFixed(2)}","",""\n`;
     csvContent += "\n";
 
     // 3. Expenses Table
     csvContent += "ITEMIZED EXPENSES\n";
     csvContent += "Date,Category,Description,Amount\n";
     expenses.forEach(e => {
-      csvContent += `"${e.date}","${e.category}","${(e.description || "").replace(/"/g, '""')}","${e.amount.toFixed(2)}"\n`;
+      csvContent += `"${e.date}","${e.category}","${(e.description || "").replace(/"/g, '""')}","${(e.amount || 0).toFixed(2)}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -379,7 +426,12 @@ export default function FinancePage() {
     return matchesSearch && matchesCategory;
   });
 
-  return (
+    const totalRegistrationBase = filteredFamilies.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
+    const totalActivityFees = filteredFamilies.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
+    const totalExpectedCombined = filteredFamilies.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
+    const totalPaidCombined = filteredFamilies.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
+
+    return (
     <div className="container" style={{ padding: "20px 0" }}>
       <style>{`
         @media (max-width: 768px) {
@@ -446,21 +498,30 @@ export default function FinancePage() {
       }}>
         <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--primary)" }}>
           <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Expected Fees</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0" }}>${stats.total_expected_fees.toFixed(2)}</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Assessed from registered campers</span>
+          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0" }}>${(stats.total_expected_fees || 0).toFixed(2)}</span>
+          <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 3, marginTop: 4, borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Base Registration:</span>
+              <strong style={{ color: "var(--charcoal)" }}>${totalRegistrationBase.toFixed(2)}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Activity Fees:</span>
+              <strong style={{ color: "var(--forest-mid)" }}>${totalActivityFees.toFixed(2)}</strong>
+            </div>
+          </div>
         </div>
         <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #2ecc71" }}>
           <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Collected Fees</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#2ecc71" }}>${stats.total_collected_fees.toFixed(2)}</span>
+          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#2ecc71" }}>${(stats.total_collected_fees || 0).toFixed(2)}</span>
           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
             {stats.total_expected_fees > 0 
-              ? `${((stats.total_collected_fees / stats.total_expected_fees) * 100).toFixed(1)}% of expectation` 
+              ? `${(((stats.total_collected_fees || 0) / stats.total_expected_fees) * 100).toFixed(1)}% of expectation` 
               : "0% of expectation"}
           </span>
         </div>
         <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--danger)" }}>
           <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Total Expenses</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "var(--danger)" }}>${stats.total_expenses.toFixed(2)}</span>
+          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "var(--danger)" }}>${(stats.total_expenses || 0).toFixed(2)}</span>
           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Outflow items registered</span>
         </div>
         <div className="card" style={{ 
@@ -475,7 +536,7 @@ export default function FinancePage() {
             fontWeight: 700, 
             margin: "8px 0", 
             color: stats.net_balance >= 0 ? "#3498db" : "var(--danger)" 
-          }}>${stats.net_balance.toFixed(2)}</span>
+          }}>${(stats.net_balance || 0).toFixed(2)}</span>
           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Collected Fees minus Expenses</span>
         </div>
       </div>
@@ -570,7 +631,9 @@ export default function FinancePage() {
                   <th style={{ width: "30px" }}></th>
                   <th>Family Group</th>
                   <th>Eligible Members (Age ≥ 5 or Null)</th>
-                  <th>Assessed Fee</th>
+                  <th>Registration Fee</th>
+                  <th>Activity Fee</th>
+                  <th>Total expected</th>
                   <th>Amount Paid</th>
                   <th>Status</th>
                   <th>Notes</th>
@@ -580,7 +643,7 @@ export default function FinancePage() {
               <tbody>
                 {filteredFamilies.length === 0 ? (
                   <tr>
-                    <td colSpan="8" style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
+                    <td colSpan="10" style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
                       No matching family fee records found.
                     </td>
                   </tr>
@@ -615,22 +678,40 @@ export default function FinancePage() {
                           <td>
                             {f.is_overridden ? (
                               <div>
-                                <strong style={{ color: "#e67e22" }}>${f.calculated_fee.toFixed(2)}</strong>
+                                <strong style={{ color: "#e67e22" }}>${(f.calculated_fee || 0).toFixed(2)}</strong>
                                 <span style={{ 
                                   display: "block", 
                                   fontSize: "0.675rem", 
                                   color: "var(--text-secondary)", 
                                   textDecoration: "line-through" 
                                 }}>
-                                  Tier: ${f.tiered_fee.toFixed(2)}
+                                  Tier: ${(f.tiered_fee || 0).toFixed(2)}
                                 </span>
                               </div>
                             ) : (
-                              <strong>${f.calculated_fee.toFixed(2)}</strong>
+                              <strong>${(f.calculated_fee || 0).toFixed(2)}</strong>
                             )}
                           </td>
+                          <td>
+                            {f.activity_fee > 0 ? (
+                              <div>
+                                <strong style={{ color: "var(--forest-mid)" }}>${(f.activity_fee || 0).toFixed(2)}</strong>
+                                <span style={{ display: "block", fontSize: "0.65rem", color: "var(--text-secondary)" }}>
+                                  {[
+                                    f.activity_1_spots > 0 && `${f.activity_1_spots}x ${activityNames[0] || "Kayaking"}`,
+                                    f.activity_2_spots > 0 && `${f.activity_2_spots}x ${activityNames[1] || "Boat Tour"}`
+                                  ].filter(Boolean).join(", ")}
+                                </span>
+                              </div>
+                            ) : (
+                              <span style={{ color: "var(--text-secondary)" }}>$0.00</span>
+                            )}
+                          </td>
+                          <td>
+                            <strong>${(f.total_expected_fee || 0).toFixed(2)}</strong>
+                          </td>
                           <td style={{ color: f.amount_paid > 0 ? "#2ecc71" : "inherit" }}>
-                            <strong>${f.amount_paid.toFixed(2)}</strong>
+                            <strong>${(f.amount_paid || 0).toFixed(2)}</strong>
                           </td>
                           <td>
                             <span className={`badge ${
@@ -655,9 +736,9 @@ export default function FinancePage() {
                         {isExpanded && (
                           <tr style={{ background: "rgba(0,0,0,0.02)" }}>
                             <td></td>
-                            <td colSpan="7" style={{ padding: "8px 16px" }}>
+                            <td colSpan="9" style={{ padding: "8px 16px" }}>
                               <h5 style={{ margin: "0 0 8px 0", fontSize: "0.825rem", color: "var(--text-secondary)" }}>Family Members Roster:</h5>
-                              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "450px" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "600px" }}>
                                 {f.members.map(m => (
                                   <div key={m.id} style={{ 
                                     padding: "6px 12px", 
@@ -669,7 +750,17 @@ export default function FinancePage() {
                                     justifyContent: "space-between",
                                     alignItems: "center"
                                   }}>
-                                    <span style={{ fontWeight: 600 }}>{m.full_name}</span>
+                                    <div>
+                                      <span style={{ fontWeight: 600 }}>{m.full_name}</span>
+                                      {(m.kayaking > 0 || m.boat_tour > 0) && (
+                                        <span style={{ marginLeft: 10, fontSize: "0.75rem", background: "var(--light-bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border-color)", color: "var(--forest)" }}>
+                                          {[
+                                            m.kayaking > 0 && `${m.kayaking}x ${activityNames[0] || "Kayaking"}`,
+                                            m.boat_tour > 0 && `${m.boat_tour}x ${activityNames[1] || "Boat Tour"}`
+                                          ].filter(Boolean).join(", ")}
+                                        </span>
+                                      )}
+                                    </div>
                                     <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
                                       <span>Age: {m.age !== null ? m.age : "Unknown"}</span>
                                       <span title={m.is_eligible ? "Eligible (Age 5+ or unknown)" : "Under Age 5 (Excluded from fee count)"}>
@@ -687,6 +778,18 @@ export default function FinancePage() {
                   })
                 )}
               </tbody>
+              <tfoot>
+                <tr style={{ background: "var(--light-bg)", fontWeight: "bold", borderTop: "2px solid var(--border-color)" }}>
+                  <td></td>
+                  <td>Total Summary</td>
+                  <td></td>
+                  <td>${totalRegistrationBase.toFixed(2)}</td>
+                  <td>${totalActivityFees.toFixed(2)}</td>
+                  <td>${totalExpectedCombined.toFixed(2)}</td>
+                  <td>${totalPaidCombined.toFixed(2)}</td>
+                  <td colSpan="3"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -752,7 +855,7 @@ export default function FinancePage() {
                           {e.category}
                         </span>
                       </td>
-                      <td style={{ color: "var(--danger)", fontWeight: 600 }}>-${e.amount.toFixed(2)}</td>
+                      <td style={{ color: "var(--danger)", fontWeight: 600 }}>-${(e.amount || 0).toFixed(2)}</td>
                       <td>{e.date}</td>
                       <td style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button 
@@ -856,10 +959,16 @@ export default function FinancePage() {
               <h2>Record Payment</h2>
               <button className="modal-close" onClick={() => setIsPaymentModalOpen(false)}>×</button>
             </div>
-            <p style={{ fontSize: "0.875rem", margin: "0 0 16px 0", color: "var(--text-secondary)" }}>
-              Updating status for <strong>{activeFamily.display_name}</strong>.<br />
-              Tiered Fee expectation: <strong>${activeFamily.calculated_fee.toFixed(2)}</strong> (based on {activeFamily.eligible_count} eligible members).
-            </p>
+            <div style={{ fontSize: "0.875rem", margin: "0 0 16px 0", padding: "10px 12px", background: "var(--light-bg)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+              <div style={{ marginBottom: 4 }}>Family: <strong>{activeFamily.display_name}</strong></div>
+              <div>Registration Fee: <strong>${(activeFamily.calculated_fee || 0).toFixed(2)}</strong> ({activeFamily.eligible_count} members)</div>
+              {activeFamily.activity_fee > 0 && (
+                <div>Activity Surcharge: <strong>${(activeFamily.activity_fee || 0).toFixed(2)}</strong></div>
+              )}
+              <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed var(--border-color)", fontWeight: 700 }}>
+                Total Expected: <span>${(activeFamily.total_expected_fee || 0).toFixed(2)}</span>
+              </div>
+            </div>
             <form onSubmit={handleSavePayment}>
               <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">Amount Paid ($) *</label>
@@ -962,6 +1071,35 @@ export default function FinancePage() {
                   </div>
                 );
               })}
+
+              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border-color)", paddingTop: 16, color: "var(--primary)", fontWeight: 700 }}>
+                🚴 Activity Prices per Spot
+              </h3>
+              {activityNames.map((name, idx) => (
+                <div className="form-group" style={{ marginBottom: 12 }} key={idx}>
+                  <label className="form-label">
+                    {idx === 0 ? "🛶" : idx === 1 ? "🚤" : "🎯"} {name} Price ($) * {user?.role !== "owner" && "(Owner Only)"}
+                  </label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    className="form-input" 
+                    value={actPricesForm[idx] || ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setActPricesForm(prev => {
+                        const copy = [...prev];
+                        copy[idx] = val;
+                        return copy;
+                      });
+                    }}
+                    required
+                    disabled={user?.role !== "owner"}
+                  />
+                </div>
+              ))}
+
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsRatesModalOpen(false)}>
                   Cancel

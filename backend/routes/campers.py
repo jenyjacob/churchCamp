@@ -372,12 +372,33 @@ def get_stats():
         "total_families": total_families,
     }), 200
 
+def parse_custom_activities(notes_str):
+    import re, json
+    if not notes_str:
+        return {}
+    match = re.search(r'<!-- ACTIVITIES_JSON:\s*(.*?)\s*-->', notes_str)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except Exception:
+            pass
+    return {}
+
 @campers_bp.route("/outdoor", methods=["GET"])
 @jwt_required()
 def get_outdoor_activities():
-    campers = Camper.query.filter(
-        (Camper.kayaking > 0) | (Camper.boat_tour > 0)
+    raw_campers = Camper.query.filter(
+        (Camper.kayaking > 0) | 
+        (Camper.boat_tour > 0) |
+        (Camper.notes.like('%<!-- ACTIVITIES_JSON:%'))
     ).all()
+    
+    campers = []
+    for c in raw_campers:
+        custom_acts = parse_custom_activities(c.notes)
+        total_spots = (c.kayaking or 0) + (c.boat_tour or 0) + sum(int(v) for v in custom_acts.values())
+        if total_spots > 0:
+            campers.append(c)
     
     total_kayaking = sum(c.kayaking for c in campers)
     total_boat_tour = sum(c.boat_tour for c in campers)

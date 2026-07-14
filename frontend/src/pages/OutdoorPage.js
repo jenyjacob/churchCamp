@@ -3,8 +3,29 @@ import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function OutdoorPage() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const canEdit = hasPermission("outdoor", "edit");
+  const isOwner = user?.role === "owner";
+
+  // Helper functions for parsing additional activity spots from notes
+  const parseCustomActivities = (notesStr) => {
+    if (!notesStr) return {};
+    const match = notesStr.match(/<!-- ACTIVITIES_JSON:\s*(.*?)\s*-->/);
+    if (match) {
+      try {
+        return JSON.parse(match[1]);
+      } catch (e) {
+        console.error("Failed to parse custom activities:", e);
+      }
+    }
+    return {};
+  };
+
+  const buildNotesWithActivities = (originalNotes, activitiesObj) => {
+    const baseNotes = (originalNotes || "").replace(/<!-- ACTIVITIES_JSON:\s*(.*?)\s*-->/, "").trim();
+    return `${baseNotes} <!-- ACTIVITIES_JSON: ${JSON.stringify(activitiesObj)} -->`.trim();
+  };
+
   const [campers, setCampers] = useState([]);
   const [totalKayaking, setTotalKayaking] = useState(0);
   const [totalBoatTour, setTotalBoatTour] = useState(0);
@@ -12,13 +33,22 @@ export default function OutdoorPage() {
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [flashMessage, setFlashMessage] = useState(null);
+
+  // Dynamic Activity Names
+  const [activityNames, setActivityNames] = useState(["Kayaking", "Boat Tour"]);
+
+  // Edit Activity Names Modal State
+  const [editNamesModal, setEditNamesModal] = useState({
+    isOpen: false,
+    activities: [],
+    saving: false
+  });
   
   // Edit Modal State
   const [editModal, setEditModal] = useState({
     isOpen: false,
     camper: null,
-    kayaking: 0,
-    boatTour: 0,
+    activities: {}, // Map of activity name -> spots (integer)
     saving: false
   });
 
@@ -27,8 +57,7 @@ export default function OutdoorPage() {
   const [addModal, setAddModal] = useState({
     isOpen: false,
     selectedCamperId: "",
-    kayaking: 0,
-    boatTour: 0,
+    activities: {}, // Map of activity name -> spots (integer)
     saving: false
   });
 
@@ -36,11 +65,16 @@ export default function OutdoorPage() {
     try {
       const res = await api.get("/api/campers/?per_page=1000");
       setAllCampers(res.data.campers || []);
+      
+      const initialActs = {};
+      activityNames.forEach(name => {
+        initialActs[name] = 0;
+      });
+
       setAddModal({
         isOpen: true,
         selectedCamperId: "",
-        kayaking: 0,
-        boatTour: 0,
+        activities: initialActs,
         saving: false
       });
     } catch (err) {
@@ -50,7 +84,7 @@ export default function OutdoorPage() {
 
   const handleSaveAdd = async (e) => {
     e.preventDefault();
-    const { selectedCamperId, kayaking, boatTour } = addModal;
+    const { selectedCamperId, activities } = addModal;
     if (!selectedCamperId) {
       showFlash("error", "Please select a camper.");
       return;
@@ -58,15 +92,26 @@ export default function OutdoorPage() {
     const camper = allCampers.find(c => c.id === parseInt(selectedCamperId, 10));
     if (!camper) return;
 
+    const spots1 = parseInt(activities[activityNames[0]], 10) || 0;
+    const spots2 = parseInt(activities[activityNames[1]], 10) || 0;
+    
+    const customObj = {};
+    for (let i = 2; i < activityNames.length; i++) {
+      const name = activityNames[i];
+      customObj[name] = parseInt(activities[name], 10) || 0;
+    }
+    const updatedNotes = buildNotesWithActivities(camper.notes, customObj);
+
     setAddModal(prev => ({ ...prev, saving: true }));
     try {
       await api.put(`/api/campers/${camper.id}`, {
         ...camper,
-        kayaking: parseInt(kayaking, 10) || 0,
-        boat_tour: parseInt(boatTour, 10) || 0
+        kayaking: spots1,
+        boat_tour: spots2,
+        notes: updatedNotes
       });
       showFlash("success", `Registered outdoor activities for ${camper.full_name}.`);
-      setAddModal({ isOpen: false, selectedCamperId: "", kayaking: 0, boatTour: 0, saving: false });
+      setAddModal({ isOpen: false, selectedCamperId: "", activities: {}, saving: false });
       fetchOutdoorData();
     } catch (err) {
       showFlash("error", err.response?.data?.error || "Failed to register camper.");
@@ -76,6 +121,26 @@ export default function OutdoorPage() {
 
   const fetchOutdoorData = useCallback(() => {
     setLoading(true);
+
+    // Fetch dynamic activity names
+    api.get("/api/settings/public")
+      .then(res => {
+        const settings = res.data.settings || {};
+        try {
+          let list = JSON.parse(settings.activity_names || '["Kayaking", "Boat Tour"]');
+          if (Array.isArray(list)) {
+            if (list.length < 1 || !list[0]) list[0] = "Kayaking";
+            if (list.length < 2 || !list[1]) list[1] = "Boat Tour";
+            setActivityNames(list);
+          }
+        } catch (e) {
+          console.error("Failed to parse activity names:", e);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to fetch settings:", err);
+      });
+
     api.get("/api/campers/outdoor")
       .then(res => {
         setCampers(res.data.campers || []);
@@ -99,30 +164,92 @@ export default function OutdoorPage() {
     setTimeout(() => setFlashMessage(null), 4000);
   };
 
+  const handleModalActivityChange = (idx, value) => {
+    setEditNamesModal(prev => {
+      const updated = [...prev.activities];
+      updated[idx] = value;
+      return { ...prev, activities: updated };
+    });
+  };
+
+  const handleModalAddActivity = () => {
+    setEditNamesModal(prev => ({
+      ...prev,
+      activities: [...prev.activities, ""]
+    }));
+  };
+
+  const handleModalRemoveActivity = (idx) => {
+    setEditNamesModal(prev => {
+      const updated = prev.activities.filter((_, i) => i !== idx);
+      return { ...prev, activities: updated };
+    });
+  };
+
+  const handleSaveActivityNames = async (e) => {
+    e.preventDefault();
+    const { activities } = editNamesModal;
+    
+    // Clean and validate
+    const cleaned = activities.map(act => act.trim()).filter(Boolean);
+
+    setEditNamesModal(prev => ({ ...prev, saving: true }));
+    try {
+      await api.post("/api/settings/", {
+        activity_names: JSON.stringify(cleaned)
+      });
+
+      showFlash("success", "Activity configurations updated successfully.");
+      setEditNamesModal({ isOpen: false, activities: [], saving: false });
+      fetchOutdoorData();
+    } catch (err) {
+      showFlash("error", err.response?.data?.error || "Failed to update activity names.");
+      setEditNamesModal(prev => ({ ...prev, saving: false }));
+    }
+  };
+
   const handleEditClick = (camper) => {
+    const customActs = parseCustomActivities(camper.notes);
+    const initialActs = {};
+    activityNames.forEach((name, idx) => {
+      if (idx === 0) initialActs[name] = camper.kayaking || 0;
+      else if (idx === 1) initialActs[name] = camper.boat_tour || 0;
+      else initialActs[name] = customActs[name] || 0;
+    });
+
     setEditModal({
       isOpen: true,
       camper,
-      kayaking: camper.kayaking || 0,
-      boatTour: camper.boat_tour || 0,
+      activities: initialActs,
       saving: false
     });
   };
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    const { camper, kayaking, boatTour } = editModal;
+    const { camper, activities } = editModal;
     if (!camper) return;
+
+    const spots1 = parseInt(activities[activityNames[0]], 10) || 0;
+    const spots2 = parseInt(activities[activityNames[1]], 10) || 0;
+    
+    const customObj = {};
+    for (let i = 2; i < activityNames.length; i++) {
+      const name = activityNames[i];
+      customObj[name] = parseInt(activities[name], 10) || 0;
+    }
+    const updatedNotes = buildNotesWithActivities(camper.notes, customObj);
 
     setEditModal(prev => ({ ...prev, saving: true }));
     try {
       await api.put(`/api/campers/${camper.id}`, {
         ...camper,
-        kayaking: parseInt(kayaking, 10) || 0,
-        boat_tour: parseInt(boatTour, 10) || 0
+        kayaking: spots1,
+        boat_tour: spots2,
+        notes: updatedNotes
       });
       showFlash("success", `Updated activity slots for ${camper.full_name}.`);
-      setEditModal({ isOpen: false, camper: null, kayaking: 0, boatTour: 0, saving: false });
+      setEditModal({ isOpen: false, camper: null, activities: {}, saving: false });
       fetchOutdoorData();
     } catch (err) {
       showFlash("error", err.response?.data?.error || "Failed to update slots.");
@@ -142,7 +269,12 @@ export default function OutdoorPage() {
     <>
       <div className="top-bar">
         <h1>🛶 Outdoor Activities</h1>
-        <span className="text-muted">Manage Kayaking and Boat Tour reservations and participants</span>
+        <span className="text-muted">
+          {activityNames.length > 0
+            ? `Manage ${activityNames.join(" and ")} reservations and participants`
+            : "Manage outdoor activities reservations and participants"
+          }
+        </span>
       </div>
 
       <div className="page-body">
@@ -160,20 +292,24 @@ export default function OutdoorPage() {
 
         {/* Statistics Banner cards row */}
         <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: "2rem" }}>🛶</div>
-            <div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--forest-mid)" }}>{totalKayaking}</div>
-              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Total Kayaking Spots</div>
+          {activityNames.length >= 1 && (
+            <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ fontSize: "2rem" }}>🛶</div>
+              <div>
+                <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--forest-mid)" }}>{totalKayaking}</div>
+                <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Total {activityNames[0]} Spots</div>
+              </div>
             </div>
-          </div>
-          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: "2rem" }}>🚤</div>
-            <div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--gold)" }}>{totalBoatTour}</div>
-              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Total Boat Tour Spots</div>
+          )}
+          {activityNames.length >= 2 && (
+            <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ fontSize: "2rem" }}>🚤</div>
+              <div>
+                <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--gold)" }}>{totalBoatTour}</div>
+                <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Total {activityNames[1]} Spots</div>
+              </div>
             </div>
-          </div>
+          )}
           <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
             <div style={{ fontSize: "2rem" }}>👥</div>
             <div>
@@ -222,6 +358,19 @@ export default function OutdoorPage() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
+              {isOwner && (
+                <button
+                  className="btn btn-outline"
+                  onClick={() => setEditNamesModal({
+                    isOpen: true,
+                    activities: [...activityNames],
+                    saving: false
+                  })}
+                  style={{ padding: "0 16px", height: "38px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600, border: "1px solid var(--forest)", color: "var(--forest)", background: "transparent", cursor: "pointer", borderRadius: "4px" }}
+                >
+                  <span>✏️</span> Edit Activity Names
+                </button>
+              )}
               {canEdit && (
                 <button
                   className="btn btn-forest"
@@ -247,33 +396,46 @@ export default function OutdoorPage() {
                 <thead>
                   <tr>
                     <th>Camper Name</th>
-                    <th style={{ textAlign: "center" }}>🛶 Kayaking</th>
-                    <th style={{ textAlign: "center" }}>🚤 Boat Tour</th>
+                    {activityNames.map((name, idx) => (
+                      <th key={idx} style={{ textAlign: "center" }}>
+                        {idx === 0 ? "🛶" : idx === 1 ? "🚤" : "🎯"} {name}
+                      </th>
+                    ))}
                     {canEdit && <th style={{ textAlign: "right" }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCampers.map(c => (
-                    <tr key={c.id}>
-                      <td style={{ fontWeight: 600 }}>{c.full_name}</td>
-                      <td style={{ textAlign: "center", fontWeight: c.kayaking > 0 ? 700 : 400, color: c.kayaking > 0 ? "var(--forest-mid)" : "inherit" }}>
-                        {c.kayaking > 0 ? `${c.kayaking} spots` : "—"}
-                      </td>
-                      <td style={{ textAlign: "center", fontWeight: c.boat_tour > 0 ? 700 : 400, color: c.boat_tour > 0 ? "var(--gold)" : "inherit" }}>
-                        {c.boat_tour > 0 ? `${c.boat_tour} spots` : "—"}
-                      </td>
-                      {canEdit && (
-                        <td style={{ textAlign: "right" }}>
-                          <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() => handleEditClick(c)}
-                          >
-                            Edit Spots
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
+                  {filteredCampers.map(c => {
+                    const customActs = parseCustomActivities(c.notes);
+                    return (
+                      <tr key={c.id}>
+                        <td style={{ fontWeight: 600 }}>{c.full_name}</td>
+                        {activityNames.map((name, idx) => {
+                          let spots = 0;
+                          if (idx === 0) spots = c.kayaking || 0;
+                          else if (idx === 1) spots = c.boat_tour || 0;
+                          else spots = customActs[name] || 0;
+
+                          const colorClass = idx === 0 ? "var(--forest-mid)" : idx === 1 ? "var(--gold)" : "var(--primary)";
+                          return (
+                            <td key={idx} style={{ textAlign: "center", fontWeight: spots > 0 ? 700 : 400, color: spots > 0 ? colorClass : "inherit" }}>
+                              {spots > 0 ? `${spots} spots` : "—"}
+                            </td>
+                          );
+                        })}
+                        {canEdit && (
+                          <td style={{ textAlign: "right" }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleEditClick(c)}
+                            >
+                              Edit Spots
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -310,34 +472,33 @@ export default function OutdoorPage() {
             </p>
 
             <form onSubmit={handleSaveEdit} style={{ marginTop: 20 }}>
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>🛶 Kayaking Spots</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-control"
-                  value={editModal.kayaking}
-                  onChange={e => setEditModal(prev => ({ ...prev, kayaking: e.target.value }))}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 24 }}>
-                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>🚤 Boat Tour Spots</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-control"
-                  value={editModal.boatTour}
-                  onChange={e => setEditModal(prev => ({ ...prev, boatTour: e.target.value }))}
-                />
-              </div>
+              {activityNames.map((name, idx) => (
+                <div className="form-group" style={{ marginBottom: 16 }} key={idx}>
+                  <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    {idx === 0 ? "🛶" : idx === 1 ? "🚤" : "🎯"} {name} Spots
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control"
+                    value={editModal.activities[name] || 0}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10) || 0;
+                      setEditModal(prev => ({
+                        ...prev,
+                        activities: { ...prev.activities, [name]: val }
+                      }));
+                    }}
+                  />
+                </div>
+              ))}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
                 <button
                   type="button"
                   className="btn btn-outline"
                   disabled={editModal.saving}
-                  onClick={() => setEditModal({ isOpen: false, camper: null, kayaking: 0, boatTour: 0, saving: false })}
+                  onClick={() => setEditModal({ isOpen: false, camper: null, activities: {}, saving: false })}
                 >
                   Cancel
                 </button>
@@ -393,7 +554,11 @@ export default function OutdoorPage() {
                 >
                   <option value="">-- Choose Camper --</option>
                   {allCampers
-                    .filter(c => c.kayaking === 0 && c.boat_tour === 0)
+                    .filter(c => {
+                      const customActs = parseCustomActivities(c.notes);
+                      const hasCustom = Object.values(customActs).some(v => v > 0);
+                      return c.kayaking === 0 && c.boat_tour === 0 && !hasCustom;
+                    })
                     .sort((a, b) => a.full_name.localeCompare(b.full_name))
                     .map(c => (
                       <option key={c.id} value={c.id}>
@@ -404,27 +569,26 @@ export default function OutdoorPage() {
                 </select>
               </div>
 
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>🛶 Kayaking Spots</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-control"
-                  value={addModal.kayaking}
-                  onChange={e => setAddModal(prev => ({ ...prev, kayaking: e.target.value }))}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 24 }}>
-                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>🚤 Boat Tour Spots</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-control"
-                  value={addModal.boatTour}
-                  onChange={e => setAddModal(prev => ({ ...prev, boatTour: e.target.value }))}
-                />
-              </div>
+              {activityNames.map((name, idx) => (
+                <div className="form-group" style={{ marginBottom: 16 }} key={idx}>
+                  <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    {idx === 0 ? "🛶" : idx === 1 ? "🚤" : "🎯"} {name} Spots
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control"
+                    value={addModal.activities[name] || 0}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10) || 0;
+                      setAddModal(prev => ({
+                        ...prev,
+                        activities: { ...prev.activities, [name]: val }
+                      }));
+                    }}
+                  />
+                </div>
+              ))}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
                 <button
@@ -441,6 +605,95 @@ export default function OutdoorPage() {
                   disabled={addModal.saving}
                 >
                   {addModal.saving ? "Saving..." : "Add Participant"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Activity Names Modal (Owner Only) */}
+      {editNamesModal.isOpen && (
+        <div className="waiver-modal-overlay" style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1100,
+          backdropFilter: "blur(2px)"
+        }}>
+          <div className="waiver-modal-content" style={{
+            background: "#fff",
+            borderRadius: "12px",
+            padding: "24px",
+            maxWidth: "420px",
+            width: "90%",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            border: "2px solid var(--forest)"
+          }}>
+            <h3 style={{ marginTop: 0, color: "var(--forest)", borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+              ✏️ Configure Activity Labels
+            </h3>
+            <p className="text-muted" style={{ fontSize: "0.85rem", marginTop: 4, marginBottom: 20 }}>
+              Add, rename, or delete activities. The first two activities correspond to dynamic counters on this page, while additional items will be saved as custom camper notes.
+            </p>
+
+            <form onSubmit={handleSaveActivityNames} style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "4px" }}>
+              {editNamesModal.activities.map((activity, idx) => (
+                <div key={idx} className="form-group" style={{ marginBottom: 16, display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <label style={{ fontWeight: 600, fontSize: "0.85rem" }}>Activity #{idx + 1} Name</label>
+                    <button
+                      type="button"
+                      onClick={() => handleModalRemoveActivity(idx)}
+                      style={{ background: "none", border: "none", color: "#ef4444", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={activity}
+                    onChange={e => handleModalActivityChange(idx, e.target.value)}
+                    placeholder={`e.g. Activity #${idx + 1}`}
+                    required
+                  />
+                </div>
+              ))}
+
+              {editNamesModal.activities.length === 0 && (
+                <div style={{ padding: "16px", background: "#f8fafc", borderRadius: 8, color: "#64748b", fontSize: "0.85rem", textAlign: "center", marginBottom: 20 }}>
+                  No activities configured.
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={handleModalAddActivity}
+                style={{ width: "100%", height: "36px", fontSize: "0.8rem", fontWeight: 600, border: "1px dashed var(--forest)", color: "var(--forest)", marginBottom: 24, cursor: "pointer" }}
+              >
+                + Add Activity Option
+              </button>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={editNamesModal.saving}
+                  onClick={() => setEditNamesModal({ isOpen: false, activities: [], saving: false })}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-forest"
+                  disabled={editNamesModal.saving}
+                >
+                  {editNamesModal.saving ? "Saving..." : "Save Customizations"}
                 </button>
               </div>
             </form>

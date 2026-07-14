@@ -246,11 +246,11 @@ export default function TShirtsPage() {
                     {members.map(c => {
                       return (
                         <div key={c.id} className="family-member-row" style={{ padding: "10px 0", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
+                          <div className="apparel-member-row">
+                            <div className="apparel-member-info">
                               <div className="family-member-name" style={{ fontWeight: 600 }}>{c.full_name}</div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div className="apparel-member-controls">
                               {/* US Size Select */}
                               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                                 <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>US Size</label>

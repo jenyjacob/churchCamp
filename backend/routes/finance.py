@@ -42,13 +42,60 @@ def calculate_family_fee(member_count, rates_dict):
     lookup_count = min(member_count, max_tier)
     return rates_dict.get(lookup_count, 750.0)
 
+def parse_custom_activities(notes_str):
+    import re, json
+    if not notes_str:
+        return {}
+    match = re.search(r'<!-- ACTIVITIES_JSON:\s*(.*?)\s*-->', notes_str)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except Exception:
+            pass
+    return {}
+
 @finance_bp.route("/fees", methods=["GET"])
 @jwt_required()
 @require_page_permission("finance", "read")
 def get_fees():
-    # 1. Fetch all registered campers
-    campers = Camper.query.filter_by(registration_status="registered").all()
+    import json
+    # 1. Fetch all registered campers OR campers participating in activities
+    campers = Camper.query.filter(
+        (Camper.registration_status == "registered") | 
+        (Camper.kayaking > 0) | 
+        (Camper.boat_tour > 0)
+    ).all()
     rates_dict = get_fee_rates_dict()
+
+    # Load settings for activity names and prices
+    settings_dict = {}
+    try:
+        from models import Setting
+        db_settings = Setting.query.all()
+        for s in db_settings:
+            settings_dict[s.key] = s.value
+    except Exception:
+        pass
+
+    try:
+        activity_list = json.loads(settings_dict.get("activity_names", '["Kayaking", "Boat Tour"]'))
+    except Exception:
+        activity_list = ["Kayaking", "Boat Tour"]
+    if len(activity_list) < 1 or not activity_list[0]:
+        activity_list = ["Kayaking", "Boat Tour"]
+    if len(activity_list) < 2 or not activity_list[1]:
+        activity_list.append("Boat Tour")
+
+    # Load prices for all activities
+    activity_prices = []
+    for i in range(len(activity_list)):
+        price_key = f"activity_{i+1}_price"
+        default_p = "10.0" if i == 0 else "20.0" if i == 1 else "15.0"
+        try:
+            price = float(settings_dict.get(price_key, default_p))
+        except Exception:
+            price = 15.0
+        activity_prices.append(price)
 
     # 2. Group campers by family_group
     families = {}
@@ -62,23 +109,39 @@ def get_fees():
             families[fg] = {
                 "family_group": fg,
                 "members": [],
-                "eligible_count": 0
+                "eligible_count": 0,
+                "kayaking_spots": 0,
+                "boat_tour_spots": 0,
+                "custom_spots": {}
             }
 
-        # Check eligibility: age >= 5 or age is null (missing)
-        is_eligible = (camper.age is None) or (camper.age >= 5)
+        # Check eligibility: must be registered status and (age >= 5 or age is null)
+        is_eligible = (camper.registration_status == "registered") and ((camper.age is None) or (camper.age >= 5))
         
+        custom_acts = parse_custom_activities(camper.notes)
+
         families[fg]["members"].append({
             "id": camper.id,
             "first_name": camper.first_name,
             "last_name": camper.last_name,
             "full_name": f"{camper.first_name} {camper.last_name}",
             "age": camper.age,
-            "is_eligible": is_eligible
+            "is_eligible": is_eligible,
+            "kayaking": camper.kayaking or 0,
+            "boat_tour": camper.boat_tour or 0,
+            "notes": camper.notes,
+            "custom_activities": custom_acts
         })
 
         if is_eligible:
             families[fg]["eligible_count"] += 1
+        
+        families[fg]["kayaking_spots"] += camper.kayaking or 0
+        families[fg]["boat_tour_spots"] += camper.boat_tour or 0
+        for i in range(2, len(activity_list)):
+            act_name = activity_list[i]
+            spots = int(custom_acts.get(act_name, 0))
+            families[fg]["custom_spots"][i] = families[fg]["custom_spots"].get(i, 0) + spots
 
     # 3. Fetch all family payment records from DB
     payments = {p.family_group: p for p in FamilyPayment.query.all()}
@@ -106,7 +169,19 @@ def get_fees():
             calculated_fee = tiered_fee
             is_overridden = False
 
-        total_expected += calculated_fee
+        activity_fee = 0.0
+        # Activity 1
+        activity_fee += family["kayaking_spots"] * activity_prices[0]
+        # Activity 2
+        if len(activity_prices) > 1:
+            activity_fee += family["boat_tour_spots"] * activity_prices[1]
+        # Additional activities
+        for i in range(2, len(activity_list)):
+            spots = family["custom_spots"].get(i, 0)
+            if len(activity_prices) > i:
+                activity_fee += spots * activity_prices[i]
+
+        total_expected += (calculated_fee + activity_fee)
         total_collected += amount_paid
 
         # Format display name of the family
@@ -125,6 +200,11 @@ def get_fees():
             "tiered_fee": tiered_fee,
             "override_fee": override_fee,
             "is_overridden": is_overridden,
+            "activity_fee": activity_fee,
+            "activity_1_spots": family["kayaking_spots"],
+            "activity_2_spots": family["boat_tour_spots"],
+            "custom_spots": family["custom_spots"],
+            "total_expected_fee": calculated_fee + activity_fee,
             "amount_paid": amount_paid,
             "status": status,
             "notes": notes
@@ -136,7 +216,9 @@ def get_fees():
     return jsonify({
         "families": results,
         "total_expected_fees": total_expected,
-        "total_collected_fees": total_collected
+        "total_collected_fees": total_collected,
+        "activity_names": activity_list,
+        "activity_prices": activity_prices
     }), 200
 
 @finance_bp.route("/fees", methods=["POST"])
@@ -301,24 +383,91 @@ def get_finance_stats():
     # 1. Total expenses sum
     total_expenses = db.session.query(db.func.sum(Expense.amount)).scalar() or 0.0
 
-    # 2. Total collected and expected fees (requires grouping and parsing registered campers)
-    campers = Camper.query.filter_by(registration_status="registered").all()
+    # 2. Total collected and expected fees (requires grouping and parsing registered/participating campers)
+    campers = Camper.query.filter(
+        (Camper.registration_status == "registered") | 
+        (Camper.kayaking > 0) | 
+        (Camper.boat_tour > 0)
+    ).all()
     rates_dict = get_fee_rates_dict()
-    
+    payments = {p.family_group: p for p in FamilyPayment.query.all()}
+
+    # Load settings for activity list and prices
+    settings_dict = {}
+    try:
+        from models import Setting
+        db_settings = Setting.query.all()
+        for s in db_settings:
+            settings_dict[s.key] = s.value
+    except Exception:
+        pass
+
+    try:
+        activity_list = json.loads(settings_dict.get("activity_names", '["Kayaking", "Boat Tour"]'))
+    except Exception:
+        activity_list = ["Kayaking", "Boat Tour"]
+    if len(activity_list) < 1 or not activity_list[0]:
+        activity_list = ["Kayaking", "Boat Tour"]
+    if len(activity_list) < 2 or not activity_list[1]:
+        activity_list.append("Boat Tour")
+
+    activity_prices = []
+    for i in range(len(activity_list)):
+        price_key = f"activity_{i+1}_price"
+        default_p = "10.0" if i == 0 else "20.0" if i == 1 else "15.0"
+        try:
+            price = float(settings_dict.get(price_key, default_p))
+        except Exception:
+            price = 15.0
+        activity_prices.append(price)
+
     families = {}
     for camper in campers:
         fg = camper.family_group
         if not fg or fg.strip() == "":
             fg = f"single-{camper.id}"
         if fg not in families:
-            families[fg] = 0
-        is_eligible = (camper.age is None) or (camper.age >= 5)
+            families[fg] = {
+                "eligible_count": 0,
+                "kayaking_spots": 0,
+                "boat_tour_spots": 0,
+                "custom_spots": {}
+            }
+        is_eligible = (camper.registration_status == "registered") and ((camper.age is None) or (camper.age >= 5))
         if is_eligible:
-            families[fg] += 1
+            families[fg]["eligible_count"] += 1
+        families[fg]["kayaking_spots"] += camper.kayaking or 0
+        families[fg]["boat_tour_spots"] += camper.boat_tour or 0
+
+        custom_acts = parse_custom_activities(camper.notes)
+        for i in range(2, len(activity_list)):
+            act_name = activity_list[i]
+            spots = int(custom_acts.get(act_name, 0))
+            families[fg]["custom_spots"][i] = families[fg]["custom_spots"].get(i, 0) + spots
 
     total_expected = 0.0
-    for fg, count in families.items():
-        total_expected += calculate_family_fee(count, rates_dict)
+    for fg, info in families.items():
+        eligible_count = info["eligible_count"]
+        tiered_fee = calculate_family_fee(eligible_count, rates_dict)
+        
+        pay_record = payments.get(fg)
+        override_fee = pay_record.override_fee if pay_record else None
+        
+        base_fee = override_fee if override_fee is not None else tiered_fee
+        
+        activity_fee = 0.0
+        # Activity 1
+        activity_fee += info["kayaking_spots"] * activity_prices[0]
+        # Activity 2
+        if len(activity_prices) > 1:
+            activity_fee += info["boat_tour_spots"] * activity_prices[1]
+        # Additional activities
+        for i in range(2, len(activity_list)):
+            spots = info["custom_spots"].get(i, 0)
+            if len(activity_prices) > i:
+                activity_fee += spots * activity_prices[i]
+        
+        total_expected += (base_fee + activity_fee)
 
     total_collected = db.session.query(db.func.sum(FamilyPayment.amount_paid)).scalar() or 0.0
 

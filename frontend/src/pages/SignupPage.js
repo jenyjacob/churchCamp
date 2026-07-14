@@ -28,8 +28,12 @@ export default function SignupPage() {
 
   const getActivityNamesArray = () => {
     try {
-      const parsed = JSON.parse(settings.activity_names);
-      if (Array.isArray(parsed)) return parsed;
+      let parsed = JSON.parse(settings.activity_names);
+      if (Array.isArray(parsed)) {
+        if (parsed.length < 1 || !parsed[0]) parsed[0] = "KAYAKING";
+        if (parsed.length < 2 || !parsed[1]) parsed[1] = "BOAT TOUR";
+        return parsed;
+      }
     } catch (e) {}
     return ["KAYAKING", "BOAT TOUR"];
   };
