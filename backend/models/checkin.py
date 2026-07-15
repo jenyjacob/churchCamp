@@ -24,5 +24,6 @@ class CheckIn(db.Model):
             "checked_in_at": self.checked_in_at.isoformat() if self.checked_in_at else None,
             "checked_out_at": self.checked_out_at.isoformat() if self.checked_out_at else None,
             "checked_out_by": self.staff_out.username if self.staff_out else None,
+            "family_group": self.camper.family_group if self.camper else None,
             "notes": self.notes,
         }

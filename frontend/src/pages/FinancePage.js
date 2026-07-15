@@ -1100,6 +1100,8 @@ export default function FinancePage() {
                 </div>
               ))}
 
+
+
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsRatesModalOpen(false)}>
                   Cancel

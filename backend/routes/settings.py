@@ -13,12 +13,14 @@ settings_bp = Blueprint("settings", __name__)
 DEFAULT_SETTINGS = {
     "team_1_name": "Team Peter",
     "team_2_name": "Team Paul",
-    "signup_title": "GCA 2026 Church Camp Sign-Up Form",
-    "signup_dates": "August 14–16, 2026",
+    "signup_title": "GCA 2027 Church Camp Registration",
+    "signup_dates": "August 13–15, 2027",
     "signup_location": "Camp Prothro",
     "activity_names": '["KAYAKING", "BOAT TOUR"]',
     "activity_1_price": "10.0",
-    "activity_2_price": "20.0"
+    "activity_2_price": "20.0",
+    "registration_closed": "false",
+    "registration_status": "open"
 }
 
 @settings_bp.route("/public", methods=["GET"])

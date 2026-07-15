@@ -230,16 +230,16 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f6f8", padding: 20 }}>
-        <div className="card" style={{ maxWidth: 600, width: "100%", textAlign: "center", padding: 40, boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontSize: "3rem", marginBottom: 20 }}>🎉</div>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", color: "var(--forest)", marginBottom: 12 }}>Registration Successful!</h1>
+      <div className="signup-body">
+        <div className="form-container" style={{ maxWidth: 600, textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: "3.5rem", marginBottom: 20 }}>🎉</div>
+          <h1 style={{ color: "var(--forest)", marginBottom: 12, fontWeight: 800 }}>Registration Successful!</h1>
           <p className="text-muted" style={{ marginBottom: 24 }}>
             Thank you for registering with Grace Christian Assembly Camp. Your family group code is <strong>#{familyGroup}</strong>.
           </p>
 
           <div style={{ textAlign: "left", background: "#f9fafb", borderRadius: 8, padding: 20, marginBottom: 24 }}>
-            <h3 style={{ color: "var(--forest-mid)", marginBottom: 12, borderBottom: "1px solid #eee", paddingBottom: 8 }}>Registered Attendees:</h3>
+            <h3 style={{ color: "var(--forest-mid)", marginBottom: 12, borderBottom: "1px solid #eee", paddingBottom: 8, fontWeight: 700 }}>Registered Attendees:</h3>
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {registeredList.map((c, idx) => {
                 const ts = c.tshirts && c.tshirts.length > 0 ? c.tshirts[0] : null;
@@ -288,130 +288,190 @@ export default function SignupPage() {
   return (
     <div className="signup-body">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        .signup-body,
+        .signup-body input,
+        .signup-body select,
+        .signup-body textarea,
+        .signup-body button,
+        .signup-body label {
+          font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .signup-body h1,
+        .signup-body h2,
+        .signup-body h3,
+        .signup-body h4,
+        .signup-body h5 {
+          font-family: 'Outfit', sans-serif;
+        }
 
         .signup-body {
           min-height: 100vh;
-          background: #f4f6f8;
+          background: linear-gradient(135deg, #163626 0%, #2c5e43 100%);
           display: flex;
           justify-content: center;
           align-items: flex-start;
-          padding: 40px 20px;
-          font-family: 'Plus Jakarta Sans', sans-serif;
+          padding: 60px 20px;
+          position: relative;
+          overflow: hidden;
+        }
+        .signup-body::before {
+          content: "";
+          position: absolute;
+          width: 500px;
+          height: 500px;
+          background: rgba(180, 151, 90, 0.12);
+          border-radius: 50%;
+          filter: blur(100px);
+          top: -10%;
+          left: -10%;
+          z-index: 0;
+          pointer-events: none;
+        }
+        .signup-body::after {
+          content: "";
+          position: absolute;
+          width: 600px;
+          height: 600px;
+          background: rgba(34, 76, 56, 0.35);
+          border-radius: 50%;
+          filter: blur(120px);
+          bottom: -10%;
+          right: -10%;
+          z-index: 0;
+          pointer-events: none;
         }
         .form-container {
-          max-width: 752px;
+          position: relative;
+          z-index: 1;
+          max-width: 780px;
           width: 100%;
-          background-color: #ffffff;
-          color: var(--charcoal, #2d312e);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-          border: 1px solid rgba(34, 76, 56, 0.15);
-          border-top: 6px solid var(--forest, #224C38);
-          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(8px);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-top: 8px solid var(--gold, #B4975A);
+          border-radius: 16px;
           overflow: hidden;
         }
         .form-header-banner {
-          background-color: #ffffff;
-          border-bottom: 1px solid var(--border, #cbd5e1);
-          padding: 36px 40px 28px 40px;
+          background: linear-gradient(to bottom, rgba(180, 151, 90, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          padding: 44px 40px 32px 40px;
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
-          gap: 4px;
+          gap: 16px;
         }
         .form-header-logo {
           width: 240px;
           height: auto;
-          margin-bottom: -10px;
+          margin-bottom: -4px;
         }
         .form-title-text {
           margin: 0;
           color: var(--forest, #224C38);
-          font-size: 1.85rem;
-          font-weight: 700;
-          font-family: 'Playfair Display', serif;
+          font-size: 2.1rem;
+          font-weight: 800;
           letter-spacing: -0.5px;
           line-height: 1.25;
         }
         .form-subtitle-text {
-          margin: 6px 0 0 0;
-          color: var(--muted, #8a908c);
-          font-size: 0.95rem;
-          font-family: 'Plus Jakarta Sans', sans-serif;
+          margin: 12px 0 0 0;
+          display: inline-flex;
+          gap: 10px;
+          justify-content: center;
+          flex-wrap: wrap;
         }
         .form-section-card {
           background: #ffffff !important;
-          border: none !important;
-          box-shadow: none !important;
-          padding: 24px 40px !important;
-          margin-bottom: 0 !important;
+          border: 1px solid rgba(0, 0, 0, 0.04) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
+          padding: 32px 40px !important;
+          margin: 20px 40px !important;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-section-card:hover {
+          box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04) !important;
         }
         .form-section-title {
-          font-size: 1rem;
+          font-size: 1.05rem;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: var(--forest-mid, #2e674c);
-          margin-bottom: 18px;
-          border-bottom: 1px solid var(--border, #cbd5e1);
-          padding-bottom: 8px;
+          letter-spacing: 0.8px;
+          color: var(--forest, #224C38);
+          margin-bottom: 24px;
+          border-bottom: 2px solid rgba(34, 76, 56, 0.08);
+          padding-bottom: 10px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
         .jotform-input {
-          background-color: #FFFFFF !important;
-          border: 1px solid var(--border, #cbd5e1) !important;
-          color: var(--charcoal, #2d312e) !important;
-          border-radius: 6px !important;
-          height: 40px;
-          padding: 8px 12px;
+          background-color: #fbfbfb !important;
+          border: 1px solid #d1d5db !important;
+          color: #1f2937 !important;
+          border-radius: 8px !important;
+          height: 42px;
+          padding: 10px 14px;
           font-size: 14px;
           width: 100%;
           box-sizing: border-box;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: all 0.2s ease;
         }
         .jotform-input:focus {
           outline: none;
+          background-color: #ffffff !important;
           border-color: var(--forest, #224C38) !important;
-          box-shadow: 0 0 0 3px rgba(34, 76, 56, 0.15) !important;
+          box-shadow: 0 0 0 4px rgba(34, 76, 56, 0.12) !important;
         }
         .jotform-select {
-          background-color: #FFFFFF !important;
-          border: 1px solid var(--border, #cbd5e1) !important;
-          color: var(--charcoal, #2d312e) !important;
-          border-radius: 6px !important;
-          height: 40px;
-          padding: 8px 12px;
+          background-color: #fbfbfb !important;
+          border: 1px solid #d1d5db !important;
+          color: #1f2937 !important;
+          border-radius: 8px !important;
+          height: 42px;
+          padding: 10px 14px;
           font-size: 14px;
           width: 100%;
           box-sizing: border-box;
+          transition: all 0.2s ease;
         }
         .jotform-select:focus {
           outline: none;
+          background-color: #ffffff !important;
           border-color: var(--forest, #224C38) !important;
+          box-shadow: 0 0 0 4px rgba(34, 76, 56, 0.12) !important;
         }
         .jotform-textarea {
-          background-color: #FFFFFF !important;
-          border: 1px solid var(--border, #cbd5e1) !important;
-          color: var(--charcoal, #2d312e) !important;
-          border-radius: 6px !important;
-          padding: 10px 12px;
+          background-color: #fbfbfb !important;
+          border: 1px solid #d1d5db !important;
+          color: #1f2937 !important;
+          border-radius: 8px !important;
+          padding: 12px 14px;
           font-size: 14px;
           width: 100%;
           box-sizing: border-box;
           height: 100px;
           resize: vertical;
+          transition: all 0.2s ease;
         }
         .jotform-textarea:focus {
           outline: none;
+          background-color: #ffffff !important;
           border-color: var(--forest, #224C38) !important;
-          box-shadow: 0 0 0 3px rgba(34, 76, 56, 0.15) !important;
+          box-shadow: 0 0 0 4px rgba(34, 76, 56, 0.12) !important;
         }
         .jotform-label {
           font-weight: 600;
           color: var(--charcoal, #2d312e);
           margin-bottom: 8px;
           display: block;
-          font-size: 0.9rem;
+          font-size: 0.88rem;
         }
         .jotform-radio-group {
           display: flex;
@@ -438,49 +498,79 @@ export default function SignupPage() {
         .jotform-btn-submit {
           background-color: var(--forest, #224C38);
           color: #ffffff;
-          border: 1px solid var(--forest, #224C38);
-          border-radius: 6px;
-          padding: 12px 36px;
+          border: none;
+          border-radius: 8px;
+          padding: 14px 40px;
           font-size: 15px;
-          font-weight: 600;
+          font-weight: 700;
           cursor: pointer;
-          transition: background-color 0.2s;
-          min-width: 180px;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 14px rgba(34, 76, 56, 0.25);
+          min-width: 200px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         .jotform-btn-submit:hover {
           background-color: var(--forest-mid, #2e674c);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(34, 76, 56, 0.35);
+        }
+        .jotform-btn-submit:active {
+          transform: translateY(0);
         }
         .jotform-btn-submit:disabled {
-          background-color: var(--muted, #8a908c);
+          background-color: var(--muted, #9ca3af);
+          box-shadow: none;
           cursor: not-allowed;
+          transform: none;
         }
         .jotform-btn-secondary {
-          background-color: var(--forest-light, #e9f0ec);
-          color: var(--forest, #224C38);
-          border: 1px solid var(--forest-light, #e9f0ec);
-          border-radius: 6px;
-          padding: 6px 14px;
+          background-color: #f3f4f6;
+          color: #374151;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          padding: 8px 16px;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
-          transition: background-color 0.2s;
+          transition: all 0.2s ease;
         }
         .jotform-btn-secondary:hover {
-          background-color: #dbe7e1;
+          background-color: #e5e7eb;
+          color: #111827;
+          border-color: #9ca3af;
         }
         .jotform-card-attendee {
-          background: #f8fafc;
-          border: 1px solid var(--border, #cbd5e1);
-          border-radius: 6px;
-          padding: 20px;
+          background: #fafbfb;
+          border: 1px solid #e2e8f0;
+          border-left: 4px solid var(--forest, #224C38);
+          border-radius: 10px;
+          padding: 24px;
           margin-bottom: 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+          transition: all 0.25s ease;
+        }
+        .jotform-card-attendee:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.03);
+          border-color: #cbd5e1;
+          border-left-color: var(--forest-mid, #2e674c);
         }
         .jotform-card-attendee-child {
-          background: var(--gold-light, #fbf9f4);
-          border: 1px solid rgba(180, 151, 90, 0.35);
-          border-radius: 6px;
-          padding: 20px;
+          background: #fffdf9;
+          border: 1px solid rgba(180, 151, 90, 0.25);
+          border-left: 4px solid var(--gold, #B4975A);
+          border-radius: 10px;
+          padding: 24px;
           margin-bottom: 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+          transition: all 0.25s ease;
+        }
+        .jotform-card-attendee-child:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.03);
+          border-color: rgba(180, 151, 90, 0.4);
+          border-left-color: var(--gold-dark, #8a713b);
         }
       `}</style>
 
@@ -495,7 +585,14 @@ export default function SignupPage() {
           />
           <div>
             <h1 className="form-title-text">{settings.signup_title}</h1>
-            <p className="form-subtitle-text">📍 {settings.signup_location} | 📅 {settings.signup_dates}</p>
+            <div className="form-subtitle-text">
+              <span className="badge badge-gray" style={{ background: "rgba(180, 151, 90, 0.08)", color: "#8a713b", border: "1px solid rgba(180, 151, 90, 0.25)", padding: "4px 12px", borderRadius: "20px", fontSize: "0.82rem", fontWeight: 600 }}>
+                📍 {settings.signup_location}
+              </span>
+              <span className="badge badge-gray" style={{ background: "rgba(34, 76, 56, 0.08)", color: "var(--forest)", border: "1px solid rgba(34, 76, 56, 0.18)", padding: "4px 12px", borderRadius: "20px", fontSize: "0.82rem", fontWeight: 600 }}>
+                📅 {settings.signup_dates}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -505,7 +602,28 @@ export default function SignupPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ paddingBottom: 40 }}>
+        {settings.registration_status === "not_open" ? (
+          <div style={{ padding: "48px 40px", textAlign: "center" }}>
+            <div style={{ fontSize: "3.5rem", marginBottom: 20 }}>⏳</div>
+            <h2 style={{ fontSize: "1.75rem", color: "var(--forest)", marginBottom: 12, fontWeight: 800 }}>
+              Registration is not open yet
+            </h2>
+            <p style={{ color: "var(--muted)", maxWidth: 460, margin: "0 auto 28px auto", fontSize: "0.95rem", lineHeight: 1.6 }}>
+              We appreciate your interest! Registration for the church camp is not open yet. Please check back later or contact the camp administration for updates.
+            </p>
+          </div>
+        ) : (settings.registration_status === "closed" || (!settings.registration_status && settings.registration_closed === "true")) ? (
+          <div style={{ padding: "48px 40px", textAlign: "center" }}>
+            <div style={{ fontSize: "3.5rem", marginBottom: 20 }}>🚫</div>
+            <h2 style={{ fontSize: "1.75rem", color: "var(--forest)", marginBottom: 12, fontWeight: 800 }}>
+              Registration is Closed
+            </h2>
+            <p style={{ color: "var(--muted)", maxWidth: 460, margin: "0 auto 28px auto", fontSize: "0.95rem", lineHeight: 1.6 }}>
+              We appreciate your interest! Registration for the church camp is currently closed. If you have any questions or require support, please contact the camp administration.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ paddingBottom: 40 }}>
           
           {/* Section 1: Contact Information */}
           <div className="form-section-card">
@@ -844,6 +962,7 @@ export default function SignupPage() {
           </div>
 
         </form>
+      )}
       </div>
     </div>
   );

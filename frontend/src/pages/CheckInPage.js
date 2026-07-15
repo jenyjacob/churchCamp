@@ -15,6 +15,7 @@ export default function CheckInPage() {
   const [allCampers, setAllCampers] = useState([]);
   const [checkedInSummary, setCheckedInSummary] = useState(null); // array of campers recently checked in
   const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [waiverModal, setWaiverModal] = useState({
     isOpen: false,
     title: "",
@@ -27,6 +28,13 @@ export default function CheckInPage() {
   const flash = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 4000);
+  };
+
+  const toggleGroupExpand = (fg) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [fg]: prev[fg] === false ? true : false
+    }));
   };
 
   const fetchActive = useCallback(() => {
@@ -170,6 +178,24 @@ export default function CheckInPage() {
       fetchAllCampers();
     } catch (err) {
       flash("error", err.response?.data?.error || "Check-out failed.");
+    }
+  };
+
+  const handleCheckOutGroup = async (fg, cis) => {
+    if (!window.confirm(`Are you sure you want to check out all ${cis.length} members of Family #${fg}?`)) {
+      return;
+    }
+    try {
+      await Promise.all(cis.map(ci => api.post(`/api/checkin/${ci.id}/checkout`)));
+      flash("success", `👋 Family #${fg} group checked out (${cis.length} campers).`);
+      fetchActive();
+      fetchStats();
+      fetchAllCampers();
+    } catch (err) {
+      flash("error", "One or more check-outs failed during group checkout.");
+      fetchActive();
+      fetchStats();
+      fetchAllCampers();
     }
   };
 
@@ -326,6 +352,7 @@ export default function CheckInPage() {
                           <div className="text-muted" style={{ fontSize: "0.8rem" }}>
                             {c.family_group && `Family ${c.family_group} · `}
                             {c.cabin_group && `${c.cabin_group} · `}
+                            {c.team_name && `${c.team_name} · `}
                             {c.age && `Age ${c.age}`}
                           </div>
                           <div style={{ marginTop: 4, display: "flex", gap: 6 }}>
@@ -369,46 +396,182 @@ export default function CheckInPage() {
                   <p className="text-muted">No campers checked in yet.</p>
                 </div>
               ) : (
-                <div style={{ maxHeight: 520, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {activeCheckins.map(ci => (
-                    <div key={ci.id} style={{
-                      padding: "10px 14px",
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--radius)",
-                      background: "var(--cream)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{ci.camper_name}</div>
-                        <div className="text-muted">
-                          In at {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
+                (() => {
+                  const groups = {};
+                  const individuals = [];
+
+                  activeCheckins.forEach(ci => {
+                    if (ci.family_group) {
+                      if (!groups[ci.family_group]) {
+                        groups[ci.family_group] = [];
+                      }
+                      groups[ci.family_group].push(ci);
+                    } else {
+                      individuals.push(ci);
+                    }
+                  });
+
+                  const sortedGroupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {/* Collapsible Groups */}
+                      {sortedGroupKeys.map(fg => {
+                        const cis = groups[fg];
+                        const isExpanded = expandedGroups[fg] !== false;
+                        return (
+                          <div key={`group-${fg}`} style={{
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius-md, 8px)",
+                            background: "#fff",
+                            overflow: "visible",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+                          }}>
+                            <div 
+                              onClick={() => toggleGroupExpand(fg)}
+                              style={{
+                                padding: "10px 14px",
+                                background: "rgba(180, 151, 90, 0.05)",
+                                borderBottom: isExpanded ? "1px solid var(--border)" : "none",
+                                borderTopLeftRadius: "7px",
+                                borderTopRightRadius: "7px",
+                                borderBottomLeftRadius: isExpanded ? "0px" : "7px",
+                                borderBottomRightRadius: isExpanded ? "0px" : "7px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                cursor: "pointer",
+                                userSelect: "none"
+                              }}
+                            >
+                              <div className="tooltip-container tooltip-bottom">
+                                <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--forest)", display: "flex", alignItems: "center", gap: 6 }}>
+                                  👨‍👩‍👧‍👦 Family #{fg}
+                                  <span className="badge badge-gray" style={{ fontSize: "0.65rem", padding: "1px 5px", color: "var(--forest)" }}>
+                                    {cis.length} on site
+                                  </span>
+                                </span>
+                                <div className="tooltip-content" style={{ pointerEvents: "none" }}>
+                                  <strong style={{ display: "block", borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 4, marginBottom: 4 }}>
+                                    Currently On Site ({cis.length}):
+                                  </strong>
+                                  {cis.map(ci => (
+                                    <div key={ci.id} style={{ display: "flex", gap: 12, justifyContent: "space-between", margin: "2px 0" }}>
+                                      <span>{ci.camper_name}</span>
+                                      <span style={{ fontSize: "0.75rem", color: "#a7f3d0" }}>🟢 In</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }}
+                                  disabled={!canEdit}
+                                  title={`Check out all members of Family #${fg}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCheckOutGroup(fg, cis);
+                                  }}
+                                >
+                                  Check Out Group
+                                </button>
+                                <span style={{ fontSize: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>
+                                  {isExpanded ? "▲ Collapse" : "▼ Expand"}
+                                </span>
+                              </div>
+                            </div>
+                            {isExpanded && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, background: "#fdfdfb" }}>
+                                {cis.map(ci => (
+                                  <div key={ci.id} style={{
+                                    padding: "8px 12px",
+                                    border: "1px solid #f1f0ea",
+                                    borderRadius: "6px",
+                                    background: "#fff",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center"
+                                  }}>
+                                    <div>
+                                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)" }}>{ci.camper_name}</div>
+                                      <div className="text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+                                        In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                        {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
+                                      </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                      <button
+                                        className="btn btn-outline btn-sm"
+                                        style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }}
+                                        onClick={(e) => { e.stopPropagation(); handleCheckOut(ci); }}
+                                        disabled={!canEdit}
+                                      >
+                                        Check Out
+                                      </button>
+                                      {canEdit && (
+                                        <button
+                                          className="btn btn-danger btn-sm"
+                                          style={{ padding: "2px 6px", fontSize: "0.7rem", height: 24, minWidth: "auto" }}
+                                          title="Reset Check-In"
+                                          onClick={(e) => { e.stopPropagation(); handleResetCheckIn(ci); }}
+                                        >
+                                          Reset
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Individuals List */}
+                      {individuals.map(ci => (
+                        <div key={ci.id} style={{
+                          padding: "10px 14px",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-md, 8px)",
+                          background: "var(--cream)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
+                        }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)" }}>{ci.camper_name}</div>
+                            <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
+                              In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24 }}
+                              onClick={() => handleCheckOut(ci)}
+                              disabled={!canEdit}
+                            >
+                              Check Out
+                            </button>
+                            {canEdit && (
+                              <button
+                                className="btn btn-danger btn-sm"
+                                style={{ padding: "2px 6px", fontSize: "0.7rem", height: 24, minWidth: "auto" }}
+                                title="Reset Check-In"
+                                onClick={() => handleResetCheckIn(ci)}
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => handleCheckOut(ci)}
-                          disabled={!canEdit}
-                        >
-                          Check Out
-                        </button>
-                        {canEdit && (
-                          <button
-                            className="btn btn-danger btn-sm"
-                            style={{ padding: "0 10px", minWidth: "auto", display: "flex", alignItems: "center", justifyContent: "center" }}
-                            title="Reset Check-In (Undo this action and completely remove the check-in record)"
-                            onClick={() => handleResetCheckIn(ci)}
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()
               )}
             </div>
           </div>

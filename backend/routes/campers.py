@@ -154,6 +154,19 @@ def create_camper():
 @campers_bp.route("/public-signup", methods=["POST"])
 @rate_limit(5, 60)
 def public_signup():
+    from models import Setting
+    reg_status = Setting.query.filter_by(key="registration_status").first()
+    if reg_status and reg_status.value:
+        status = reg_status.value.lower()
+        if status == "not_open":
+            return jsonify({"error": "Registration is not open yet."}), 403
+        elif status == "closed":
+            return jsonify({"error": "Registration is currently closed."}), 403
+            
+    reg_closed = Setting.query.filter_by(key="registration_closed").first()
+    if reg_closed and reg_closed.value.lower() == "true":
+        return jsonify({"error": "Registration is currently closed."}), 403
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "No registration details provided"}), 400

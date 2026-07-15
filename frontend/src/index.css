@@ -1002,24 +1002,33 @@ tbody tr:hover { background: var(--cream); }
 }
 
 .family-card-body {
-  padding: 16px 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
   flex: 1;
 }
 
 .family-member-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed var(--border);
+  gap: 6px;
+  padding: 14px;
+  background: var(--bg-secondary, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
 }
 
 .family-member-row:last-child {
-  padding-bottom: 0;
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.family-member-row:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .family-member-header {
@@ -1231,6 +1240,21 @@ tbody tr:hover { background: var(--cream); }
   visibility: visible;
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Tooltip below */
+.tooltip-bottom .tooltip-content {
+  bottom: auto;
+  top: 100%;
+  transform: translateY(-8px);
+}
+.tooltip-bottom .tooltip-content::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent var(--charcoal) transparent;
+}
+.tooltip-bottom:hover .tooltip-content {
+  transform: translateY(4px);
 }
 
 /* ── Apparel Responsive Row ── */

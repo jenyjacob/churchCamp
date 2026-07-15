@@ -147,11 +147,16 @@ export default function CampersPage() {
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("camperViewMode") || "table");
   const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
+  const [revealedPhones, setRevealedPhones] = useState({});
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
     localStorage.setItem("camperViewMode", mode);
     setPage(1);
+  };
+
+  const togglePhoneReveal = (key) => {
+    setRevealedPhones(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const fetchCampers = useCallback(() => {
@@ -354,7 +359,21 @@ export default function CampersPage() {
                 return (
                   <div key={fg} className="family-card">
                     <div className="family-card-header">
-                      <h3 className="family-card-title">👨‍👩‍👧‍👦 Family #{fg}</h3>
+                      <div>
+                        <h3 className="family-card-title">👨‍👩‍👧‍👦 Family #{fg}</h3>
+                        {guardianPhone && (
+                          <span className="text-muted" style={{ fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                            📞 {revealedPhones[fg] ? guardianPhone : "••••••••••"}
+                            <button 
+                              type="button"
+                              onClick={() => togglePhoneReveal(fg)}
+                              style={{ background: "none", border: "none", color: "var(--forest)", fontSize: "0.7rem", cursor: "pointer", padding: 0, textDecoration: "underline", fontWeight: 600 }}
+                            >
+                              {revealedPhones[fg] ? "Hide" : "Show Phone"}
+                            </button>
+                          </span>
+                        )}
+                      </div>
                       <span className="text-muted" style={{ fontSize: "0.75rem" }}>{members.length} member{members.length !== 1 ? "s" : ""}</span>
                     </div>
                     <div className="family-card-body">
@@ -362,26 +381,43 @@ export default function CampersPage() {
                         <div key={c.id} className="family-member-row">
                           <div className="family-member-header">
                             <span className="family-member-name">{c.full_name}</span>
-                            <span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`} style={{ fontSize: "0.7rem", padding: "2px 6px" }}>{c.registration_status}</span>
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span className={`badge ${c.checked_in ? "badge-green" : "badge-gray"}`} style={{ fontSize: "0.65rem", padding: "2px 6px" }}>
+                                {c.checked_in ? "✓ Checked In" : "⏳ Not In"}
+                              </span>
+                              <span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`} style={{ fontSize: "0.65rem", padding: "2px 6px" }}>
+                                {c.registration_status}
+                              </span>
+                            </div>
                           </div>
-                          <div className="family-member-meta">
-                            {c.age && <span>Age: {c.age}</span>}
-                            {c.cabin_group && <span>Cabin: {c.cabin_group}</span>}
-                            <span>{c.checked_in ? "🟢 Checked In" : "⚪ Not In"}</span>
+
+                          <div className="family-member-meta" style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "2px 0" }}>
+                            {c.age !== undefined && c.age !== null && (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#f1f5f9", border: "1px solid #e2e8f0", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", color: "#475569", fontWeight: 500 }}>
+                                👶 Age: {c.age}
+                              </span>
+                            )}
+                            {c.team_name && (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(180, 151, 90, 0.08)", border: "1px solid rgba(180, 151, 90, 0.2)", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", color: "var(--gold-dark, #a37d24)", fontWeight: 600 }}>
+                                🏆 {c.team_name}
+                              </span>
+                            )}
                           </div>
+
                           {c.allergies && (
-                            <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 2, fontWeight: 500 }}>
+                            <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 2, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>
                               ⚠️ Allergies: {c.allergies}
                             </div>
                           )}
-                          <div className="family-member-footer">
-                            <div style={{ fontSize: "0.75rem" }} className="text-muted">
-                              {c.guardian_phone || guardianPhone ? `📞 ${c.guardian_phone || guardianPhone}` : ""}
+
+                          <div className="family-member-footer" style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8, marginTop: 4 }}>
+                            <div style={{ fontSize: "0.75rem", display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }} className="text-muted">
+                              {c.cabin_group ? `⛺ Cabin: ${c.cabin_group}` : "⛺ Unassigned Cabin"}
                             </div>
                             {canEdit && (
                               <div className="family-member-actions">
-                                <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setModal(c)}>Edit</button>
-                                <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setDeleteTarget(c)}>Delete</button>
+                                <button className="btn btn-ghost btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 44 }} onClick={() => setModal(c)}>Edit</button>
+                                <button className="btn btn-danger btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 48 }} onClick={() => setDeleteTarget(c)}>Delete</button>
                               </div>
                             )}
                           </div>
@@ -404,26 +440,56 @@ export default function CampersPage() {
                       <div key={c.id} className="family-member-row">
                         <div className="family-member-header">
                           <span className="family-member-name">{c.full_name}</span>
-                          <span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`} style={{ fontSize: "0.7rem", padding: "2px 6px" }}>{c.registration_status}</span>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <span className={`badge ${c.checked_in ? "badge-green" : "badge-gray"}`} style={{ fontSize: "0.65rem", padding: "2px 6px" }}>
+                              {c.checked_in ? "✓ Checked In" : "⏳ Not In"}
+                            </span>
+                            <span className={`badge ${REG_BADGE[c.registration_status] || "badge-gray"}`} style={{ fontSize: "0.65rem", padding: "2px 6px" }}>
+                              {c.registration_status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="family-member-meta">
-                          {c.age && <span>Age: {c.age}</span>}
-                          {c.cabin_group && <span>Cabin: {c.cabin_group}</span>}
-                          <span>{c.checked_in ? "🟢 Checked In" : "⚪ Not In"}</span>
+
+                        <div className="family-member-meta" style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "2px 0" }}>
+                          {c.age !== undefined && c.age !== null && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#f1f5f9", border: "1px solid #e2e8f0", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", color: "#475569", fontWeight: 500 }}>
+                              👶 Age: {c.age}
+                            </span>
+                          )}
+                          {c.team_name && (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(180, 151, 90, 0.08)", border: "1px solid rgba(180, 151, 90, 0.2)", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", color: "var(--gold-dark, #a37d24)", fontWeight: 600 }}>
+                              🏆 {c.team_name}
+                            </span>
+                          )}
                         </div>
+
                         {c.allergies && (
-                          <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 2, fontWeight: 500 }}>
+                          <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 2, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>
                             ⚠️ Allergies: {c.allergies}
                           </div>
                         )}
-                        <div className="family-member-footer">
-                          <div style={{ fontSize: "0.75rem" }} className="text-muted">
-                            {c.guardian_phone ? `📞 ${c.guardian_phone}` : c.guardian_name ? `👤 ${c.guardian_name}` : ""}
+
+                        <div className="family-member-footer" style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8, marginTop: 4 }}>
+                          <div style={{ fontSize: "0.75rem", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 10px", fontWeight: 500 }} className="text-muted">
+                            {c.guardian_phone ? (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                📞 {revealedPhones[c.id] ? c.guardian_phone : "••••••••••"}
+                                <button 
+                                  type="button"
+                                  onClick={() => togglePhoneReveal(c.id)}
+                                  style={{ background: "none", border: "none", color: "var(--forest)", fontSize: "0.7rem", cursor: "pointer", padding: 0, textDecoration: "underline", fontWeight: 600 }}
+                                >
+                                  {revealedPhones[c.id] ? "Hide" : "Show Phone"}
+                                </button>
+                              </span>
+                            ) : c.guardian_name ? `👤 ${c.guardian_name}` : ""}
+                            <span style={{ color: "#cbd5e1" }}>•</span>
+                            <span>{c.cabin_group ? `⛺ Cabin: ${c.cabin_group}` : "⛺ Unassigned"}</span>
                           </div>
                           {canEdit && (
                             <div className="family-member-actions">
-                              <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setModal(c)}>Edit</button>
-                              <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem" }} onClick={() => setDeleteTarget(c)}>Delete</button>
+                              <button className="btn btn-ghost btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 44 }} onClick={() => setModal(c)}>Edit</button>
+                              <button className="btn btn-danger btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 48 }} onClick={() => setDeleteTarget(c)}>Delete</button>
                             </div>
                           )}
                         </div>
