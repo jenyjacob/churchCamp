@@ -421,3 +421,205 @@ def get_outdoor_activities():
         "total_kayaking": total_kayaking,
         "total_boat_tour": total_boat_tour
     }), 200
+
+@campers_bp.route("/cabins-pdf", methods=["GET"])
+@jwt_required()
+@require_page_permission("cabins", "edit")
+def download_cabins_pdf():
+    from io import BytesIO
+    from flask import send_file
+    import datetime
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    # 1. Fetch all registered campers
+    campers = Camper.query.filter_by(registration_status="registered").all()
+    
+    # 2. Group campers by cabin and room
+    cabins_map = {}
+    unassigned = []
+    
+    for c in campers:
+        if c.cabin_group:
+            parts = c.cabin_group.split(" | ")
+            if len(parts) == 2:
+                cab_name = parts[0].strip()
+                room_name = parts[1].strip()
+            else:
+                cab_name = c.cabin_group.strip()
+                room_name = "General"
+                
+            if cab_name not in cabins_map:
+                cabins_map[cab_name] = {}
+            if room_name not in cabins_map[cab_name]:
+                cabins_map[cab_name][room_name] = []
+            cabins_map[cab_name][room_name].append(c)
+        else:
+            unassigned.append(c)
+            
+    sorted_cabins = sorted(cabins_map.keys(), key=lambda x: x.lower())
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
+    
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor('#1E4D2B'),
+        alignment=1,
+        spaceAfter=10
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSub',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor('#6B7280'),
+        alignment=1,
+        spaceAfter=20
+    )
+    cabin_hdr_style = ParagraphStyle(
+        'CabinHeader',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor('#1E4D2B'),
+        spaceBefore=14,
+        spaceAfter=6,
+        keepWithNext=True
+    )
+    room_hdr_style = ParagraphStyle(
+        'RoomHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor('#C8972B'),
+        spaceBefore=6,
+        spaceAfter=4,
+        keepWithNext=True
+    )
+    table_cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11
+    )
+    table_hdr_cell_style = ParagraphStyle(
+        'TableHdrCell',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.white
+    )
+    
+    elements = []
+    
+    # Header
+    elements.append(Paragraph("Grace Christian Assembly", title_style))
+    elements.append(Paragraph("GCA Camp Cabin Assignments Report", ParagraphStyle('DocTitleSub', parent=title_style, fontSize=13, leading=16, spaceAfter=4)))
+    
+    current_time = datetime.datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    elements.append(Paragraph(f"Generated on {current_time}", subtitle_style))
+    
+    # For each cabin
+    for cab in sorted_cabins:
+        elements.append(Paragraph(f"⛺ Cabin: {cab}", cabin_hdr_style))
+        
+        rooms_map = cabins_map[cab]
+        sorted_rooms = sorted(rooms_map.keys(), key=lambda x: x.lower())
+        
+        for rm in sorted_rooms:
+            elements.append(Paragraph(f"🚪 Room: {rm}", room_hdr_style))
+            
+            data = [[
+                Paragraph("Name", table_hdr_cell_style),
+                Paragraph("Guardian", table_hdr_cell_style)
+            ]]
+            
+            room_campers = rooms_map[rm]
+            room_campers.sort(key=lambda x: f"{x.first_name} {x.last_name}".lower())
+            
+            for c in room_campers:
+                data.append([
+                    Paragraph(f"{c.first_name} {c.last_name}", table_cell_style),
+                    Paragraph(c.guardian_name or "-", table_cell_style)
+                ])
+                
+            col_widths = [266, 266]
+            
+            t = Table(data, colWidths=col_widths)
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E4D2B')),
+                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 4),
+                ('TOPPADDING', (0,0), (-1,0), 4),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#EDE8DC')),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8F5EE')]),
+                ('BOTTOMPADDING', (0,1), (-1,-1), 4),
+                ('TOPPADDING', (0,1), (-1,-1), 4),
+            ]))
+            
+            elements.append(t)
+            elements.append(Spacer(1, 6))
+            
+        elements.append(Spacer(1, 10))
+        
+    # Unassigned
+    if unassigned:
+        elements.append(Paragraph("❓ Unassigned Campers", cabin_hdr_style))
+        data = [[
+            Paragraph("Name", table_hdr_cell_style),
+            Paragraph("Guardian", table_hdr_cell_style)
+        ]]
+        unassigned.sort(key=lambda x: f"{x.first_name} {x.last_name}".lower())
+        for c in unassigned:
+            data.append([
+                Paragraph(f"{c.first_name} {c.last_name}", table_cell_style),
+                Paragraph(c.guardian_name or "-", table_cell_style)
+            ])
+            
+        col_widths = [266, 266]
+        t = Table(data, colWidths=col_widths)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#6B7280')),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 4),
+            ('TOPPADDING', (0,0), (-1,0), 4),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#EDE8DC')),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8F5EE')]),
+            ('BOTTOMPADDING', (0,1), (-1,-1), 4),
+            ('TOPPADDING', (0,1), (-1,-1), 4),
+        ]))
+        elements.append(t)
+        
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="gca_camp_cabins_report.pdf"
+    )

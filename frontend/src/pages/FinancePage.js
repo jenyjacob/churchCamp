@@ -496,7 +496,7 @@ export default function FinancePage() {
         gap: 16,
         marginBottom: 24
       }}>
-        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--primary)" }}>
+        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--forest)" }}>
           <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Expected Fees</span>
           <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0" }}>${(stats.total_expected_fees || 0).toFixed(2)}</span>
           <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 3, marginTop: 4, borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
@@ -552,9 +552,10 @@ export default function FinancePage() {
           style={{
             padding: "12px 20px",
             background: activeTab === "fees" ? "#ffffff" : "rgba(0,0,0,0.02)",
-            border: activeTab === "fees" ? "2px solid var(--primary)" : "1px solid var(--border-color)",
+            border: "1px solid var(--border-color)",
+            borderLeft: "4px solid var(--forest)",
             borderRadius: "10px",
-            color: activeTab === "fees" ? "var(--primary)" : "var(--text-secondary)",
+            color: activeTab === "fees" ? "var(--forest)" : "var(--text-secondary)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -575,14 +576,15 @@ export default function FinancePage() {
           style={{
             padding: "12px 20px",
             background: activeTab === "expenses" ? "#ffffff" : "rgba(0,0,0,0.02)",
-            border: activeTab === "expenses" ? "2px solid var(--primary)" : "1px solid var(--border-color)",
+            border: "1px solid var(--border-color)",
+            borderLeft: "4px solid var(--danger)",
             borderRadius: "10px",
-            color: activeTab === "expenses" ? "var(--primary)" : "var(--text-secondary)",
+            color: activeTab === "expenses" ? "var(--danger)" : "var(--text-secondary)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: "12px",
-            boxShadow: activeTab === "expenses" ? "0 4px 12px rgba(30, 77, 43, 0.06)" : "none",
+            boxShadow: activeTab === "expenses" ? "0 4px 12px rgba(192, 57, 43, 0.06)" : "none",
             transform: activeTab === "expenses" ? "translateY(-1px)" : "none",
             transition: "all 0.2s ease"
           }}
@@ -1072,7 +1074,7 @@ export default function FinancePage() {
                 );
               })}
 
-              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border-color)", paddingTop: 16, color: "var(--primary)", fontWeight: 700 }}>
+              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border-color)", paddingTop: 16, color: "var(--forest)", fontWeight: 700 }}>
                 🚴 Activity Prices per Spot
               </h3>
               {activityNames.map((name, idx) => (
@@ -1126,7 +1128,7 @@ export default function FinancePage() {
             width: "56px",
             height: "56px",
             borderRadius: "50%",
-            background: "var(--primary)",
+            background: "var(--forest)",
             color: "#fff",
             border: "none",
             boxShadow: "0 4px 12px rgba(0,0,0,0.3)",

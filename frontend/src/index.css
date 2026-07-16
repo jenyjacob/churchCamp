@@ -1130,11 +1130,39 @@ tbody tr:hover { background: var(--cream); }
   flex-shrink: 0;
 }
 
+/* Schedule Layout Containers */
+.schedule-days-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.schedule-day-card {
+  padding: 20px 24px;
+}
+.schedule-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 @media (max-width: 600px) {
+  .schedule-days-container {
+    gap: 16px;
+  }
+  .schedule-day-card {
+    padding: 16px 12px;
+  }
+  .schedule-events-list {
+    gap: 12px;
+  }
+
   .schedule-event-row {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
+    padding: 14px 16px;
+    border-width: 1px;
+    background: #faf9f6;
   }
 
   .schedule-event-main {
@@ -1144,11 +1172,13 @@ tbody tr:hover { background: var(--cream); }
 
   .schedule-event-time {
     min-width: unset;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: var(--forest);
     background: rgba(34, 76, 56, 0.06);
+    border: 1px solid rgba(34, 76, 56, 0.12);
     padding: 4px 10px;
-    border-radius: var(--radius-sm);
+    border-radius: 12px;
     display: inline-flex;
     align-items: center;
     width: fit-content;
@@ -1156,6 +1186,37 @@ tbody tr:hover { background: var(--cream); }
 
   .schedule-event-details {
     padding-left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .schedule-event-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--charcoal);
+  }
+
+  .schedule-event-location {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--gold-dark);
+    background: rgba(200, 151, 43, 0.06);
+    border: 1px solid rgba(200, 151, 43, 0.15);
+    padding: 3px 8px;
+    border-radius: 10px;
+    width: fit-content;
+    margin-top: 2px;
+  }
+
+  .schedule-event-description {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-top: 2px;
+    color: var(--muted);
   }
 
   .schedule-event-actions {

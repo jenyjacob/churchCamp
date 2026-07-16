@@ -104,6 +104,33 @@ export default function CabinsPage() {
     fetchCampers();
   }, [fetchCampers]);
 
+  // Handle generating and printing PDF report
+  const handlePrintPDF = async () => {
+    try {
+      flash("info", "Generating cabin assignments PDF report...");
+      const response = await api.get("/api/campers/cabins-pdf", {
+        responseType: "blob",
+      });
+      
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "gca_camp_cabins_report.pdf");
+      document.body.appendChild(link);
+      link.click();
+      
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      flash("success", "PDF report downloaded successfully!");
+    } catch (err) {
+      console.error(err);
+      flash("error", "Failed to generate PDF report.");
+    }
+  };
+
   // Handle assigning camper to cabin/room
   const assignCabin = async (camperId, cabinName, roomName) => {
     const camper = campers.find(c => c.id === camperId);
@@ -171,6 +198,39 @@ export default function CabinsPage() {
         return c;
       }));
       flash("error", "Failed to assign family group.");
+    }
+  };
+
+  // Unassign all campers in a specific room
+  const clearRoom = async (cabinName, roomName) => {
+    const roomKey = `${cabinName} | ${roomName}`;
+    const roomCampers = campers.filter(c => c.cabin_group === roomKey);
+    const camperIds = roomCampers.map(c => c.id);
+    
+    if (camperIds.length === 0) return;
+    
+    if (!window.confirm(`Are you sure you want to unassign all ${camperIds.length} campers from ${cabinName} - ${roomName}?`)) {
+      return;
+    }
+    
+    const originalState = [...campers];
+    
+    // Optimistically update
+    setCampers(prev => prev.map(c => {
+      if (camperIds.includes(c.id)) {
+        return { ...c, cabin_group: "" };
+      }
+      return c;
+    }));
+    
+    try {
+      flash("info", `Clearing room ${roomName}...`);
+      await Promise.all(camperIds.map(id => api.put(`/api/campers/${id}`, { cabin_group: "" })));
+      flash("success", `Successfully unassigned all campers from ${cabinName} - ${roomName}.`);
+    } catch (err) {
+      // Rollback
+      setCampers(originalState);
+      flash("error", "Failed to clear room assignments.");
     }
   };
 
@@ -625,6 +685,10 @@ export default function CabinsPage() {
         padding-right: 0;
       }
     }
+
+    .btn-clear-room:hover {
+      color: var(--danger, #C0392B) !important;
+    }
   `;
 
   return (
@@ -632,10 +696,22 @@ export default function CabinsPage() {
       <style>{customStyles}</style>
 
       <div className="top-bar">
-        <h1>Cabin Room Assigner</h1>
-        <span className="text-muted">
-          {campers.length} registered camper{campers.length !== 1 ? "s" : ""}
-        </span>
+        <div>
+          <h1 style={{ margin: 0 }}>Cabin Room Assigner</h1>
+          <span className="text-muted" style={{ fontSize: "0.85rem" }}>
+            {campers.length} registered camper{campers.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        
+        {isAdmin && (
+          <button 
+            className="btn btn-outline" 
+            onClick={handlePrintPDF}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", height: "38px" }}
+          >
+            📄 Print Cabin Details (PDF)
+          </button>
+        )}
       </div>
 
       <div className="page-body" style={{ display: "flex", flexDirection: "column" }}>
@@ -829,9 +905,31 @@ export default function CabinsPage() {
                                 <span className="room-title">
                                   <span>🚪</span> {room} <span style={{ fontWeight: 400, fontSize: "0.78rem", color: "var(--muted)", marginLeft: 4 }}>({occupants.length})</span>
                                 </span>
-                                <span className={`room-status-badge ${status.class}`}>
-                                  {status.label}
-                                </span>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span className={`room-status-badge ${status.class}`}>
+                                    {status.label}
+                                  </span>
+                                  {isAdmin && occupants.length > 0 && (
+                                    <button 
+                                      className="btn-clear-room"
+                                      onClick={() => clearRoom(cabin.name, room)}
+                                      title="Unassign all campers from this room"
+                                      style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        cursor: "pointer",
+                                        fontSize: "0.85rem",
+                                        padding: 0,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        color: "var(--muted)",
+                                        transition: "color 0.2s"
+                                      }}
+                                    >
+                                      🗑️
+                                    </button>
+                                  )}
+                                </div>
                               </div>
 
                               <div className="occupants-list">

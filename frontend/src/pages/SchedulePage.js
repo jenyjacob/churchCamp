@@ -218,16 +218,16 @@ export default function SchedulePage() {
           )}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="schedule-days-container">
           {sortedDays.map(day => {
             const sortedEventsForDay = [...groupedEvents[day]].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
             return (
-              <div key={day} className="card" style={{ padding: "20px 24px" }}>
+              <div key={day} className="card schedule-day-card">
                 <h3 style={{ fontFamily: "Playfair Display, serif", color: "var(--forest)", fontSize: "1.2rem", borderBottom: "1.5px solid var(--border)", paddingBottom: 8, marginBottom: 16 }}>
                   ☀️ {day}
                 </h3>
                 
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="schedule-events-list">
                   {sortedEventsForDay.map(evt => (
                     <div key={evt.id} className="schedule-event-row">
                       <div className="schedule-event-main">
@@ -306,8 +306,15 @@ export default function SchedulePage() {
                        onChange={e => {
                          const newStart = e.target.value;
                          setStartTime(newStart);
-                         if (newStart && endTime) {
-                           setActiveEvent({ ...activeEvent, time: `${newStart} - ${endTime}` });
+                         
+                         let newEnd = endTime;
+                         if (newStart && endTime && timeToMinutes(newStart) >= timeToMinutes(endTime)) {
+                           newEnd = "";
+                           setEndTime("");
+                         }
+                         
+                         if (newStart && newEnd) {
+                           setActiveEvent({ ...activeEvent, time: `${newStart} - ${newEnd}` });
                          } else {
                            setActiveEvent({ ...activeEvent, time: newStart });
                          }
@@ -340,7 +347,10 @@ export default function SchedulePage() {
                        required
                      >
                        <option value="">End Time...</option>
-                       {TIME_INTERVALS.map(t => (
+                       {TIME_INTERVALS.filter(t => {
+                         if (!startTime) return true;
+                         return timeToMinutes(t) > timeToMinutes(startTime);
+                       }).map(t => (
                          <option key={`end-${t}`} value={t}>{t}</option>
                        ))}
                      </select>

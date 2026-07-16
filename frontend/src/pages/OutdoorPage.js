@@ -416,7 +416,7 @@ export default function OutdoorPage() {
                           else if (idx === 1) spots = c.boat_tour || 0;
                           else spots = customActs[name] || 0;
 
-                          const colorClass = idx === 0 ? "var(--forest-mid)" : idx === 1 ? "var(--gold)" : "var(--primary)";
+                          const colorClass = idx === 0 ? "var(--forest-mid)" : idx === 1 ? "var(--gold)" : "var(--forest)";
                           return (
                             <td key={idx} style={{ textAlign: "center", fontWeight: spots > 0 ? 700 : 400, color: spots > 0 ? colorClass : "inherit" }}>
                               {spots > 0 ? `${spots} spots` : "—"}
