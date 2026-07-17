@@ -77,6 +77,21 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        
+        # Self-healing database migration: add receipt_filename column to expenses table if missing
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("SELECT receipt_filename FROM expenses LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE expenses ADD COLUMN receipt_filename VARCHAR(255) DEFAULT NULL"))
+                db.session.commit()
+                print("Database migrated: added receipt_filename column to expenses table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration skipped/failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 
