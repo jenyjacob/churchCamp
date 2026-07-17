@@ -464,6 +464,10 @@ def download_cabins_pdf():
             
     sorted_cabins = sorted(cabins_map.keys(), key=lambda x: x.lower())
     
+    import datetime
+    current_year = datetime.date.today().year
+    camp_title = f"GCA {current_year} Church Camp"
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -473,6 +477,7 @@ def download_cabins_pdf():
         topMargin=40,
         bottomMargin=40
     )
+    doc.title = f"{camp_title} - Cabin Assignments"
     
     styles = getSampleStyleSheet()
     
@@ -539,7 +544,7 @@ def download_cabins_pdf():
     
     # Header
     elements.append(Paragraph("Grace Christian Assembly", title_style))
-    elements.append(Paragraph("GCA Camp Cabin Assignments Report", ParagraphStyle('DocTitleSub', parent=title_style, fontSize=13, leading=16, spaceAfter=4)))
+    elements.append(Paragraph(f"{camp_title} - Cabin Assignments", ParagraphStyle('DocTitleSub', parent=title_style, fontSize=13, leading=16, spaceAfter=4)))
     
     current_time = datetime.datetime.now().strftime("%B %d, %Y at %I:%M %p")
     elements.append(Paragraph(f"Generated on {current_time}", subtitle_style))

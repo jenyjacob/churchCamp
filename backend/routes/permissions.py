@@ -18,7 +18,8 @@ DEFAULT_PERMISSIONS = {
         "users": "edit",
         "logs": "edit",
         "role_assigner": "edit",
-        "finance": "edit"
+        "finance": "edit",
+        "receipt_upload": "edit"
     },
     "admin": {
         "dashboard": "read",
@@ -31,7 +32,8 @@ DEFAULT_PERMISSIONS = {
         "users": "edit",
         "logs": "hide",
         "role_assigner": "hide",
-        "finance": "edit"
+        "finance": "edit",
+        "receipt_upload": "edit"
     },
     "director": {
         "dashboard": "read",
@@ -44,7 +46,8 @@ DEFAULT_PERMISSIONS = {
         "users": "hide",
         "logs": "hide",
         "role_assigner": "hide",
-        "finance": "read"
+        "finance": "read",
+        "receipt_upload": "hide"
     },
     "user": {
         "dashboard": "read",
@@ -57,7 +60,8 @@ DEFAULT_PERMISSIONS = {
         "users": "hide",
         "logs": "hide",
         "role_assigner": "hide",
-        "finance": "hide"
+        "finance": "hide",
+        "receipt_upload": "hide"
     },
     "finance": {
         "dashboard": "read",
@@ -70,7 +74,8 @@ DEFAULT_PERMISSIONS = {
         "users": "hide",
         "logs": "hide",
         "role_assigner": "hide",
-        "finance": "edit"
+        "finance": "edit",
+        "receipt_upload": "edit"
     }
 }
 

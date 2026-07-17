@@ -4,8 +4,63 @@ import { useAuth } from "../context/AuthContext";
 
 const EXPENSE_CATEGORIES = ["Catering", "Lodging", "Transportation", "Activities", "Supplies", "Other"];
 
+// Receipt preview helper with token authentication support
+const ReceiptPreview = ({ expenseId, filename }) => {
+  const [src, setSrc] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (filename.toLowerCase().endsWith(".pdf")) {
+      setLoading(false);
+      return;
+    }
+    
+    let active = true;
+    api.get(`/api/finance/expenses/${expenseId}/receipt`, { responseType: "blob" })
+      .then(res => {
+        if (active) {
+          const url = URL.createObjectURL(res.data);
+          setSrc(url);
+        }
+      })
+      .catch(err => console.error(err))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+      if (src) URL.revokeObjectURL(src);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenseId, filename]);
+
+  if (loading) return <div style={{ fontSize: "0.85rem", color: "var(--muted)", padding: 20 }}>Loading preview…</div>;
+  
+  if (filename.toLowerCase().endsWith(".pdf")) {
+    return (
+      <div style={{ padding: 20, textAlign: "center" }}>
+        <span style={{ fontSize: "2rem" }}>📄</span>
+        <div style={{ fontWeight: 600, fontSize: "0.85rem", marginTop: 8 }}>PDF Document</div>
+        <span className="text-muted" style={{ fontSize: "0.7rem", wordBreak: "break-all", display: "block", marginTop: 4 }}>
+          {filename.replace(/^expense_\d+_/, '')}
+        </span>
+      </div>
+    );
+  }
+
+  return src ? (
+    <img 
+      src={src} 
+      alt="Receipt Preview" 
+      style={{ maxWidth: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 6 }} 
+    />
+  ) : (
+    <div style={{ fontSize: "0.85rem", color: "var(--danger)", padding: 20 }}>Failed to load preview</div>
+  );
+};
+
 export default function FinancePage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState("fees");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,7 +97,9 @@ export default function FinancePage() {
 
   // Modals State
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [activeExpense, setActiveExpense] = useState(null); // null means new, otherwise expense object
+  const [selectedFile, setSelectedFile] = useState(null);
   const [expenseForm, setExpenseForm] = useState({
     description: "",
     category: "Catering",
@@ -110,6 +167,7 @@ export default function FinancePage() {
 
   // Expense CRUD
   const handleOpenExpenseModal = (expense = null) => {
+    setSelectedFile(null);
     if (expense) {
       setActiveExpense(expense);
       setExpenseForm({
@@ -139,19 +197,103 @@ export default function FinancePage() {
     }
 
     try {
+      let savedExpenseId = null;
       if (activeExpense) {
         // Update
         await api.put(`/api/finance/expenses/${activeExpense.id}`, expenseForm);
+        savedExpenseId = activeExpense.id;
         flashSuccess("Expense updated successfully!");
       } else {
         // Create
-        await api.post("/api/finance/expenses", expenseForm);
+        const res = await api.post("/api/finance/expenses", expenseForm);
+        savedExpenseId = res.data.expense.id;
         flashSuccess("Expense added successfully!");
       }
+
+      if (selectedFile && savedExpenseId) {
+        const formData = new FormData();
+        formData.append("receipt", selectedFile);
+        await api.post(`/api/finance/expenses/${savedExpenseId}/receipt`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data"
+          }
+        });
+      }
+
       setIsExpenseModalOpen(false);
       fetchFinanceData();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to save expense.");
+    }
+  };
+
+  const handleDownloadReceipt = async (expenseId, filename) => {
+    try {
+      setSuccess("");
+      setError("");
+      
+      const response = await api.get(`/api/finance/expenses/${expenseId}/receipt`, {
+        responseType: "blob",
+      });
+      
+      const blob = new Blob([response.data], { type: response.headers["content-type"] });
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      flashSuccess("Receipt downloaded successfully!");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to download receipt.");
+    }
+  };
+
+  const handleDownloadReceiptsZip = async () => {
+    try {
+      setSuccess("");
+      setError("");
+      
+      const response = await api.get("/api/finance/expenses/receipts-zip", {
+        responseType: "blob",
+      });
+      
+      const blob = new Blob([response.data], { type: "application/zip" });
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "gca_expenses_receipts.zip");
+      document.body.appendChild(link);
+      link.click();
+      
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      flashSuccess("All expense receipts ZIP downloaded successfully!");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to download receipts ZIP archive. Are there any uploaded files?");
+    }
+  };
+
+  const handleDeleteReceipt = async (expenseId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this receipt?")) return;
+    try {
+      setSuccess("");
+      setError("");
+      await api.delete(`/api/finance/expenses/${expenseId}/receipt`);
+      flashSuccess("Receipt deleted successfully!");
+      fetchFinanceData();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || "Failed to delete receipt.");
     }
   };
 
@@ -300,10 +442,12 @@ export default function FinancePage() {
       </tr>
     `).join("");
 
+    const currentYear = new Date().getFullYear();
+
     const htmlContent = `
       <html>
         <head>
-          <title>Camp Finance Report</title>
+          <title>GCA ${currentYear} Church Camp - Financial Report</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #2c3e50; padding: 20px; }
             h1 { color: #1e4d2b; border-bottom: 2px solid #1e4d2b; padding-bottom: 10px; margin-bottom: 20px; }
@@ -327,7 +471,7 @@ export default function FinancePage() {
             <button onclick="window.print()" style="padding: 10px 20px; background: #1e4d2b; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">🖨️ Print / Save as PDF</button>
             <button onclick="window.close()" style="padding: 10px 20px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">Close</button>
           </div>
-          <h1>Grace Christian Assembly Camp - Financial Report</h1>
+          <h1>Grace Christian Assembly - GCA ${currentYear} Church Camp Financial Report</h1>
           
           ${statsHTML}
 
@@ -472,6 +616,24 @@ export default function FinancePage() {
           <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleExportCSV}>
             📊 Export CSV (Excel)
           </button>
+          {activeTab === "expenses" && (user?.role === "owner" || user?.role === "finance") && (
+            <>
+              <button 
+                className="btn btn-secondary" 
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} 
+                onClick={() => setIsGalleryOpen(true)}
+              >
+                🖼️ View Receipts
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} 
+                onClick={handleDownloadReceiptsZip}
+              >
+                📦 Download Receipts (ZIP)
+              </button>
+            </>
+          )}
           {activeTab === "fees" && (
             <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
               ⚙️ Configure Pricing
@@ -859,7 +1021,17 @@ export default function FinancePage() {
                       </td>
                       <td style={{ color: "var(--danger)", fontWeight: 600 }}>-${(e.amount || 0).toFixed(2)}</td>
                       <td>{e.date}</td>
-                      <td style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <td style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
+                        {e.receipt_filename && (user?.role === "owner" || user?.role === "finance") && (
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
+                            onClick={() => handleDownloadReceipt(e.id, e.receipt_filename)}
+                            title="Download Attached Receipt"
+                          >
+                            📄 Receipt
+                          </button>
+                        )}
                         <button 
                           className="btn btn-secondary" 
                           style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
@@ -940,6 +1112,21 @@ export default function FinancePage() {
                   required
                 />
               </div>
+              {hasPermission("receipt_upload", "edit") && (
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Receipt File (Optional)</label>
+                  <input 
+                    type="file" 
+                    className="form-input" 
+                    accept=".png,.jpg,.jpeg,.pdf"
+                    onChange={e => setSelectedFile(e.target.files[0] || null)}
+                    style={{ paddingTop: 8, paddingBottom: 8, height: "auto" }}
+                  />
+                  <span className="text-muted" style={{ fontSize: "0.7rem", marginTop: 4, display: "block" }}>
+                    Supports PNG, JPG, JPEG, and PDF up to 5MB.
+                  </span>
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsExpenseModalOpen(false)}>
                   Cancel
@@ -1144,6 +1331,101 @@ export default function FinancePage() {
         >
           ➕
         </button>
+      )}
+
+      {/* Receipts Gallery Modal */}
+      {isGalleryOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 800, width: "90%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <div className="modal-header">
+              <h2>Receipts</h2>
+              <button className="modal-close" onClick={() => setIsGalleryOpen(false)}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px 0" }}>
+              {expenses.filter(e => e.receipt_filename).length === 0 ? (
+                <div style={{ textAlign: "center", color: "var(--muted)", padding: 40 }}>
+                  No receipts uploaded yet.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {expenses.filter(e => e.receipt_filename).map(e => (
+                    <div 
+                      key={e.id} 
+                      className="card" 
+                      style={{ 
+                        padding: 16, 
+                        display: "flex", 
+                        flexDirection: "row", 
+                        alignItems: "center", 
+                        gap: 20,
+                        flexWrap: "wrap"
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                            <span style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--forest)" }}>{e.description}</span>
+                            <span style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--danger)" }}>-${(e.amount || 0).toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, fontSize: "0.8rem", color: "var(--muted)" }}>
+                            <span>{e.date}</span>
+                            <span>•</span>
+                            <span style={{
+                              padding: "2px 8px",
+                              borderRadius: 12,
+                              fontSize: "0.7rem",
+                              fontWeight: 600,
+                              background: "var(--border-color)",
+                              color: "var(--text-primary)"
+                            }}>
+                              {e.category}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button 
+                            className="btn btn-outline" 
+                            style={{ padding: "6px 16px", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: 4 }} 
+                            onClick={() => handleDownloadReceipt(e.id, e.receipt_filename)}
+                          >
+                            📥 Download
+                          </button>
+                          {(user?.role === "owner" || user?.role === "finance") && (
+                            <button 
+                              className="btn btn-outline" 
+                              style={{ padding: "6px 16px", fontSize: "0.78rem", color: "var(--danger)", borderColor: "var(--danger)", display: "flex", alignItems: "center", gap: 4 }} 
+                              onClick={() => handleDeleteReceipt(e.id)}
+                            >
+                              🗑️ Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ 
+                        width: "220px", 
+                        height: "140px", 
+                        display: "flex", 
+                        justifyContent: "center", 
+                        alignItems: "center", 
+                        background: "rgba(0,0,0,0.01)", 
+                        borderRadius: 6, 
+                        overflow: "hidden",
+                        border: "1px solid var(--border-color)"
+                      }}>
+                        <ReceiptPreview expenseId={e.id} filename={e.receipt_filename} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: 16, marginTop: 16 }}>
+              <button className="btn btn-secondary" onClick={() => setIsGalleryOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

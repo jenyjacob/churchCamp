@@ -10,6 +10,7 @@ const PAGES = [
   { key: "outdoor", label: "🛶 Outdoor Activities" },
   { key: "apparel", label: "👕 Apparel" },
   { key: "finance", label: "💰 Finance" },
+  { key: "receipt_upload", label: "🧾 Upload Receipts" },
   { key: "users", label: "⚙️ Users" },
   { key: "logs", label: "📄 Audit Logs" }
 ];

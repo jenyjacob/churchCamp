@@ -10,6 +10,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    receipt_filename = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
         return {
@@ -18,5 +19,6 @@ class Expense(db.Model):
             "category": self.category,
             "amount": self.amount,
             "date": self.date.isoformat() if self.date else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "receipt_filename": self.receipt_filename
         }

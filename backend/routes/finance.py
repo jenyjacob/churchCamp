@@ -529,3 +529,148 @@ def save_fee_rates():
         "message": "Fee rates saved successfully",
         "rates": [{"member_count": mc, "price": pr} for mc, pr in sorted(rates_dict.items())]
     }), 200
+
+@finance_bp.route("/expenses/<int:expense_id>/receipt", methods=["POST"])
+@jwt_required()
+@require_page_permission("receipt_upload", "edit")
+def upload_receipt(expense_id):
+    import os
+    from werkzeug.utils import secure_filename
+    
+    expense = Expense.query.get_or_404(expense_id)
+    
+    if "receipt" not in request.files:
+        return jsonify({"error": "No receipt file part in request"}), 400
+        
+    file = request.files["receipt"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+        
+    # Check file extension
+    ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.pdf'}
+    _, ext = os.path.splitext(file.filename.lower())
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify({"error": "Only images (PNG, JPG, JPEG) and PDF files are allowed"}), 400
+        
+    # Create upload path
+    upload_dir = os.path.join("uploads", "receipts")
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Save file with secure unique name
+    filename = f"expense_{expense_id}_{secure_filename(file.filename)}"
+    file.save(os.path.join(upload_dir, filename))
+    
+    # Save to db
+    expense.receipt_filename = filename
+    db.session.commit()
+    
+    from utils.logging import log_action
+    log_action("UPLOAD_RECEIPT", f"Uploaded receipt '{filename}' for expense ID {expense_id}")
+    
+    return jsonify({
+        "message": "Receipt uploaded successfully",
+        "expense": expense.to_dict()
+    }), 200
+
+@finance_bp.route("/expenses/<int:expense_id>/receipt", methods=["GET"])
+@jwt_required()
+def download_receipt(expense_id):
+    import os
+    from flask import send_from_directory
+    from flask_jwt_extended import get_jwt
+    
+    # 1. Enforce downloads to owner and finance manager only
+    claims = get_jwt()
+    role = claims.get("role")
+    if role not in ["owner", "finance"]:
+        return jsonify({"error": "Only Finance Manager and Owner can download receipts"}), 403
+        
+    expense = Expense.query.get_or_404(expense_id)
+    if not expense.receipt_filename:
+        return jsonify({"error": "No receipt attached to this expense"}), 404
+        
+    upload_dir = os.path.abspath(os.path.join("uploads", "receipts"))
+    
+    from utils.logging import log_action
+    log_action("DOWNLOAD_RECEIPT", f"Downloaded receipt '{expense.receipt_filename}' for expense ID {expense_id}")
+    
+    return send_from_directory(upload_dir, expense.receipt_filename, as_attachment=True)
+
+@finance_bp.route("/expenses/receipts-zip", methods=["GET"])
+@jwt_required()
+def download_all_receipts_zip():
+    import os
+    import io
+    import zipfile
+    from flask import send_file
+    from flask_jwt_extended import get_jwt
+    
+    # 1. Enforce downloads to owner and finance manager only
+    claims = get_jwt()
+    role = claims.get("role")
+    if role not in ["owner", "finance"]:
+        return jsonify({"error": "Only Finance Manager and Owner can download receipts"}), 403
+        
+    # Get all expenses that have a receipt
+    expenses = Expense.query.filter(Expense.receipt_filename.isnot(None), Expense.receipt_filename != '').all()
+    if not expenses:
+        return jsonify({"error": "No receipts uploaded yet"}), 404
+        
+    upload_dir = os.path.abspath(os.path.join("uploads", "receipts"))
+    
+    # Create zip file in memory
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for exp in expenses:
+            file_path = os.path.join(upload_dir, exp.receipt_filename)
+            if os.path.exists(file_path):
+                zip_file.write(file_path, exp.receipt_filename)
+                
+    memory_file.seek(0)
+    
+    from utils.logging import log_action
+    log_action("DOWNLOAD_ALL_RECEIPTS_ZIP", f"Downloaded ZIP file containing {len(expenses)} receipt(s)")
+    
+    return send_file(
+        memory_file,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="gca_expenses_receipts.zip"
+    )
+
+@finance_bp.route("/expenses/<int:expense_id>/receipt", methods=["DELETE"])
+@jwt_required()
+def delete_receipt(expense_id):
+    import os
+    from flask_jwt_extended import get_jwt
+    
+    # 1. Enforce role: owner and finance manager only
+    claims = get_jwt()
+    role = claims.get("role")
+    if role not in ["owner", "finance"]:
+        return jsonify({"error": "Only Finance Manager and Owner can delete receipts"}), 403
+        
+    expense = Expense.query.get_or_404(expense_id)
+    if not expense.receipt_filename:
+        return jsonify({"error": "No receipt attached to this expense"}), 404
+        
+    # Delete file from disk
+    upload_dir = os.path.abspath(os.path.join("uploads", "receipts"))
+    file_path = os.path.join(upload_dir, expense.receipt_filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+            
+    old_filename = expense.receipt_filename
+    expense.receipt_filename = None
+    db.session.commit()
+    
+    from utils.logging import log_action
+    log_action("DELETE_RECEIPT", f"Deleted receipt '{old_filename}' for expense ID {expense_id}")
+    
+    return jsonify({
+        "message": "Receipt deleted successfully",
+        "expense": expense.to_dict()
+    }), 200
