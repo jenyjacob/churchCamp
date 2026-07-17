@@ -437,6 +437,9 @@ def download_cabins_pdf():
     # 1. Fetch all registered campers
     campers = Camper.query.filter_by(registration_status="registered").all()
     
+    from utils.logging import log_action
+    log_action("PRINT_CABINS_REPORT", f"Downloaded/printed camp cabin room assignments report containing {len(campers)} registered campers")
+    
     # 2. Group campers by cabin and room
     cabins_map = {}
     unassigned = []
