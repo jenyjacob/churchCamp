@@ -610,13 +610,17 @@ export default function FinancePage() {
           gap: "8px", 
           alignItems: "center"
         }}>
-          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handlePrintPDF}>
-            📄 Print Report (PDF)
-          </button>
-          <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleExportCSV}>
-            📊 Export CSV (Excel)
-          </button>
-          {activeTab === "expenses" && (user?.role === "owner" || user?.role === "finance") && (
+          {(user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
+            <>
+              <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handlePrintPDF}>
+                📄 Print Report (PDF)
+              </button>
+              <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleExportCSV}>
+                📊 Export CSV (Excel)
+              </button>
+            </>
+          )}
+          {activeTab === "expenses" && (user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
             <>
               <button 
                 className="btn btn-secondary" 
@@ -634,12 +638,12 @@ export default function FinancePage() {
               </button>
             </>
           )}
-          {activeTab === "fees" && (
+          {activeTab === "fees" && hasPermission("finance", "edit") && (
             <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
               ⚙️ Configure Pricing
             </button>
           )}
-          {activeTab === "expenses" && (
+          {activeTab === "expenses" && (hasPermission("finance", "edit") || hasPermission("receipt_upload", "edit")) && (
             <button className="btn btn-primary header-action-btn-desktop" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenExpenseModal()}>
               ➕ Add Expense
             </button>
@@ -888,13 +892,15 @@ export default function FinancePage() {
                             {f.notes || "—"}
                           </td>
                           <td style={{ textAlign: "right" }}>
-                            <button 
-                              className="btn btn-secondary" 
-                              style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
-                              onClick={() => handleOpenPaymentModal(f)}
-                            >
-                              ✏️ Record Payment
-                            </button>
+                            {hasPermission("finance", "edit") && (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
+                                onClick={() => handleOpenPaymentModal(f)}
+                              >
+                                ✏️ Record Payment
+                              </button>
+                            )}
                           </td>
                         </tr>
                         {isExpanded && (
@@ -1022,7 +1028,7 @@ export default function FinancePage() {
                       <td style={{ color: "var(--danger)", fontWeight: 600 }}>-${(e.amount || 0).toFixed(2)}</td>
                       <td>{e.date}</td>
                       <td style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
-                        {e.receipt_filename && (user?.role === "owner" || user?.role === "finance") && (
+                        {e.receipt_filename && (user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
                           <button 
                             className="btn btn-secondary" 
                             style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
@@ -1032,20 +1038,24 @@ export default function FinancePage() {
                             📄 Receipt
                           </button>
                         )}
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
-                          onClick={() => handleOpenExpenseModal(e)}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button 
-                          className="btn btn-secondary" 
-                          style={{ padding: "4px 8px", fontSize: "0.75rem", color: "var(--danger)" }} 
-                          onClick={() => handleDeleteExpense(e.id)}
-                        >
-                          🗑️ Delete
-                        </button>
+                        {hasPermission("finance", "edit") && (
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
+                            onClick={() => handleOpenExpenseModal(e)}
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
+                        {hasPermission("finance", "edit") && (
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: "4px 8px", fontSize: "0.75rem", color: "var(--danger)" }} 
+                            onClick={() => handleDeleteExpense(e.id)}
+                          >
+                            🗑️ Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -1305,7 +1315,7 @@ export default function FinancePage() {
       )}
 
       {/* Mobile Floating Action Button for Adding Expense */}
-      {activeTab === "expenses" && (
+      {activeTab === "expenses" && (hasPermission("finance", "edit") || hasPermission("receipt_upload", "edit")) && (
         <button 
           className="mobile-fab-btn" 
           style={{
@@ -1390,7 +1400,7 @@ export default function FinancePage() {
                           >
                             📥 Download
                           </button>
-                          {(user?.role === "owner" || user?.role === "finance") && (
+                          {(user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
                             <button 
                               className="btn btn-outline" 
                               style={{ padding: "6px 16px", fontSize: "0.78rem", color: "var(--danger)", borderColor: "var(--danger)", display: "flex", alignItems: "center", gap: 4 }} 

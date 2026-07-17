@@ -300,8 +300,32 @@ def get_expenses():
 
 @finance_bp.route("/expenses", methods=["POST"])
 @jwt_required()
-@require_page_permission("finance", "edit")
 def create_expense():
+    # Allow creation if user role has edit permission for "finance" OR "receipt_upload"
+    from flask_jwt_extended import get_jwt
+    from models import PagePermission
+    from routes.permissions import DEFAULT_PERMISSIONS
+
+    claims = get_jwt()
+    role = claims.get("role", "user")
+    
+    if role == "owner":
+        has_access = True
+    else:
+        fin_level = DEFAULT_PERMISSIONS.get(role, {}).get("finance", "hide")
+        custom_fin = PagePermission.query.filter_by(role=role, page_key="finance").first()
+        if custom_fin:
+            fin_level = custom_fin.access_level
+
+        upload_level = DEFAULT_PERMISSIONS.get(role, {}).get("receipt_upload", "hide")
+        custom_upload = PagePermission.query.filter_by(role=role, page_key="receipt_upload").first()
+        if custom_upload:
+            upload_level = custom_upload.access_level
+            
+        has_access = (fin_level == "edit" or upload_level == "edit")
+
+    if not has_access:
+        return jsonify({"error": "Edit permission for finance or receipt_upload is required."}), 403
     data = request.get_json()
     desc = data.get("description")
     cat = data.get("category")
@@ -579,11 +603,11 @@ def download_receipt(expense_id):
     from flask import send_from_directory
     from flask_jwt_extended import get_jwt
     
-    # 1. Enforce downloads to owner and finance manager only
+    # 1. Enforce downloads to owner, finance manager, and admin only
     claims = get_jwt()
     role = claims.get("role")
-    if role not in ["owner", "finance"]:
-        return jsonify({"error": "Only Finance Manager and Owner can download receipts"}), 403
+    if role not in ["owner", "finance", "admin"]:
+        return jsonify({"error": "Only Finance Manager, Owner, and Admin can download receipts"}), 403
         
     expense = Expense.query.get_or_404(expense_id)
     if not expense.receipt_filename:
@@ -605,11 +629,11 @@ def download_all_receipts_zip():
     from flask import send_file
     from flask_jwt_extended import get_jwt
     
-    # 1. Enforce downloads to owner and finance manager only
+    # 1. Enforce downloads to owner, finance manager, and admin only
     claims = get_jwt()
     role = claims.get("role")
-    if role not in ["owner", "finance"]:
-        return jsonify({"error": "Only Finance Manager and Owner can download receipts"}), 403
+    if role not in ["owner", "finance", "admin"]:
+        return jsonify({"error": "Only Finance Manager, Owner, and Admin can download receipts"}), 403
         
     # Get all expenses that have a receipt
     expenses = Expense.query.filter(Expense.receipt_filename.isnot(None), Expense.receipt_filename != '').all()
@@ -644,11 +668,11 @@ def delete_receipt(expense_id):
     import os
     from flask_jwt_extended import get_jwt
     
-    # 1. Enforce role: owner and finance manager only
+    # 1. Enforce role: owner, finance, and admin only
     claims = get_jwt()
     role = claims.get("role")
-    if role not in ["owner", "finance"]:
-        return jsonify({"error": "Only Finance Manager and Owner can delete receipts"}), 403
+    if role not in ["owner", "finance", "admin"]:
+        return jsonify({"error": "Only Finance Manager, Owner, and Admin can delete receipts"}), 403
         
     expense = Expense.query.get_or_404(expense_id)
     if not expense.receipt_filename:
