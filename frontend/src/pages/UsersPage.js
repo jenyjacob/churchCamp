@@ -4,11 +4,34 @@ import api from "../utils/api";
 
 const EMPTY_USER = { username: "", password: "", full_name: "", email: "", role: "user" };
 
+const getRoleLabel = (roleKey) => {
+  switch (roleKey) {
+    case "user": return "Registration Team (user)";
+    case "director": return "Camp Director";
+    case "finance": return "Finance Dept";
+    case "admin": return "Camp Admin";
+    case "owner": return "Camp Owner";
+    default: return `${roleKey.charAt(0).toUpperCase() + roleKey.slice(1)} (Custom)`;
+  }
+};
+
+
 function UserModal({ user, currentUser, onClose, onSave }) {
   const [form, setForm] = useState(user ? { ...user, password: "" } : EMPTY_USER);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [rolesList, setRolesList] = useState(["user", "director", "finance", "admin"]);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    api.get("/api/permissions/roles")
+      .then(res => {
+        if (res.data.roles) {
+          setRolesList(res.data.roles);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,13 +82,16 @@ function UserModal({ user, currentUser, onClose, onSave }) {
           <div className="form-group">
             <label className="form-label">Role *</label>
             <select className="form-select" value={form.role} onChange={e => set("role", e.target.value)}>
-              <option value="user">Registration Team (View Only)</option>
-              <option value="director">Camp Director (View Only)</option>
-              <option value="finance">Finance Dept</option>
-              <option value="admin">Admin (Full Access)</option>
-              {currentUser?.role === "owner" && (
-                <option value="owner">Owner (System Owner)</option>
-              )}
+              {rolesList.map(r => {
+                if (r === "owner" && currentUser?.role !== "owner") {
+                  return null;
+                }
+                return (
+                  <option key={r} value={r}>
+                    {getRoleLabel(r)}
+                  </option>
+                );
+              })}
             </select>
           </div>
           {user?.id && (
@@ -157,7 +183,7 @@ export default function UsersPage() {
                   <td>{u.email || "—"}</td>
                   <td>
                     <span className={`badge ${u.role === "owner" ? "badge-red" : u.role === "admin" ? "badge-gold" : u.role === "director" ? "badge-green" : u.role === "finance" ? "badge-green" : "badge-blue"}`}>
-                      {u.role === "owner" ? "Owner" : u.role === "admin" ? "Admin" : u.role === "director" ? "Camp Director" : u.role === "finance" ? "Finance Dept" : "Registration Team"}
+                      {getRoleLabel(u.role)}
                     </span>
                   </td>
                   <td>

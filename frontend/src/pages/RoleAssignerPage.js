@@ -15,12 +15,17 @@ const PAGES = [
   { key: "logs", label: "📄 Audit Logs" }
 ];
 
-const ROLES = [
-  { key: "user", label: "Registration Team (user)" },
-  { key: "director", label: "Camp Director" },
-  { key: "finance", label: "Finance Dept" },
-  { key: "admin", label: "Camp Admin" }
-];
+const getRoleLabel = (roleKey) => {
+  switch (roleKey) {
+    case "user": return "Registration Team (user)";
+    case "director": return "Camp Director";
+    case "finance": return "Finance Dept";
+    case "admin": return "Camp Admin";
+    case "owner": return "Camp Owner";
+    default: return `${roleKey.charAt(0).toUpperCase() + roleKey.slice(1)} (Custom)`;
+  }
+};
+
 
 const ACCESS_LEVELS = [
   { level: "hide", label: "Hide", color: "var(--red)", bg: "rgba(220, 53, 69, 0.08)", icon: "🚫" },
@@ -36,6 +41,13 @@ export default function RoleAssignerPage() {
   const [selectedRole, setSelectedRole] = useState("user");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
+  const [dynamicRoles, setDynamicRoles] = useState([]);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [creatingRole, setCreatingRole] = useState(false);
+  const [roleError, setRoleError] = useState("");
+  const [roleSuccess, setRoleSuccess] = useState("");
+  const [isRoleSettingsOpen, setIsRoleSettingsOpen] = useState(true);
+
   // Camp configuration settings
   const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
   const [activitiesList, setActivitiesList] = useState(["KAYAKING", "BOAT TOUR"]);
@@ -51,6 +63,22 @@ export default function RoleAssignerPage() {
     api.get("/api/permissions/")
       .then(res => {
         setGrid(res.data.permissions);
+        if (res.data.roles) {
+          const rolesArray = res.data.roles
+            .filter(r => r !== "owner")
+            .map(r => ({
+              key: r,
+              label: getRoleLabel(r)
+            }));
+          setDynamicRoles(rolesArray);
+        } else {
+          setDynamicRoles([
+            { key: "user", label: "Registration Team (user)" },
+            { key: "director", label: "Camp Director" },
+            { key: "finance", label: "Finance Dept" },
+            { key: "admin", label: "Camp Admin" }
+          ]);
+        }
       })
       .catch(() => setError("Failed to load permissions grid."))
       .finally(() => setLoading(false));
@@ -149,6 +177,48 @@ export default function RoleAssignerPage() {
       .finally(() => setUpdatingTeams(false));
   };
 
+  const handleCreateRole = async (e) => {
+    e.preventDefault();
+    setRoleError("");
+    setRoleSuccess("");
+
+    if (!newRoleName.trim()) {
+      setRoleError("Role name is required.");
+      return;
+    }
+
+    const cleanName = newRoleName.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!cleanName) {
+      setRoleError("Role name must contain only lowercase letters, numbers, or underscores.");
+      return;
+    }
+
+    setCreatingRole(true);
+    try {
+      const res = await api.post("/api/permissions/roles", { role_name: cleanName });
+      setRoleSuccess(res.data.message || `User role '${cleanName}' created successfully!`);
+      setNewRoleName("");
+
+      // Refresh permissions grid and dynamic roles
+      const gridRes = await api.get("/api/permissions/");
+      setGrid(gridRes.data.permissions);
+      if (gridRes.data.roles) {
+        const rolesArray = gridRes.data.roles
+          .filter(r => r !== "owner")
+          .map(r => ({
+            key: r,
+            label: getRoleLabel(r)
+          }));
+        setDynamicRoles(rolesArray);
+      }
+      setTimeout(() => setRoleSuccess(""), 4000);
+    } catch (err) {
+      setRoleError(err.response?.data?.error || "Failed to create user role.");
+    } finally {
+      setCreatingRole(false);
+    }
+  };
+
   const handleAccessChange = async (role, pageKey, level) => {
     const key = `${role}-${pageKey}`;
     setSavingMap(prev => ({ ...prev, [key]: "saving" }));
@@ -204,7 +274,7 @@ export default function RoleAssignerPage() {
                   onChange={e => setSelectedRole(e.target.value)}
                   style={{ width: "100%", height: 40, cursor: "pointer", marginTop: 6 }}
                 >
-                  {ROLES.map(r => (
+                  {dynamicRoles.map(r => (
                     <option key={r.key} value={r.key}>{r.label}</option>
                   ))}
                 </select>
@@ -280,7 +350,7 @@ export default function RoleAssignerPage() {
                 <thead>
                   <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid var(--border)" }}>
                     <th style={{ padding: "16px 20px", textAlign: "left", fontWeight: 600 }}>Page Name</th>
-                    {ROLES.map(r => (
+                    {dynamicRoles.map(r => (
                       <th key={r.key} style={{ padding: "16px 20px", textAlign: "center", fontWeight: 600 }}>{r.label}</th>
                     ))}
                   </tr>
@@ -289,7 +359,7 @@ export default function RoleAssignerPage() {
                   {PAGES.map(p => (
                     <tr key={p.key} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={{ padding: "16px 20px", fontWeight: 600, color: "var(--forest)" }}>{p.label}</td>
-                      {ROLES.map(r => {
+                      {dynamicRoles.map(r => {
                         const currentLevel = grid[r.key]?.[p.key] || "hide";
                         const savingKey = `${r.key}-${p.key}`;
                         const savingStatus = savingMap[savingKey];
@@ -578,6 +648,70 @@ export default function RoleAssignerPage() {
                     style={{ padding: "8px 24px", fontSize: "0.85rem" }}
                   >
                     {updatingTeams ? "Saving Teams…" : "Save Teams Configuration"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Card 3: Dynamic User Roles Configuration */}
+          <div className="card" style={{ padding: 0, overflow: "visible" }}>
+            <div 
+              onClick={() => setIsRoleSettingsOpen(!isRoleSettingsOpen)}
+              style={{ 
+                padding: "16px 20px", 
+                cursor: "pointer", 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center", 
+                background: "rgba(180, 151, 90, 0.04)",
+                borderBottom: isRoleSettingsOpen ? "1px solid var(--border)" : "none",
+                borderTopLeftRadius: "8px",
+                borderTopRightRadius: "8px",
+                borderBottomLeftRadius: isRoleSettingsOpen ? "0px" : "8px",
+                borderBottomRightRadius: isRoleSettingsOpen ? "0px" : "8px",
+                userSelect: "none"
+              }}
+            >
+              <h3 style={{ fontSize: "1rem", color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+                👥 Define New Custom User Role
+              </h3>
+              <span style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>
+                {isRoleSettingsOpen ? "▲ Collapse" : "▼ Expand"}
+              </span>
+            </div>
+
+            {isRoleSettingsOpen && (
+              <form onSubmit={handleCreateRole} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+                <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
+                  👥 Create New Role
+                </h4>
+
+                {roleSuccess && <div className="alert alert-success">{roleSuccess}</div>}
+                {roleError && <div className="alert alert-error">{roleError}</div>}
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 600 }}>Role Identifier *</label>
+                  <input 
+                    className="form-input" 
+                    value={newRoleName} 
+                    onChange={e => setNewRoleName(e.target.value)}
+                    placeholder="e.g. assistant_director, helper, group_leader"
+                    required 
+                  />
+                  <span className="text-muted" style={{ fontSize: "0.72rem", marginTop: 4, display: "block" }}>
+                    Lower-case letters, numbers, and underscores only. This will run an alter statement on the database schema.
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    disabled={creatingRole}
+                    style={{ padding: "8px 24px", fontSize: "0.85rem" }}
+                  >
+                    {creatingRole ? "Altering DB Schema…" : "Create & Authorize Role"}
                   </button>
                 </div>
               </form>
