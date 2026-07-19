@@ -92,6 +92,19 @@ def create_app():
                 db.session.rollback()
                 print(f"Database migration skipped/failed: {str(migration_ex)}")
 
+        # Self-healing database migration: add discount column to family_payments table if missing
+        try:
+            db.session.execute(text("SELECT discount FROM family_payments LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE family_payments ADD COLUMN discount FLOAT DEFAULT 0.0"))
+                db.session.commit()
+                print("Database migrated: added discount column to family_payments table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration skipped/failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 

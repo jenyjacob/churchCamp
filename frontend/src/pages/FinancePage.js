@@ -71,6 +71,7 @@ export default function FinancePage() {
     total_expenses: 0,
     total_expected_fees: 0,
     total_collected_fees: 0,
+    total_discounts: 0,
     net_balance: 0
   });
 
@@ -114,6 +115,12 @@ export default function FinancePage() {
     status: "unpaid",
     notes: ""
   });
+
+  // Merge Families State
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [mergeTargetFg, setMergeTargetFg] = useState("");
+  const [mergeSourceFg, setMergeSourceFg] = useState("");
+  const [merging, setMerging] = useState(false);
 
   const flashSuccess = (msg) => {
     setSuccess(msg);
@@ -315,7 +322,8 @@ export default function FinancePage() {
       amount_paid: family.amount_paid,
       status: family.status,
       notes: family.notes || "",
-      override_fee: family.override_fee !== null ? family.override_fee : ""
+      override_fee: family.override_fee !== null ? family.override_fee : "",
+      discount: family.discount !== null && family.discount !== undefined ? family.discount : ""
     });
     setIsPaymentModalOpen(true);
   };
@@ -329,13 +337,45 @@ export default function FinancePage() {
         amount_paid: paymentForm.amount_paid,
         status: paymentForm.status,
         notes: paymentForm.notes,
-        override_fee: paymentForm.override_fee !== "" ? paymentForm.override_fee : null
+        override_fee: paymentForm.override_fee !== "" ? paymentForm.override_fee : null,
+        discount: paymentForm.discount !== "" ? parseFloat(paymentForm.discount) : 0.0
       });
       flashSuccess(`Payment details for '${activeFamily.display_name}' saved!`);
       setIsPaymentModalOpen(false);
       fetchFinanceData();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to record payment details.");
+    }
+  };
+
+  // Merge Families Handlers
+  const handleOpenMergeModal = (sourceFamily = null) => {
+    if (sourceFamily && sourceFamily.family_group) {
+      setMergeSourceFg(sourceFamily.family_group);
+      setMergeTargetFg("");
+    } else {
+      setMergeSourceFg("");
+      setMergeTargetFg("");
+    }
+    setIsMergeModalOpen(true);
+  };
+
+  const handleExecuteMerge = async () => {
+    if (!mergeTargetFg || !mergeSourceFg || mergeTargetFg === mergeSourceFg) return;
+    setMerging(true);
+    setError("");
+    try {
+      const res = await api.post("/api/finance/merge-families", {
+        target_family_group: mergeTargetFg,
+        source_family_group: mergeSourceFg
+      });
+      flashSuccess(res.data.message || "Families grouped successfully!");
+      setIsMergeModalOpen(false);
+      fetchFinanceData();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to group families.");
+    } finally {
+      setMerging(false);
     }
   };
 
@@ -522,20 +562,21 @@ export default function FinancePage() {
     // 1. Title & Summary Metrics
     csvContent += "Grace Christian Assembly Camp - Financial Report\n\n";
     csvContent += "SUMMARY METRICS\n";
-    csvContent += "Expected Fees,Collected Fees,Total Expenses,Net Balance\n";
-    csvContent += `"${(stats.total_expected_fees || 0).toFixed(2)}","${(stats.total_collected_fees || 0).toFixed(2)}","${(stats.total_expenses || 0).toFixed(2)}","${(stats.net_balance || 0).toFixed(2)}"\n\n`;
+    csvContent += "Expected Fees,Collected Fees,Total Discounts,Total Expenses,Net Balance\n";
+    csvContent += `"${(stats.total_expected_fees || 0).toFixed(2)}","${(stats.total_collected_fees || 0).toFixed(2)}","${(stats.total_discounts || 0).toFixed(2)}","${(stats.total_expenses || 0).toFixed(2)}","${(stats.net_balance || 0).toFixed(2)}"\n\n`;
 
     // 2. Family Camp Fees Table
     csvContent += "CAMP REGISTRATION FEES\n";
-    csvContent += "Family Group,Display Name,Eligible Member Count,Registration Fee,Activity Fee,Total Expected Fee,Paid Amount,Payment Status,Notes\n";
+    csvContent += "Family Group,Display Name,Eligible Member Count,Registration Fee,Church Discount,Activity Fee,Total Expected Fee,Paid Amount,Payment Status,Notes\n";
     families.forEach(f => {
-      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${(f.calculated_fee || 0).toFixed(2)}","${(f.activity_fee || 0).toFixed(2)}","${(f.total_expected_fee || 0).toFixed(2)}","${(f.amount_paid || 0).toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
+      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${(f.calculated_fee || 0).toFixed(2)}","${(f.discount || 0).toFixed(2)}","${(f.activity_fee || 0).toFixed(2)}","${(f.total_expected_fee || 0).toFixed(2)}","${(f.amount_paid || 0).toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
     });
     const totalReg = families.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
+    const totalDisc = families.reduce((sum, f) => sum + (f.discount || 0), 0);
     const totalAct = families.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
     const totalExp = families.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
     const totalPaid = families.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
-    csvContent += `"Total","","","${totalReg.toFixed(2)}","${totalAct.toFixed(2)}","${totalExp.toFixed(2)}","${totalPaid.toFixed(2)}","",""\n`;
+    csvContent += `"Total","","","${totalReg.toFixed(2)}","${totalDisc.toFixed(2)}","${totalAct.toFixed(2)}","${totalExp.toFixed(2)}","${totalPaid.toFixed(2)}","",""\n`;
     csvContent += "\n";
 
     // 3. Expenses Table
@@ -570,6 +611,11 @@ export default function FinancePage() {
     return matchesSearch && matchesCategory;
   });
 
+    const grossRegistrationBase = filteredFamilies.reduce((sum, f) => {
+      const base = f.override_fee !== null ? f.override_fee : f.tiered_fee;
+      return sum + (base || 0);
+    }, 0);
+    const totalDiscounts = filteredFamilies.reduce((sum, f) => sum + (f.discount || 0), 0);
     const totalRegistrationBase = filteredFamilies.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
     const totalActivityFees = filteredFamilies.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
     const totalExpectedCombined = filteredFamilies.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
@@ -639,9 +685,14 @@ export default function FinancePage() {
             </>
           )}
           {activeTab === "fees" && hasPermission("finance", "edit") && (
-            <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
-              ⚙️ Configure Pricing
-            </button>
+            <>
+              <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenMergeModal()}>
+                🔗 Group Families
+              </button>
+              <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
+                ⚙️ Configure Pricing
+              </button>
+            </>
           )}
           {activeTab === "expenses" && (hasPermission("finance", "edit") || hasPermission("receipt_upload", "edit")) && (
             <button className="btn btn-primary header-action-btn-desktop" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenExpenseModal()}>
@@ -668,8 +719,14 @@ export default function FinancePage() {
           <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 3, marginTop: 4, borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>Base Registration:</span>
-              <strong style={{ color: "var(--charcoal)" }}>${totalRegistrationBase.toFixed(2)}</strong>
+              <strong style={{ color: "var(--charcoal)" }}>${grossRegistrationBase.toFixed(2)}</strong>
             </div>
+            {totalDiscounts > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#d97706" }}>
+                <span>Church Discounts:</span>
+                <strong>-${totalDiscounts.toFixed(2)}</strong>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>Activity Fees:</span>
               <strong style={{ color: "var(--forest-mid)" }}>${totalActivityFees.toFixed(2)}</strong>
@@ -684,6 +741,11 @@ export default function FinancePage() {
               ? `${(((stats.total_collected_fees || 0) / stats.total_expected_fees) * 100).toFixed(1)}% of expectation` 
               : "0% of expectation"}
           </span>
+        </div>
+        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #f59e0b" }}>
+          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Church Discounts</span>
+          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#d97706" }}>${(stats.total_discounts || 0).toFixed(2)}</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Total discounts granted</span>
         </div>
         <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--danger)" }}>
           <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Total Expenses</span>
@@ -800,6 +862,7 @@ export default function FinancePage() {
                   <th>Family Group</th>
                   <th>Eligible Members (Age ≥ 5 or Null)</th>
                   <th>Registration Fee</th>
+                  <th>Church Discount</th>
                   <th>Activity Fee</th>
                   <th>Total expected</th>
                   <th>Amount Paid</th>
@@ -861,6 +924,13 @@ export default function FinancePage() {
                             )}
                           </td>
                           <td>
+                            {f.discount > 0 ? (
+                              <strong style={{ color: "#d97706" }}>${(f.discount || 0).toFixed(2)}</strong>
+                            ) : (
+                              <span style={{ color: "var(--text-secondary)" }}>—</span>
+                            )}
+                          </td>
+                          <td>
                             {f.activity_fee > 0 ? (
                               <div>
                                 <strong style={{ color: "var(--forest-mid)" }}>${(f.activity_fee || 0).toFixed(2)}</strong>
@@ -893,13 +963,23 @@ export default function FinancePage() {
                           </td>
                           <td style={{ textAlign: "right" }}>
                             {hasPermission("finance", "edit") && (
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
-                                onClick={() => handleOpenPaymentModal(f)}
-                              >
-                                ✏️ Record Payment
-                              </button>
+                              <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
+                                  onClick={() => handleOpenMergeModal(f)}
+                                  title="Group this family into another family group"
+                                >
+                                  🔗 Group
+                                </button>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
+                                  onClick={() => handleOpenPaymentModal(f)}
+                                >
+                                  ✏️ Record Payment
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -1195,6 +1275,21 @@ export default function FinancePage() {
                 </select>
               </div>
               <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">Church Discount ($)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  className="form-input" 
+                  value={paymentForm.discount}
+                  onChange={e => setPaymentForm(prev => ({ ...prev, discount: e.target.value }))}
+                  placeholder="e.g. 50.00"
+                />
+                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginTop: 4 }}>
+                  Discount applied to reduce the family registration fee.
+                </span>
+              </div>
+              <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">
                   Custom Fee Override ($) {user?.role !== "owner" && "(Owner Only)"}
                 </label>
@@ -1433,6 +1528,81 @@ export default function FinancePage() {
               <button className="btn btn-secondary" onClick={() => setIsGalleryOpen(false)}>
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Merge / Group Families Modal */}
+      {isMergeModalOpen && (
+        <div className="modal-overlay" style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0, 0, 0, 0.5)", display: "flex",
+          justifyContent: "center", alignItems: "center", zIndex: 1000
+        }}>
+          <div className="modal-card" style={{
+            background: "#fff", padding: 24, borderRadius: 12,
+            width: "90%", maxWidth: 500, boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+          }}>
+            <h3 style={{ margin: "0 0 12px 0", color: "var(--forest)" }}>🔗 Group Two Families Together</h3>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: 16 }}>
+              Select two families to combine. All members from the secondary family will be reassigned to the primary family group. This reduces the total family count by 1 and automatically recalculates tiered fees for the combined family size.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className="form-group">
+                <label className="form-label">Primary Family Group (Target) *</label>
+                <select 
+                  className="form-input" 
+                  value={mergeTargetFg} 
+                  onChange={e => setMergeTargetFg(e.target.value)}
+                >
+                  <option value="">-- Select Primary Family --</option>
+                  {families.map(f => (
+                    <option key={f.family_group} value={f.family_group} disabled={f.family_group === mergeSourceFg}>
+                      {f.display_name} ({f.members.length} {f.members.length === 1 ? 'member' : 'members'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Secondary Family to Merge (Source) *</label>
+                <select 
+                  className="form-input" 
+                  value={mergeSourceFg} 
+                  onChange={e => setMergeSourceFg(e.target.value)}
+                >
+                  <option value="">-- Select Family to Merge --</option>
+                  {families.map(f => (
+                    <option key={f.family_group} value={f.family_group} disabled={f.family_group === mergeTargetFg}>
+                      {f.display_name} ({f.members.length} {f.members.length === 1 ? 'member' : 'members'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {mergeTargetFg && mergeSourceFg && (
+                <div style={{
+                  padding: 12, background: "rgba(34, 76, 56, 0.05)",
+                  borderRadius: 6, fontSize: "0.825rem", color: "var(--forest)", borderLeft: "3px solid var(--forest)"
+                }}>
+                  💡 <strong>Summary:</strong> Members from <strong>{families.find(f => f.family_group === mergeSourceFg)?.display_name}</strong> will join <strong>{families.find(f => f.family_group === mergeTargetFg)?.display_name}</strong>.
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsMergeModalOpen(false)}>
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  disabled={!mergeTargetFg || !mergeSourceFg || mergeTargetFg === mergeSourceFg || merging}
+                  onClick={handleExecuteMerge}
+                >
+                  {merging ? "Grouping..." : "🔗 Group Families Together"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

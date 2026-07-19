@@ -161,13 +161,17 @@ def get_fees():
         status = pay_record.status if pay_record else "unpaid"
         notes = pay_record.notes if pay_record else ""
         override_fee = pay_record.override_fee if pay_record else None
+        discount = pay_record.discount if pay_record else 0.0
 
         if override_fee is not None:
-            calculated_fee = override_fee
+            base_fee = override_fee
             is_overridden = True
         else:
-            calculated_fee = tiered_fee
+            base_fee = tiered_fee
             is_overridden = False
+
+        # Apply custom/church discount (cannot drop calculated fee below 0)
+        calculated_fee = max(0.0, base_fee - discount)
 
         activity_fee = 0.0
         # Activity 1
@@ -200,6 +204,7 @@ def get_fees():
             "tiered_fee": tiered_fee,
             "override_fee": override_fee,
             "is_overridden": is_overridden,
+            "discount": discount,
             "activity_fee": activity_fee,
             "activity_1_spots": family["kayaking_spots"],
             "activity_2_spots": family["boat_tour_spots"],
@@ -213,10 +218,14 @@ def get_fees():
     # Sort results so families needing action or custom groups are grouped nicely
     results.sort(key=lambda x: x["family_group"])
 
+    # Compute sum of all discounts given
+    total_discounts = sum(p.discount for p in payments.values())
+
     return jsonify({
         "families": results,
         "total_expected_fees": total_expected,
         "total_collected_fees": total_collected,
+        "total_discounts_given": total_discounts,
         "activity_names": activity_list,
         "activity_prices": activity_prices
     }), 200
@@ -235,6 +244,7 @@ def update_fee_payment():
     status = data.get("status", "unpaid")
     notes = data.get("notes", "")
     override_fee_input = data.get("override_fee")
+    discount_input = data.get("discount")
 
     if not fg:
         return jsonify({"error": "family_group is required"}), 400
@@ -255,6 +265,14 @@ def update_fee_payment():
         except ValueError:
             return jsonify({"error": "override_fee must be a valid number"}), 400
 
+    # Determine discount value
+    parsed_discount = 0.0
+    if discount_input is not None and str(discount_input).strip() != "":
+        try:
+            parsed_discount = float(discount_input)
+        except ValueError:
+            return jsonify({"error": "discount must be a valid number"}), 400
+
     payment = FamilyPayment.query.filter_by(family_group=fg).first()
 
     # Guard: only Owner is allowed to change override fee
@@ -273,22 +291,96 @@ def update_fee_payment():
             amount_paid=amount_paid,
             status=status,
             notes=notes,
-            override_fee=parsed_override_fee
+            override_fee=parsed_override_fee,
+            discount=parsed_discount
         )
         db.session.add(payment)
     else:
         payment.amount_paid = amount_paid
         payment.status = status
         payment.notes = notes
+        payment.discount = parsed_discount
         if role == "owner":
             payment.override_fee = parsed_override_fee
 
     db.session.commit()
 
     from utils.logging import log_action
-    log_action("RECORD_FEE_PAYMENT", f"Recorded payment for Family '{fg}': Paid ${amount_paid} (Status: {status}, Override Fee: {parsed_override_fee})")
+    log_action("RECORD_FEE_PAYMENT", f"Recorded payment for Family '{fg}': Paid ${amount_paid} (Status: {status}, Discount: {parsed_discount}, Override Fee: {parsed_override_fee})")
 
     return jsonify({"payment": payment.to_dict()}), 200
+
+@finance_bp.route("/merge-families", methods=["POST"])
+@jwt_required()
+@require_page_permission("finance", "edit")
+def merge_families():
+    data = request.get_json() or {}
+    target_fg = str(data.get("target_family_group", "")).strip()
+    source_fg = str(data.get("source_family_group", "")).strip()
+
+    if not target_fg or not source_fg:
+        return jsonify({"error": "Both target_family_group and source_family_group are required"}), 400
+
+    if target_fg == source_fg:
+        return jsonify({"error": "Target and source family groups cannot be the same"}), 400
+
+    # Find source campers
+    source_campers = []
+    if source_fg.startswith("single-"):
+        try:
+            camper_id = int(source_fg.replace("single-", ""))
+            c = Camper.query.get(camper_id)
+            if c:
+                source_campers.append(c)
+        except ValueError:
+            pass
+    else:
+        source_campers = Camper.query.filter_by(family_group=source_fg).all()
+
+    if not source_campers:
+        return jsonify({"error": f"No campers found in family group '{source_fg}'"}), 404
+
+    # Reassign all source campers to target family group
+    for camper in source_campers:
+        camper.family_group = target_fg
+
+    # Merge payments if source payment exists
+    source_payment = FamilyPayment.query.filter_by(family_group=source_fg).first()
+    if source_payment:
+        target_payment = FamilyPayment.query.filter_by(family_group=target_fg).first()
+        if not target_payment:
+            target_payment = FamilyPayment(
+                family_group=target_fg,
+                amount_paid=source_payment.amount_paid,
+                status=source_payment.status,
+                notes=source_payment.notes,
+                discount=source_payment.discount,
+                override_fee=source_payment.override_fee
+            )
+            db.session.add(target_payment)
+        else:
+            target_payment.amount_paid += source_payment.amount_paid
+            target_payment.discount += source_payment.discount
+            if source_payment.notes:
+                if target_payment.notes:
+                    target_payment.notes += f" | {source_payment.notes}"
+                else:
+                    target_payment.notes = source_payment.notes
+
+        db.session.delete(source_payment)
+
+    db.session.commit()
+
+    from utils.logging import log_action
+    log_action(
+        "MERGE_FAMILIES", 
+        f"Merged family '{source_fg}' into family '{target_fg}' ({len(source_campers)} campers reassigned)."
+    )
+
+    return jsonify({
+        "message": f"Successfully merged family '{source_fg}' into '{target_fg}'",
+        "reassigned_count": len(source_campers)
+    }), 200
 
 # Expense API Endpoints
 @finance_bp.route("/expenses", methods=["GET"])
@@ -476,8 +568,9 @@ def get_finance_stats():
         
         pay_record = payments.get(fg)
         override_fee = pay_record.override_fee if pay_record else None
+        discount = pay_record.discount if pay_record else 0.0
         
-        base_fee = override_fee if override_fee is not None else tiered_fee
+        base_fee = max(0.0, (override_fee if override_fee is not None else tiered_fee) - discount)
         
         activity_fee = 0.0
         # Activity 1
@@ -494,11 +587,13 @@ def get_finance_stats():
         total_expected += (base_fee + activity_fee)
 
     total_collected = db.session.query(db.func.sum(FamilyPayment.amount_paid)).scalar() or 0.0
+    total_discounts = db.session.query(db.func.sum(FamilyPayment.discount)).scalar() or 0.0
 
     return jsonify({
         "total_expenses": total_expenses,
         "total_expected_fees": total_expected,
         "total_collected_fees": total_collected,
+        "total_discounts": total_discounts,
         "net_balance": total_collected - total_expenses
     }), 200
 
