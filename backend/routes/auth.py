@@ -169,14 +169,15 @@ def register_passkey_options():
     )
     from webauthn.helpers import bytes_to_base64url, options_to_json, base64url_to_bytes
 
+    from webauthn.helpers.structs import PublicKeyCredentialDescriptor
+
     # Exclude already registered credentials
     exclude_credentials = []
     for pk in user.passkeys:
         try:
-            exclude_credentials.append({
-                "id": base64url_to_bytes(pk.credential_id),
-                "type": "public-key"
-            })
+            exclude_credentials.append(PublicKeyCredentialDescriptor(
+                id=base64url_to_bytes(pk.credential_id)
+            ))
         except Exception:
             pass
 
