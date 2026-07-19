@@ -1323,7 +1323,7 @@ export default function FinancePage() {
               </div>
               <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">
-                  Custom Fee Override ($) {user?.role !== "owner" && "(Owner Only)"}
+                  Custom Fee Override ($) {!(user?.role === "owner" || user?.role === "finance") && "(Owner / Finance Only)"}
                 </label>
                 <input 
                   type="number" 
@@ -1333,9 +1333,9 @@ export default function FinancePage() {
                   value={paymentForm.override_fee}
                   onChange={e => setPaymentForm(prev => ({ ...prev, override_fee: e.target.value }))}
                   placeholder="Using tiered rate calculation"
-                  disabled={user?.role !== "owner"}
+                  disabled={!(user?.role === "owner" || user?.role === "finance")}
                 />
-                {user?.role === "owner" && (
+                {(user?.role === "owner" || user?.role === "finance") && (
                   <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginTop: 4 }}>
                     Ignores the default tiered rates for this family if set. Leave blank to reset.
                   </span>

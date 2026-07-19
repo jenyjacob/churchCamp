@@ -257,11 +257,16 @@ def update_fee_payment():
     if status not in ["unpaid", "partial", "paid"]:
         return jsonify({"error": "status must be one of: unpaid, partial, paid"}), 400
 
+    if amount_paid < 0:
+        return jsonify({"error": "amount_paid cannot be negative"}), 400
+
     # Determine override fee value (None or Float)
     parsed_override_fee = None
     if override_fee_input is not None and str(override_fee_input).strip() != "":
         try:
             parsed_override_fee = float(override_fee_input)
+            if parsed_override_fee < 0:
+                return jsonify({"error": "override_fee cannot be negative"}), 400
         except ValueError:
             return jsonify({"error": "override_fee must be a valid number"}), 400
 
@@ -270,20 +275,23 @@ def update_fee_payment():
     if discount_input is not None and str(discount_input).strip() != "":
         try:
             parsed_discount = float(discount_input)
+            if parsed_discount < 0:
+                return jsonify({"error": "discount cannot be negative"}), 400
         except ValueError:
             return jsonify({"error": "discount must be a valid number"}), 400
 
     payment = FamilyPayment.query.filter_by(family_group=fg).first()
 
-    # Guard: only Owner is allowed to change override fee
+    # Guard: only Owner and Finance roles are allowed to change override fee
     is_changing_override = False
     if payment:
         is_changing_override = (payment.override_fee != parsed_override_fee)
     else:
         is_changing_override = (parsed_override_fee is not None)
 
-    if is_changing_override and role != "owner":
-        return jsonify({"error": "Only the Owner is authorized to change individual family prices."}), 403
+    can_override = role in ["owner", "finance"]
+    if is_changing_override and not can_override:
+        return jsonify({"error": "Only Owner and Finance roles are authorized to change individual family prices."}), 403
 
     if not payment:
         payment = FamilyPayment(
@@ -291,7 +299,7 @@ def update_fee_payment():
             amount_paid=amount_paid,
             status=status,
             notes=notes,
-            override_fee=parsed_override_fee,
+            override_fee=parsed_override_fee if can_override else None,
             discount=parsed_discount
         )
         db.session.add(payment)
@@ -300,7 +308,7 @@ def update_fee_payment():
         payment.status = status
         payment.notes = notes
         payment.discount = parsed_discount
-        if role == "owner":
+        if can_override:
             payment.override_fee = parsed_override_fee
 
     db.session.commit()

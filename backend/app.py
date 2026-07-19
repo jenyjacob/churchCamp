@@ -34,6 +34,7 @@ def create_app():
 
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB maximum request payload limit
 
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     db.init_app(app)

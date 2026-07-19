@@ -84,6 +84,7 @@ def me():
 
 @auth_bp.route("/change-password", methods=["POST"])
 @jwt_required()
+@rate_limit(5, 60)
 def change_password():
     user_id = get_jwt_identity()
     user = User.query.get(int(user_id))
@@ -112,6 +113,7 @@ def change_password():
 
 @auth_bp.route("/force-change-password", methods=["POST"])
 @jwt_required()
+@rate_limit(5, 60)
 def force_change_password():
     user_id = get_jwt_identity()
     user = User.query.get(int(user_id))
