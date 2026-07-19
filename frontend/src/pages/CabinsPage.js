@@ -13,14 +13,47 @@ const parseCabinGroup = (cabinGroupString) => {
 };
 
 export default function CabinsPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const isAdmin = hasPermission("cabins", "edit");
+  const canExport = user?.role === "owner" || user?.role === "admin";
   
   // Campers data state
   const [campers, setCampers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
+
+  const handleExportExcel = () => {
+    if (!canExport) return;
+    const headers = [
+      "First Name",
+      "Last Name",
+      "Cabin Name",
+      "Room Number",
+      "Family Group"
+    ];
+
+    const rows = campers.map(c => {
+      const { cabin, room } = parseCabinGroup(c.cabin_group);
+      return [
+        `"${(c.first_name || "").replace(/"/g, '""')}"`,
+        `"${(c.last_name || "").replace(/"/g, '""')}"`,
+        `"${cabin.replace(/"/g, '""')}"`,
+        `"${room.replace(/"/g, '""')}"`,
+        `"${(c.family_group || "").replace(/"/g, '""')}"`
+      ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_cabin_details_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   
   // UI filter state
   const [search, setSearch] = useState("");
@@ -703,15 +736,26 @@ export default function CabinsPage() {
           </span>
         </div>
         
-        {isAdmin && (
-          <button 
-            className="btn btn-outline" 
-            onClick={handlePrintPDF}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", height: "38px" }}
-          >
-            📄 Print Cabin Details (PDF)
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {canExport && (
+            <button 
+              className="btn btn-secondary" 
+              onClick={handleExportExcel}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", height: "38px" }}
+            >
+              📊 Export Excel (CSV)
+            </button>
+          )}
+          {isAdmin && (
+            <button 
+              className="btn btn-outline" 
+              onClick={handlePrintPDF}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", height: "38px" }}
+            >
+              📄 Print Cabin Details (PDF)
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="page-body" style={{ display: "flex", flexDirection: "column" }}>

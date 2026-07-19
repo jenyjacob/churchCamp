@@ -165,6 +165,15 @@ export default function UsersPage() {
     }
   };
 
+  const handleUnlockAccount = async (u) => {
+    try {
+      await api.put(`/api/users/${u.id}`, { unlock_account: true });
+      fetchUsers();
+    } catch {
+      setError("Failed to unlock user account.");
+    }
+  };
+
   return (
     <>
       <div className="top-bar">
@@ -211,6 +220,15 @@ export default function UsersPage() {
                     <span className={`badge ${u.is_active ? "badge-green" : "badge-red"}`}>
                       {u.is_active ? "Active" : "Disabled"}
                     </span>
+                    {u.failed_login_attempts >= 5 ? (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="badge badge-red" style={{ fontSize: "0.68rem" }}>🔒 Locked Out (5/5)</span>
+                      </div>
+                    ) : u.failed_login_attempts > 0 ? (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="badge badge-gold" style={{ fontSize: "0.68rem" }}>⚠️ {u.failed_login_attempts} Failed Hit(s)</span>
+                      </div>
+                    ) : null}
                     {u.must_change_password && (
                       <div style={{ marginTop: 4 }}>
                         <span className="badge badge-gold" style={{ fontSize: "0.68rem" }}>🔑 Pwd Change Req.</span>
@@ -220,6 +238,16 @@ export default function UsersPage() {
                   <td>
                     {canEdit ? (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {((u.locked_until && new Date(u.locked_until) > new Date()) || u.failed_login_attempts > 0) && (
+                          <button 
+                            className="btn btn-secondary btn-sm" 
+                            onClick={() => handleUnlockAccount(u)}
+                            style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                            title="Unlock account and reset failed password attempts counter"
+                          >
+                            🔓 Unlock
+                          </button>
+                        )}
                         {currentUser?.role === "owner" && (
                           <button 
                             className="btn btn-ghost btn-sm" 

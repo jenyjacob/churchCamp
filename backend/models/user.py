@@ -13,6 +13,8 @@ class User(db.Model):
     email = db.Column(db.String(150), unique=True, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -34,5 +36,7 @@ class User(db.Model):
             "email": self.email,
             "is_active": self.is_active,
             "must_change_password": self.must_change_password,
+            "failed_login_attempts": self.failed_login_attempts,
+            "locked_until": self.locked_until.isoformat() if self.locked_until else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

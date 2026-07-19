@@ -23,11 +23,11 @@ def create_app():
     is_prod = os.environ.get("FLASK_ENV") == "production"
     if is_prod:
         jwt_key = os.environ.get("JWT_SECRET_KEY")
-        if not jwt_key or jwt_key == "change-me-in-production-please":
-            raise ValueError("CRITICAL ERROR: JWT_SECRET_KEY is not set or uses default in production!")
+        if not jwt_key:
+            raise ValueError("CRITICAL ERROR: JWT_SECRET_KEY environment variable is not set in production!")
         flask_secret = os.environ.get("SECRET_KEY")
-        if not flask_secret or flask_secret == "flask-secret-change-me":
-            raise ValueError("CRITICAL ERROR: SECRET_KEY is not set or uses default in production!")
+        if not flask_secret:
+            raise ValueError("CRITICAL ERROR: SECRET_KEY environment variable is not set in production!")
         db_url = os.environ.get("DATABASE_URL")
         if not db_url or "sqlite" in db_url:
             raise ValueError("CRITICAL ERROR: DATABASE_URL is not set or uses SQLite in production!")
@@ -117,6 +117,29 @@ def create_app():
             except Exception as migration_ex:
                 db.session.rollback()
                 print(f"Database migration skipped/failed: {str(migration_ex)}")
+
+        # Self-healing database migration: add failed_login_attempts & locked_until columns to users table if missing
+        try:
+            db.session.execute(text("SELECT failed_login_attempts FROM users LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0"))
+                db.session.commit()
+                print("Database migrated: added failed_login_attempts column to users table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+
+        try:
+            db.session.execute(text("SELECT locked_until FROM users LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME DEFAULT NULL"))
+                db.session.commit()
+                print("Database migrated: added locked_until column to users table.")
+            except Exception as migration_ex:
+                db.session.rollback()
 
         from utils.seed import seed_admin
         seed_admin()

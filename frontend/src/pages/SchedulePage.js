@@ -25,10 +25,42 @@ const EMPTY_EVENT = { day: "", time: "", title: "", location: "", description: "
 export default function SchedulePage() {
   const { user, hasPermission } = useAuth();
   const isAdmin = hasPermission("schedule", "edit");
+  const canExport = user?.role === "owner" || user?.role === "admin";
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState(null);
+
+  const handleExportExcel = () => {
+    if (!canExport) return;
+
+    const headers = [
+      "Day",
+      "Time",
+      "Event Title",
+      "Location",
+      "Description"
+    ];
+
+    const rows = events.map(evt => [
+      `"${(evt.day || "").replace(/"/g, '""')}"`,
+      `"${(evt.time || "").replace(/"/g, '""')}"`,
+      `"${(evt.title || "").replace(/"/g, '""')}"`,
+      `"${(evt.location || "").replace(/"/g, '""')}"`,
+      `"${(evt.description || "").replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_camp_schedule_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Edit/Create Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -424,8 +456,17 @@ export default function SchedulePage() {
   if (user) {
     return (
       <>
-        <div className="top-bar">
-          <h1>Camp Schedule</h1>
+        <div className="top-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h1 style={{ margin: 0 }}>Camp Schedule</h1>
+          {canExport && (
+            <button 
+              className="btn btn-secondary" 
+              onClick={handleExportExcel}
+              style={{ display: "flex", alignItems: "center", gap: 8 }}
+            >
+              📊 Export Excel (CSV)
+            </button>
+          )}
         </div>
         <div className="page-body">
           {scheduleContent}

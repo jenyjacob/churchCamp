@@ -75,6 +75,12 @@ def update_user(user_id):
     if data.get("role") == "owner" and claims.get("role") != "owner":
         return jsonify({"error": "Only owners can assign owner role"}), 403
 
+    if data.get("unlock_account"):
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        from utils.logging import log_action
+        log_action("UNLOCK_ACCOUNT", f"Unlocked account for user '{user.username}' (ID: {user.id})")
+
     if "must_change_password" in data:
         if claims.get("role") != "owner":
             return jsonify({"error": "Only the owner can require a forced password change"}), 403
@@ -91,6 +97,8 @@ def update_user(user_id):
         if user.check_password(data["password"]):
             return jsonify({"error": "New password cannot be the same as the user's previous password"}), 400
         user.set_password(data["password"])
+        user.failed_login_attempts = 0
+        user.locked_until = None
 
     db.session.commit()
     from utils.logging import log_action
