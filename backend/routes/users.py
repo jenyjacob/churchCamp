@@ -40,11 +40,14 @@ def create_user():
     if User.query.filter_by(username=data["username"]).first():
         return jsonify({"error": "Username already exists"}), 409
 
+    must_change_pwd = bool(data.get("must_change_password", False)) if claims.get("role") == "owner" else False
+
     user = User(
         username=data["username"].strip(),
         role=data.get("role", "user"),
         full_name=data.get("full_name", "").strip() or None,
         email=data.get("email", "").strip() or None,
+        must_change_password=must_change_pwd
     )
     user.set_password(data["password"])
     db.session.add(user)
@@ -72,6 +75,11 @@ def update_user(user_id):
     if data.get("role") == "owner" and claims.get("role") != "owner":
         return jsonify({"error": "Only owners can assign owner role"}), 403
 
+    if "must_change_password" in data:
+        if claims.get("role") != "owner":
+            return jsonify({"error": "Only the owner can require a forced password change"}), 403
+        user.must_change_password = bool(data["must_change_password"])
+
     for field in ["role", "full_name", "email", "is_active"]:
         if field in data:
             val = data[field]
@@ -80,6 +88,8 @@ def update_user(user_id):
             setattr(user, field, val)
 
     if "password" in data and data["password"]:
+        if user.check_password(data["password"]):
+            return jsonify({"error": "New password cannot be the same as the user's previous password"}), 400
         user.set_password(data["password"])
 
     db.session.commit()

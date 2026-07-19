@@ -103,6 +103,18 @@ function UserModal({ user, currentUser, onClose, onSave }) {
               </select>
             </div>
           )}
+          {currentUser?.role === "owner" && (
+            <div className="form-group" style={{ marginTop: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.875rem", fontWeight: 500 }}>
+                <input 
+                  type="checkbox" 
+                  checked={!!form.must_change_password} 
+                  onChange={e => set("must_change_password", e.target.checked)} 
+                />
+                🔑 Force user to change password on next login
+              </label>
+            </div>
+          )}
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -142,6 +154,15 @@ export default function UsersPage() {
       setDeleteTarget(null);
       fetchUsers();
     } catch { setError("Failed to delete user."); }
+  };
+
+  const handleToggleForcePassword = async (u) => {
+    try {
+      await api.put(`/api/users/${u.id}`, { must_change_password: !u.must_change_password });
+      fetchUsers();
+    } catch {
+      setError("Failed to update password requirement.");
+    }
   };
 
   return (
@@ -190,10 +211,26 @@ export default function UsersPage() {
                     <span className={`badge ${u.is_active ? "badge-green" : "badge-red"}`}>
                       {u.is_active ? "Active" : "Disabled"}
                     </span>
+                    {u.must_change_password && (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="badge badge-gold" style={{ fontSize: "0.68rem" }}>🔑 Pwd Change Req.</span>
+                      </div>
+                    )}
                   </td>
                   <td>
                     {canEdit ? (
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {currentUser?.role === "owner" && (
+                          <button 
+                            className="btn btn-ghost btn-sm" 
+                            onClick={() => handleToggleForcePassword(u)}
+                            disabled={u.role === "owner" && currentUser?.role !== "owner"}
+                            style={{ color: u.must_change_password ? "#d97706" : "inherit" }}
+                            title={u.must_change_password ? "Click to cancel password change requirement" : "Force user to change password on next login"}
+                          >
+                            {u.must_change_password ? "🔑 Pending Pwd Change" : "🔑 Force Pwd Change"}
+                          </button>
+                        )}
                         <button 
                           className="btn btn-ghost btn-sm" 
                           onClick={() => setModal(u)}

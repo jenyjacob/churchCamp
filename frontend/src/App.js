@@ -29,6 +29,13 @@ function RequirePermission({ pageKey, children }) {
   return hasPermission(pageKey, "hide") ? children : <Navigate to="/" replace />;
 }
 
+function RequireFinanceOrReceiptPermission({ children }) {
+  const { hasPermission, loading } = useAuth();
+  if (loading) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh" }}><div className="spinner" style={{border:"3px solid #ccc",borderTopColor:"#1E4D2B"}} /></div>;
+  const canAccess = hasPermission("finance", "hide") || hasPermission("receipt_upload", "hide");
+  return canAccess ? children : <Navigate to="/" replace />;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
   return (
@@ -48,7 +55,7 @@ function AppRoutes() {
         <Route path="outdoor" element={<RequirePermission pageKey="outdoor"><OutdoorPage /></RequirePermission>} />
         <Route path="tshirts" element={<RequirePermission pageKey="apparel"><TShirtsPage /></RequirePermission>} />
         <Route path="users" element={<RequirePermission pageKey="users"><UsersPage /></RequirePermission>} />
-        <Route path="finance" element={<RequirePermission pageKey="finance"><FinancePage /></RequirePermission>} />
+        <Route path="finance" element={<RequireFinanceOrReceiptPermission><FinancePage /></RequireFinanceOrReceiptPermission>} />
         <Route path="logs" element={<RequirePermission pageKey="logs"><AuditLogsPage /></RequirePermission>} />
         <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
       </Route>

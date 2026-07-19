@@ -41,10 +41,40 @@ function NavItem({ to, icon, label, exact }) {
 }
 
 export default function AppShell() {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, setUser, logout, hasPermission } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const location = useLocation();
+
+  // Force Password Change States
+  const [forceNewPassword, setForceNewPassword] = useState("");
+  const [forceConfirmPassword, setForceConfirmPassword] = useState("");
+  const [forcePwdError, setForcePwdError] = useState("");
+  const [forcePwdSaving, setForcePwdSaving] = useState(false);
+
+  const handleForcePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setForcePwdError("");
+    if (forceNewPassword !== forceConfirmPassword) {
+      setForcePwdError("Passwords do not match.");
+      return;
+    }
+    if (forceNewPassword.length < 4) {
+      setForcePwdError("Password must be at least 4 characters long.");
+      return;
+    }
+    setForcePwdSaving(true);
+    try {
+      const res = await api.post("/api/auth/force-change-password", { new_password: forceNewPassword });
+      setUser(res.data.user);
+      setForceNewPassword("");
+      setForceConfirmPassword("");
+    } catch (err) {
+      setForcePwdError(err.response?.data?.error || "Failed to update password.");
+    } finally {
+      setForcePwdSaving(false);
+    }
+  };
 
   // Change Password States
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -245,7 +275,7 @@ export default function AppShell() {
               <NavItem key={item.to} {...item} />
             ))
           }
-          {adminItems.some(item => hasPermission(item.pageKey, "hide")) && (
+          {(adminItems.some(item => hasPermission(item.pageKey, "hide")) || (!hasPermission("finance", "hide") && hasPermission("receipt_upload", "hide"))) && (
             <>
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" }} />
               <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "4px 12px 2px" }}>Admin</div>
@@ -255,6 +285,9 @@ export default function AppShell() {
                   <NavItem key={item.to} {...item} />
                 ))
               }
+              {!hasPermission("finance", "hide") && hasPermission("receipt_upload", "hide") && (
+                <NavItem to="/finance?tab=expenses" icon="🧾" label="Submit Receipts" />
+              )}
             </>
           )}
         </nav>
@@ -470,6 +503,64 @@ export default function AppShell() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mandatory Force Password Change Modal */}
+      {user?.must_change_password && (
+        <div className="modal-overlay" style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0, 0, 0, 0.75)", backdropFilter: "blur(4px)", display: "flex",
+          justifyContent: "center", alignItems: "center", zIndex: 9999
+        }}>
+          <div className="modal-card" style={{
+            background: "#fff", padding: 28, borderRadius: 12,
+            width: "90%", maxWidth: 450, boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+          }}>
+            <h2 style={{ margin: "0 0 8px 0", color: "var(--forest)", fontSize: "1.35rem", display: "flex", alignItems: "center", gap: 8 }}>
+              🔑 Mandatory Password Change Required
+            </h2>
+            <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: 20 }}>
+              An administrator has requested that you change your password for security before continuing. Please create a new password below.
+            </p>
+
+            <form onSubmit={handleForcePasswordSubmit}>
+              {forcePwdError && <div className="alert alert-error" style={{ marginBottom: 12, fontSize: "0.825rem" }}>⚠️ {forcePwdError}</div>}
+
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label className="form-label">New Password *</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  value={forceNewPassword}
+                  onChange={e => setForceNewPassword(e.target.value)}
+                  placeholder="At least 4 characters"
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 20 }}>
+                <label className="form-label">Confirm New Password *</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  value={forceConfirmPassword}
+                  onChange={e => setForceConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                style={{ width: "100%", padding: "10px", fontSize: "0.95rem" }}
+                disabled={forcePwdSaving}
+              >
+                {forcePwdSaving ? "Updating Password..." : "🔒 Set New Password & Continue"}
+              </button>
+            </form>
           </div>
         </div>
       )}

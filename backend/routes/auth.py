@@ -61,14 +61,44 @@ def change_password():
     if not user.check_password(data["current_password"]):
         return jsonify({"error": "Invalid current password"}), 400
 
+    if user.check_password(data["new_password"]):
+        return jsonify({"error": "Your new password cannot be the same as your previous password"}), 400
+
     user.set_password(data["new_password"])
+    user.must_change_password = False
     from db import db
     db.session.commit()
 
     from utils.logging import log_action
     log_action("CHANGE_PASSWORD", "User successfully changed their password", user.id, user.username)
 
-    return jsonify({"message": "Password changed successfully"}), 200
+    return jsonify({"message": "Password changed successfully", "user": user.to_dict()}), 200
+
+@auth_bp.route("/force-change-password", methods=["POST"])
+@jwt_required()
+def force_change_password():
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json()
+    new_pwd = data.get("new_password")
+    if not new_pwd or len(new_pwd) < 4:
+        return jsonify({"error": "New password must be at least 4 characters long"}), 400
+
+    if user.check_password(new_pwd):
+        return jsonify({"error": "Your new password cannot be the same as your previous password"}), 400
+
+    user.set_password(new_pwd)
+    user.must_change_password = False
+    from db import db
+    db.session.commit()
+
+    from utils.logging import log_action
+    log_action("FORCE_CHANGE_PASSWORD", "User completed forced password update", user.id, user.username)
+
+    return jsonify({"message": "Password updated successfully", "user": user.to_dict()}), 200
 
 @auth_bp.route("/register-passkey/options", methods=["POST"])
 @jwt_required()

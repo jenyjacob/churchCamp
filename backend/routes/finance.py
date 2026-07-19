@@ -385,8 +385,32 @@ def merge_families():
 # Expense API Endpoints
 @finance_bp.route("/expenses", methods=["GET"])
 @jwt_required()
-@require_page_permission("finance", "read")
 def get_expenses():
+    from flask_jwt_extended import get_jwt
+    from models import PagePermission
+    from routes.permissions import DEFAULT_PERMISSIONS
+
+    claims = get_jwt()
+    role = claims.get("role", "user")
+    
+    if role == "owner":
+        has_access = True
+    else:
+        fin_level = DEFAULT_PERMISSIONS.get(role, {}).get("finance", "hide")
+        custom_fin = PagePermission.query.filter_by(role=role, page_key="finance").first()
+        if custom_fin:
+            fin_level = custom_fin.access_level
+
+        upload_level = DEFAULT_PERMISSIONS.get(role, {}).get("receipt_upload", "hide")
+        custom_upload = PagePermission.query.filter_by(role=role, page_key="receipt_upload").first()
+        if custom_upload:
+            upload_level = custom_upload.access_level
+            
+        has_access = (fin_level != "hide" or upload_level != "hide")
+
+    if not has_access:
+        return jsonify({"error": "Read permission for finance or receipt_upload is required."}), 403
+
     expenses = Expense.query.order_by(Expense.date.desc()).all()
     return jsonify({"expenses": [e.to_dict() for e in expenses]}), 200
 
@@ -697,12 +721,29 @@ def download_receipt(expense_id):
     import os
     from flask import send_from_directory
     from flask_jwt_extended import get_jwt
+    from models import PagePermission
+    from routes.permissions import DEFAULT_PERMISSIONS
     
-    # 1. Enforce downloads to owner, finance manager, and admin only
     claims = get_jwt()
-    role = claims.get("role")
-    if role not in ["owner", "finance", "admin"]:
-        return jsonify({"error": "Only Finance Manager, Owner, and Admin can download receipts"}), 403
+    role = claims.get("role", "user")
+    
+    if role == "owner":
+        has_access = True
+    else:
+        fin_level = DEFAULT_PERMISSIONS.get(role, {}).get("finance", "hide")
+        custom_fin = PagePermission.query.filter_by(role=role, page_key="finance").first()
+        if custom_fin:
+            fin_level = custom_fin.access_level
+
+        upload_level = DEFAULT_PERMISSIONS.get(role, {}).get("receipt_upload", "hide")
+        custom_upload = PagePermission.query.filter_by(role=role, page_key="receipt_upload").first()
+        if custom_upload:
+            upload_level = custom_upload.access_level
+            
+        has_access = (fin_level != "hide" or upload_level != "hide")
+
+    if not has_access:
+        return jsonify({"error": "Read permission for finance or receipt_upload is required"}), 403
         
     expense = Expense.query.get_or_404(expense_id)
     if not expense.receipt_filename:

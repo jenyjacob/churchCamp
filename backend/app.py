@@ -105,6 +105,19 @@ def create_app():
                 db.session.rollback()
                 print(f"Database migration skipped/failed: {str(migration_ex)}")
 
+        # Self-healing database migration: add must_change_password column to users table if missing
+        try:
+            db.session.execute(text("SELECT must_change_password FROM users LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0"))
+                db.session.commit()
+                print("Database migrated: added must_change_password column to users table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration skipped/failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 

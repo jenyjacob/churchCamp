@@ -132,25 +132,39 @@ export default function FinancePage() {
     setTimeout(() => setError(""), 5000);
   };
 
+  const canReadFinance = hasPermission("finance", "read");
+  const canUploadReceipts = hasPermission("receipt_upload", "edit") || hasPermission("receipt_upload", "read");
+
+  useEffect(() => {
+    if (!canReadFinance && canUploadReceipts) {
+      setActiveTab("expenses");
+    }
+  }, [canReadFinance, canUploadReceipts]);
+
   // Fetch Data
   const fetchFinanceData = async () => {
     setLoading(true);
     try {
-      const [statsRes, feesRes, expensesRes, ratesRes] = await Promise.all([
-        api.get("/api/finance/stats"),
-        api.get("/api/finance/fees"),
-        api.get("/api/finance/expenses"),
-        api.get("/api/finance/rates")
-      ]);
-      setStats(statsRes.data);
-      setFamilies(feesRes.data.families);
-      setExpenses(expensesRes.data.expenses);
-      setRates(ratesRes.data.rates);
-      if (feesRes.data.activity_names) {
-        setActivityNames(feesRes.data.activity_names);
-      }
-      if (feesRes.data.activity_prices) {
-        setActivityPrices(feesRes.data.activity_prices);
+      if (!canReadFinance && canUploadReceipts) {
+        const expensesRes = await api.get("/api/finance/expenses");
+        setExpenses(expensesRes.data.expenses);
+      } else {
+        const [statsRes, feesRes, expensesRes, ratesRes] = await Promise.all([
+          api.get("/api/finance/stats"),
+          api.get("/api/finance/fees"),
+          api.get("/api/finance/expenses"),
+          api.get("/api/finance/rates")
+        ]);
+        setStats(statsRes.data);
+        setFamilies(feesRes.data.families);
+        setExpenses(expensesRes.data.expenses);
+        setRates(ratesRes.data.rates);
+        if (feesRes.data.activity_names) {
+          setActivityNames(feesRes.data.activity_names);
+        }
+        if (feesRes.data.activity_prices) {
+          setActivityPrices(feesRes.data.activity_prices);
+        }
       }
     } catch (err) {
       flashError(err.response?.data?.error || "Failed to load financial records.");
@@ -621,6 +635,16 @@ export default function FinancePage() {
     const totalExpectedCombined = filteredFamilies.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
     const totalPaidCombined = filteredFamilies.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
 
+    if (!canReadFinance && !canUploadReceipts) {
+      return (
+        <div className="container" style={{ padding: "40px 20px" }}>
+          <div className="alert alert-error">
+            🔒 <strong>Access Denied:</strong> You do not have permission to view Finance or upload receipts.
+          </div>
+        </div>
+      );
+    }
+
     return (
     <div className="container" style={{ padding: "20px 0" }}>
       <style>{`
@@ -645,9 +669,13 @@ export default function FinancePage() {
         marginBottom: 28 
       }}>
         <div style={{ minWidth: "280px", flex: "1 1 auto" }}>
-          <h1 style={{ margin: 0, fontSize: "1.75rem", fontWeight: 600 }}>💰 Finance Manager</h1>
+          <h1 style={{ margin: 0, fontSize: "1.75rem", fontWeight: 600 }}>
+            {canReadFinance ? "💰 Finance Manager" : "🧾 Expense & Receipt Submitter"}
+          </h1>
           <p style={{ margin: "4px 0 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-            Track itemized camp expenses and collection of tiered family registration fees.
+            {canReadFinance 
+              ? "Track itemized camp expenses and collection of tiered family registration fees." 
+              : "Submit camp expenses and upload vendor receipt images or documents."}
           </p>
         </div>
         <div style={{ 
@@ -707,124 +735,128 @@ export default function FinancePage() {
       {success && <div className="alert alert-success" style={{ marginBottom: 16 }}>✅ {success}</div>}
 
       {/* Summary KPI Grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: 16,
-        marginBottom: 24
-      }}>
-        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--forest)" }}>
-          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Expected Fees</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0" }}>${(stats.total_expected_fees || 0).toFixed(2)}</span>
-          <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 3, marginTop: 4, borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Base Registration:</span>
-              <strong style={{ color: "var(--charcoal)" }}>${grossRegistrationBase.toFixed(2)}</strong>
-            </div>
-            {totalDiscounts > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#d97706" }}>
-                <span>Church Discounts:</span>
-                <strong>-${totalDiscounts.toFixed(2)}</strong>
+      {canReadFinance && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 16,
+          marginBottom: 24
+        }}>
+          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--forest)" }}>
+            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Expected Fees</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0" }}>${(stats.total_expected_fees || 0).toFixed(2)}</span>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 3, marginTop: 4, borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Base Registration:</span>
+                <strong style={{ color: "var(--charcoal)" }}>${grossRegistrationBase.toFixed(2)}</strong>
               </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>Activity Fees:</span>
-              <strong style={{ color: "var(--forest-mid)" }}>${totalActivityFees.toFixed(2)}</strong>
+              {totalDiscounts > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#d97706" }}>
+                  <span>Church Discounts:</span>
+                  <strong>-${totalDiscounts.toFixed(2)}</strong>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Activity Fees:</span>
+                <strong style={{ color: "var(--forest-mid)" }}>${totalActivityFees.toFixed(2)}</strong>
+              </div>
             </div>
           </div>
+          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #2ecc71" }}>
+            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Collected Fees</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#2ecc71" }}>${(stats.total_collected_fees || 0).toFixed(2)}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+              {stats.total_expected_fees > 0 
+                ? `${(((stats.total_collected_fees || 0) / stats.total_expected_fees) * 100).toFixed(1)}% of expectation` 
+                : "0% of expectation"}
+            </span>
+          </div>
+          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #f59e0b" }}>
+            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Church Discounts</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#d97706" }}>${(stats.total_discounts || 0).toFixed(2)}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Total discounts granted</span>
+          </div>
+          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--danger)" }}>
+            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Total Expenses</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "var(--danger)" }}>${(stats.total_expenses || 0).toFixed(2)}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Outflow items registered</span>
+          </div>
+          <div className="card" style={{ 
+            padding: 16, 
+            display: "flex", 
+            flexDirection: "column", 
+            borderLeft: `4px solid ${stats.net_balance >= 0 ? "#3498db" : "var(--danger)"}` 
+          }}>
+            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Net Balance</span>
+            <span style={{ 
+              fontSize: "1.5rem", 
+              fontWeight: 700, 
+              margin: "8px 0", 
+              color: stats.net_balance >= 0 ? "#3498db" : "var(--danger)" 
+            }}>${(stats.net_balance || 0).toFixed(2)}</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Collected Fees minus Expenses</span>
+          </div>
         </div>
-        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #2ecc71" }}>
-          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Collected Fees</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#2ecc71" }}>${(stats.total_collected_fees || 0).toFixed(2)}</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-            {stats.total_expected_fees > 0 
-              ? `${(((stats.total_collected_fees || 0) / stats.total_expected_fees) * 100).toFixed(1)}% of expectation` 
-              : "0% of expectation"}
-          </span>
-        </div>
-        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #f59e0b" }}>
-          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Church Discounts</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#d97706" }}>${(stats.total_discounts || 0).toFixed(2)}</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Total discounts granted</span>
-        </div>
-        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--danger)" }}>
-          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Total Expenses</span>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "var(--danger)" }}>${(stats.total_expenses || 0).toFixed(2)}</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Outflow items registered</span>
-        </div>
-        <div className="card" style={{ 
-          padding: 16, 
-          display: "flex", 
-          flexDirection: "column", 
-          borderLeft: `4px solid ${stats.net_balance >= 0 ? "#3498db" : "var(--danger)"}` 
-        }}>
-          <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Net Balance</span>
-          <span style={{ 
-            fontSize: "1.5rem", 
-            fontWeight: 700, 
-            margin: "8px 0", 
-            color: stats.net_balance >= 0 ? "#3498db" : "var(--danger)" 
-          }}>${(stats.net_balance || 0).toFixed(2)}</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Collected Fees minus Expenses</span>
-        </div>
-      </div>
+      )}
 
       {/* Premium Segmented Card Tabs */}
-      <div style={{ 
-        display: "flex", 
-        gap: "12px", 
-        marginBottom: "24px",
-        flexWrap: "wrap"
-      }}>
-        <button 
-          style={{
-            padding: "12px 20px",
-            background: activeTab === "fees" ? "#ffffff" : "rgba(0,0,0,0.02)",
-            border: "1px solid var(--border-color)",
-            borderLeft: "4px solid var(--forest)",
-            borderRadius: "10px",
-            color: activeTab === "fees" ? "var(--forest)" : "var(--text-secondary)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            boxShadow: activeTab === "fees" ? "0 4px 12px rgba(30, 77, 43, 0.06)" : "none",
-            transform: activeTab === "fees" ? "translateY(-1px)" : "none",
-            transition: "all 0.2s ease"
-          }}
-          onClick={() => setActiveTab("fees")}
-        >
-          <span style={{ fontSize: "1.25rem" }}>🏷️</span>
-          <div style={{ textAlign: "left" }}>
-            <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Family Camp Fees</div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Collections</div>
-          </div>
-        </button>
-        <button 
-          style={{
-            padding: "12px 20px",
-            background: activeTab === "expenses" ? "#ffffff" : "rgba(0,0,0,0.02)",
-            border: "1px solid var(--border-color)",
-            borderLeft: "4px solid var(--danger)",
-            borderRadius: "10px",
-            color: activeTab === "expenses" ? "var(--danger)" : "var(--text-secondary)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            boxShadow: activeTab === "expenses" ? "0 4px 12px rgba(192, 57, 43, 0.06)" : "none",
-            transform: activeTab === "expenses" ? "translateY(-1px)" : "none",
-            transition: "all 0.2s ease"
-          }}
-          onClick={() => setActiveTab("expenses")}
-        >
-          <span style={{ fontSize: "1.25rem" }}>🧾</span>
-          <div style={{ textAlign: "left" }}>
-            <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Itemized Expenses</div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Outflow</div>
-          </div>
-        </button>
-      </div>
+      {canReadFinance && (
+        <div style={{ 
+          display: "flex", 
+          gap: "12px", 
+          marginBottom: "24px",
+          flexWrap: "wrap"
+        }}>
+          <button 
+            style={{
+              padding: "12px 20px",
+              background: activeTab === "fees" ? "#ffffff" : "rgba(0,0,0,0.02)",
+              border: "1px solid var(--border-color)",
+              borderLeft: "4px solid var(--forest)",
+              borderRadius: "10px",
+              color: activeTab === "fees" ? "var(--forest)" : "var(--text-secondary)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              boxShadow: activeTab === "fees" ? "0 4px 12px rgba(30, 77, 43, 0.06)" : "none",
+              transform: activeTab === "fees" ? "translateY(-1px)" : "none",
+              transition: "all 0.2s ease"
+            }}
+            onClick={() => setActiveTab("fees")}
+          >
+            <span style={{ fontSize: "1.25rem" }}>🏷️</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Family Camp Fees</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Collections</div>
+            </div>
+          </button>
+          <button 
+            style={{
+              padding: "12px 20px",
+              background: activeTab === "expenses" ? "#ffffff" : "rgba(0,0,0,0.02)",
+              border: "1px solid var(--border-color)",
+              borderLeft: "4px solid var(--danger)",
+              borderRadius: "10px",
+              color: activeTab === "expenses" ? "var(--danger)" : "var(--text-secondary)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              boxShadow: activeTab === "expenses" ? "0 4px 12px rgba(192, 57, 43, 0.06)" : "none",
+              transform: activeTab === "expenses" ? "translateY(-1px)" : "none",
+              transition: "all 0.2s ease"
+            }}
+            onClick={() => setActiveTab("expenses")}
+          >
+            <span style={{ fontSize: "1.25rem" }}>🧾</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Itemized Expenses</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Outflow</div>
+            </div>
+          </button>
+        </div>
+      )}
 
       {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>Loading finance records...</div>}
 
