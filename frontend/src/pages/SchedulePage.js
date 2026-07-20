@@ -457,7 +457,10 @@ export default function SchedulePage() {
     return (
       <>
         <div className="top-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ margin: 0 }}>Camp Schedule</h1>
+          <div>
+            <h1 style={{ margin: 0 }}>📅 Camp Schedule ({new Date().getFullYear()})</h1>
+            <span className="text-muted">Master activity timeline and events schedule</span>
+          </div>
           {canExport && (
             <button 
               className="btn btn-secondary" 
@@ -496,7 +499,7 @@ export default function SchedulePage() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/gca-logo-white.png" alt="GCA Logo" style={{ height: 22, width: "auto", objectFit: "contain" }} />
           <span style={{ fontFamily: "Playfair Display, serif", color: "var(--white)", fontSize: "1.25rem", fontWeight: 600 }}>
-            GCA Camp Schedule
+            GCA Camp Schedule {new Date().getFullYear()}
           </span>
         </div>
         <Link to="/login" className="btn btn-gold btn-sm">
@@ -508,7 +511,7 @@ export default function SchedulePage() {
       <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <h2 style={{ fontFamily: "Playfair Display, serif", fontSize: "1.75rem", color: "var(--forest)" }}>
-            Camp Activities Timeline
+            Camp Activities Timeline — {new Date().getFullYear()}
           </h2>
         </div>
         {scheduleContent}
