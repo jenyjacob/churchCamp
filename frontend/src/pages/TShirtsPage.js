@@ -260,13 +260,29 @@ export default function TShirtsPage() {
   const handleTshirtUpdate = async (camperId, field, value) => {
     const key = `${camperId}-${field}`;
     setSavingMap(prev => ({ ...prev, [key]: "saving" }));
+
+    // Mutually exclusive shirt selection: if picking a size in one system, clear the other system
+    const payload = { [field]: value };
+    if (value) {
+      if (field === "tshirt_size") {
+        payload.indian_size = "";
+      } else if (field === "indian_size") {
+        payload.tshirt_size = "";
+      }
+    }
+
     try {
-      await api.put(`/api/campers/${camperId}`, { [field]: value });
+      await api.put(`/api/campers/${camperId}`, payload);
       setSavingMap(prev => ({ ...prev, [key]: "saved" }));
       
       setCampers(prev => prev.map(c => {
         if (c.id === camperId) {
-          return { ...c, [field]: value };
+          const updated = { ...c, [field]: value };
+          if (value) {
+            if (field === "tshirt_size") updated.indian_size = "";
+            if (field === "indian_size") updated.tshirt_size = "";
+          }
+          return updated;
         }
         return c;
       }));
@@ -357,11 +373,8 @@ export default function TShirtsPage() {
     return !isNaN(num) && num > 0 ? sum + num : sum;
   }, 0);
 
-  const grandTotalStock = totalUsStock + totalIndianStock;
-  const grandTotalClaimed = totalUsCount + totalIndianCount;
   const totalUsRemaining = totalUsStock > 0 ? totalUsStock - totalUsCount : null;
   const totalIndianRemaining = totalIndianStock > 0 ? totalIndianStock - totalIndianCount : null;
-  const grandTotalRemaining = grandTotalStock > 0 ? grandTotalStock - grandTotalClaimed : null;
 
   return (
     <>
@@ -406,39 +419,10 @@ export default function TShirtsPage() {
             {isSummaryExpanded && (
               <div style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
                 
-                {/* Inventory Summary KPI Row */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 20 }}>
-                  <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Total Claimed Shirts</div>
-                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest)", marginTop: 2 }}>
-                      {grandTotalClaimed} <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)" }}>({totalUsCount} US / {totalIndianCount} IN)</span>
-                    </div>
-                  </div>
-
-                  <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Total Configured Stock</div>
-                    <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest-mid)", marginTop: 2 }}>
-                      {grandTotalStock > 0 ? grandTotalStock : "No Limit Set"} {grandTotalStock > 0 && <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)" }}>({totalUsStock} US / {totalIndianStock} IN)</span>}
-                    </div>
-                  </div>
-
-                  {grandTotalStock > 0 && (
-                    <div style={{ background: grandTotalRemaining >= 0 ? "rgba(34, 76, 56, 0.08)" : "rgba(220, 38, 38, 0.08)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Total Remaining Stock</div>
-                      <div style={{ fontSize: "1.3rem", fontWeight: 800, color: grandTotalRemaining >= 0 ? "var(--forest)" : "var(--red)", marginTop: 2 }}>
-                        {grandTotalRemaining >= 0 ? `${grandTotalRemaining} left` : `🔴 ${Math.abs(grandTotalRemaining)} over limit`}
-                        <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)", marginLeft: 6 }}>
-                          ({totalUsRemaining !== null ? `${totalUsRemaining} US` : "US N/A"} / {totalIndianRemaining !== null ? `${totalIndianRemaining} IN` : "IN N/A"})
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
                 {/* Size System Choice Selector Bar */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20, background: "rgba(0,0,0,0.02)", padding: "10px 14px", borderRadius: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--forest-mid)" }}>Select Sizing System:</span>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--forest-mid)" }}>View Inventory For:</span>
                     <div style={{ display: "inline-flex", background: "#fff", padding: 3, borderRadius: 8, border: "1px solid var(--border-color)" }}>
                       <button
                         type="button"
@@ -477,6 +461,131 @@ export default function TShirtsPage() {
                       ⚙️ Manage Inventory Stock Limits
                     </button>
                   )}
+                </div>
+
+                {/* Inventory Summary KPI Row */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
+                  
+                  {sizeSystemTab === "US" && (
+                    <>
+                      <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Total Claimed US Shirts</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest)", marginTop: 2 }}>
+                          {totalUsCount} <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--charcoal)" }}>claimed</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Configured US Stock Limit</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest-mid)", marginTop: 2 }}>
+                          {totalUsStock > 0 ? `${totalUsStock} shirts` : "No Limit Set"}
+                        </div>
+                      </div>
+
+                      <div style={{ background: totalUsRemaining !== null && totalUsRemaining < 0 ? "rgba(220, 38, 38, 0.06)" : "rgba(34, 76, 56, 0.08)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Remaining US Stock</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: totalUsRemaining !== null && totalUsRemaining >= 0 ? "var(--forest)" : totalUsRemaining !== null ? "var(--red)" : "var(--charcoal)", marginTop: 2 }}>
+                          {totalUsStock > 0 ? (
+                            totalUsRemaining >= 0 ? `✅ ${totalUsRemaining} left` : `🔴 ${Math.abs(totalUsRemaining)} over limit`
+                          ) : (
+                            <span style={{ fontSize: "0.9rem", color: "var(--muted)" }}>No stock limit set</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {sizeSystemTab === "INDIAN" && (
+                    <>
+                      <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Total Claimed Indian Shirts</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest-mid)", marginTop: 2 }}>
+                          {totalIndianCount} <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--charcoal)" }}>claimed</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Configured Indian Stock Limit</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest-mid)", marginTop: 2 }}>
+                          {totalIndianStock > 0 ? `${totalIndianStock} shirts` : "No Limit Set"}
+                        </div>
+                      </div>
+
+                      <div style={{ background: totalIndianRemaining !== null && totalIndianRemaining < 0 ? "rgba(220, 38, 38, 0.06)" : "rgba(34, 76, 56, 0.08)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Remaining Indian Stock</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: totalIndianRemaining !== null && totalIndianRemaining >= 0 ? "var(--forest)" : totalIndianRemaining !== null ? "var(--red)" : "var(--charcoal)", marginTop: 2 }}>
+                          {totalIndianStock > 0 ? (
+                            totalIndianRemaining >= 0 ? `✅ ${totalIndianRemaining} left` : `🔴 ${Math.abs(totalIndianRemaining)} over limit`
+                          ) : (
+                            <span style={{ fontSize: "0.9rem", color: "var(--muted)" }}>No stock limit set</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {sizeSystemTab === "BOTH" && (
+                    <>
+                      {/* US Size KPI Card */}
+                      <div style={{ background: totalUsRemaining !== null && totalUsRemaining < 0 ? "rgba(220, 38, 38, 0.06)" : "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>🇺🇸 US Size Stock</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest)", marginTop: 2 }}>
+                          {totalUsCount} <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--charcoal)" }}>claimed</span>
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
+                          {totalUsStock > 0 ? (
+                            <>
+                              Limit: <strong>{totalUsStock}</strong> &bull;{" "}
+                              <span style={{ fontWeight: 700, color: totalUsRemaining >= 0 ? "var(--forest)" : "var(--red)" }}>
+                                {totalUsRemaining >= 0 ? `✅ ${totalUsRemaining} left` : `🔴 ${Math.abs(totalUsRemaining)} over limit`}
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{ color: "var(--muted)" }}>No stock limit set</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Indian Size KPI Card */}
+                      <div style={{ background: totalIndianRemaining !== null && totalIndianRemaining < 0 ? "rgba(220, 38, 38, 0.06)" : "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>🇮🇳 Indian Size Stock</div>
+                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest-mid)", marginTop: 2 }}>
+                          {totalIndianCount} <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--charcoal)" }}>claimed</span>
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
+                          {totalIndianStock > 0 ? (
+                            <>
+                              Limit: <strong>{totalIndianStock}</strong> &bull;{" "}
+                              <span style={{ fontWeight: 700, color: totalIndianRemaining >= 0 ? "var(--forest)" : "var(--red)" }}>
+                                {totalIndianRemaining >= 0 ? `✅ ${totalIndianRemaining} left` : `🔴 ${Math.abs(totalIndianRemaining)} over limit`}
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{ color: "var(--muted)" }}>No stock limit set</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Total Camper Allocation Card */}
+                      <div style={{ background: "rgba(34, 76, 56, 0.05)", border: "1px solid var(--border-color)", padding: "12px 16px", borderRadius: 8 }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Campers With T-Shirts</div>
+                        {(() => {
+                          const uniqueCampersWithShirt = campers.filter(c => Boolean(c.tshirt_size?.trim() || c.indian_size?.trim())).length;
+                          return (
+                            <>
+                              <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--forest)", marginTop: 2 }}>
+                                {uniqueCampersWithShirt} <span style={{ fontSize: "0.85rem", fontWeight: 500, color: "var(--text-secondary)" }}>/ {campers.length} campers</span>
+                              </div>
+                              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
+                                {totalUsCount} US sizes + {totalIndianCount} Indian sizes
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </>
+                  )}
+
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: (sizeSystemTab === "BOTH") ? "1fr auto 1fr" : "1fr", gap: 24 }}>
@@ -996,7 +1105,7 @@ export default function TShirtsPage() {
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-color)", paddingTop: 16 }}>
                       <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--forest)" }}>
-                        Overall Total Inventory Limit: {formUsTotal + formIndianTotal} shirts
+                        Configured Limits: {formUsTotal} US stock / {formIndianTotal} Indian stock
                       </div>
                       <div style={{ display: "flex", gap: 10 }}>
                         <button type="button" className="btn btn-secondary" onClick={() => setIsStockModalOpen(false)}>
