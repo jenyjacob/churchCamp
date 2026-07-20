@@ -10,6 +10,7 @@ class FamilyPayment(db.Model):
     notes = db.Column(db.Text, nullable=True)
     override_fee = db.Column(db.Float, nullable=True)
     discount = db.Column(db.Float, nullable=False, default=0.0)
+    head_camper_id = db.Column(db.Integer, nullable=True)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
@@ -20,5 +21,6 @@ class FamilyPayment(db.Model):
             "notes": self.notes,
             "override_fee": self.override_fee,
             "discount": self.discount,
+            "head_camper_id": self.head_camper_id,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

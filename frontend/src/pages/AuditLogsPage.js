@@ -25,6 +25,8 @@ export default function AuditLogsPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [operatorSearch, setOperatorSearch] = useState("");
+  const [availableOperators, setAvailableOperators] = useState([]);
 
   const handleClearLogs = async () => {
     if (!window.confirm("Are you sure you want to permanently delete all system activity logs? This action cannot be undone.")) {
@@ -46,11 +48,20 @@ export default function AuditLogsPage() {
 
   const fetchLogs = useCallback(() => {
     setLoading(true);
-    api.get(`/api/users/audit-logs?page=${page}&per_page=25`)
+    const query = new URLSearchParams({
+      page: page,
+      per_page: 25,
+      ...(operatorSearch.trim() ? { operator: operatorSearch.trim() } : {})
+    });
+
+    api.get(`/api/users/audit-logs?${query.toString()}`)
       .then(res => {
         setLogs(res.data.logs || []);
         setTotal(res.data.total || 0);
         setPages(res.data.pages || 1);
+        if (res.data.operators) {
+          setAvailableOperators(res.data.operators);
+        }
       })
       .catch(err => {
         setError("Failed to fetch application activity logs.");
@@ -58,11 +69,21 @@ export default function AuditLogsPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, [page]);
+  }, [page, operatorSearch]);
 
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  const handleOperatorSearchChange = (e) => {
+    setOperatorSearch(e.target.value);
+    setPage(1);
+  };
+
+  const clearOperatorFilter = () => {
+    setOperatorSearch("");
+    setPage(1);
+  };
 
   const formatTimestamp = (isoString) => {
     if (!isoString) return "—";
@@ -106,8 +127,57 @@ export default function AuditLogsPage() {
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 600, color: "var(--forest-mid)" }}>Activity Log Feed</span>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 600, color: "var(--forest-mid)" }}>Activity Log Feed</span>
+              
+              {/* Operator Search Bar */}
+              <div style={{ position: "relative", minWidth: 220 }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="🔍 Search Operator Name..."
+                  value={operatorSearch}
+                  onChange={handleOperatorSearchChange}
+                  style={{ height: 34, paddingRight: operatorSearch ? 30 : 12, fontSize: "0.85rem" }}
+                />
+                {operatorSearch && (
+                  <button
+                    onClick={clearOperatorFilter}
+                    style={{
+                      position: "absolute",
+                      right: 8,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "var(--muted)",
+                      cursor: "pointer",
+                      fontSize: "0.9rem"
+                    }}
+                    title="Clear operator search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Operator Dropdown Select */}
+              {availableOperators.length > 0 && (
+                <select
+                  className="form-select"
+                  value={operatorSearch}
+                  onChange={handleOperatorSearchChange}
+                  style={{ height: 34, fontSize: "0.85rem", width: "auto", minWidth: 160 }}
+                >
+                  <option value="">All Operators ({availableOperators.length})</option>
+                  {availableOperators.map(op => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <span className="text-muted" style={{ fontSize: "0.85rem" }}>Total events: {total}</span>
           </div>
 

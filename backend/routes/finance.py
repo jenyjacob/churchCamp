@@ -188,16 +188,37 @@ def get_fees():
         total_expected += (calculated_fee + activity_fee)
         total_collected += amount_paid
 
-        # Format display name of the family
-        # e.g., "George Family" or list of names
+        # Resolve Head of Family
+        head_camper = None
+        target_head_id = pay_record.head_camper_id if pay_record else None
+        if target_head_id:
+            head_camper = next((m for m in family["members"] if m["id"] == target_head_id), None)
+        
+        # Auto-assign first member if not explicitly set or if head was deleted
+        if not head_camper and len(family["members"]) > 0:
+            head_camper = family["members"][0]
+            if pay_record:
+                pay_record.head_camper_id = head_camper["id"]
+                db.session.commit()
+
+        head_first_name = head_camper["first_name"] if head_camper else ""
+        head_last_name = head_camper["last_name"] if head_camper else ""
+        head_full_name = head_camper["full_name"] if head_camper else ""
+        head_camper_id = head_camper["id"] if head_camper else None
+
+        # Format display name of the family to include Head of Family's First Name & Last Name
         if fg.startswith("single-"):
-            display_name = f"Single: {family['members'][0]['full_name']}"
+            display_name = f"Single: {head_full_name}"
         else:
-            display_name = f"Family #{fg} ({family['members'][0]['last_name']})"
+            display_name = f"Family #{fg} ({head_full_name})"
 
         results.append({
             "family_group": fg,
             "display_name": display_name,
+            "head_camper_id": head_camper_id,
+            "head_first_name": head_first_name,
+            "head_last_name": head_last_name,
+            "head_full_name": head_full_name,
             "members": family["members"],
             "eligible_count": eligible_count,
             "calculated_fee": calculated_fee,
@@ -317,6 +338,41 @@ def update_fee_payment():
     log_action("RECORD_FEE_PAYMENT", f"Recorded payment for Family '{fg}': Paid ${amount_paid} (Status: {status}, Discount: {parsed_discount}, Override Fee: {parsed_override_fee})")
 
     return jsonify({"payment": payment.to_dict()}), 200
+
+@finance_bp.route("/set-head", methods=["POST"])
+@jwt_required()
+@require_page_permission("finance", "edit")
+def set_family_head():
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    role = claims.get("role", "user")
+
+    if role != "owner":
+        return jsonify({"error": "Only the Camp Owner is authorized to change the Head of Family."}), 403
+
+    data = request.get_json()
+    fg = data.get("family_group")
+    head_camper_id = data.get("head_camper_id")
+
+    if not fg or not head_camper_id:
+        return jsonify({"error": "family_group and head_camper_id are required"}), 400
+
+    camper = Camper.query.get(head_camper_id)
+    if not camper or camper.family_group != fg:
+        return jsonify({"error": "Selected camper does not belong to this family group"}), 400
+
+    payment = FamilyPayment.query.filter_by(family_group=fg).first()
+    if not payment:
+        payment = FamilyPayment(family_group=fg, head_camper_id=head_camper_id)
+        db.session.add(payment)
+    else:
+        payment.head_camper_id = head_camper_id
+
+    db.session.commit()
+    from utils.logging import log_action
+    log_action("SET_FAMILY_HEAD", f"Designated {camper.first_name} {camper.last_name} (ID: {camper.id}) as Head of Family Group #{fg}")
+
+    return jsonify({"message": "Head of Family updated successfully", "payment": payment.to_dict()}), 200
 
 @finance_bp.route("/merge-families", methods=["POST"])
 @jwt_required()

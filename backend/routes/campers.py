@@ -356,6 +356,15 @@ def delete_camper(camper_id):
 
     camper = Camper.query.get_or_404(camper_id)
     camper_name = f"{camper.first_name} {camper.last_name}"
+
+    # Auto re-assign Head of Family if deleted camper was the designated head
+    if camper.family_group:
+        from models import FamilyPayment
+        pay_record = FamilyPayment.query.filter_by(family_group=camper.family_group).first()
+        if pay_record and pay_record.head_camper_id == camper.id:
+            next_head = Camper.query.filter(Camper.family_group == camper.family_group, Camper.id != camper.id).first()
+            pay_record.head_camper_id = next_head.id if next_head else None
+
     db.session.delete(camper)
     db.session.commit()
     from utils.logging import log_action

@@ -155,16 +155,27 @@ def get_audit_logs():
 
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 50))
+    operator_query = request.args.get("operator", "").strip() or request.args.get("search", "").strip()
 
-    paginated = AuditLog.query.order_by(AuditLog.timestamp.desc()).paginate(
+    query = AuditLog.query
+
+    if operator_query:
+        query = query.filter(AuditLog.username.ilike(f"%{operator_query}%"))
+
+    paginated = query.order_by(AuditLog.timestamp.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
+
+    # Unique operator usernames list for dropdown filter
+    operators_raw = db.session.query(AuditLog.username).filter(AuditLog.username.isnot(None)).distinct().all()
+    operators = sorted([r[0] for r in operators_raw if r[0]])
 
     return jsonify({
         "logs": [log.to_dict() for log in paginated.items],
         "total": paginated.total,
         "pages": paginated.pages,
         "page": page,
+        "operators": operators
     }), 200
 
 @users_bp.route("/audit-logs", methods=["DELETE"])

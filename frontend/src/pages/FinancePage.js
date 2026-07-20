@@ -329,6 +329,16 @@ export default function FinancePage() {
     }
   };
 
+  const handleSetHeadOfFamily = async (family_group, head_camper_id) => {
+    try {
+      await api.post("/api/finance/set-head", { family_group, head_camper_id });
+      flashSuccess("Head of Family updated successfully!");
+      fetchFinanceData();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to update Head of Family.");
+    }
+  };
+
   // Payment CRUD
   const handleOpenPaymentModal = (family) => {
     setActiveFamily(family);
@@ -337,7 +347,8 @@ export default function FinancePage() {
       status: family.status,
       notes: family.notes || "",
       override_fee: family.override_fee !== null ? family.override_fee : "",
-      discount: family.discount !== null && family.discount !== undefined ? family.discount : ""
+      discount: family.discount !== null && family.discount !== undefined ? family.discount : "",
+      head_camper_id: family.head_camper_id || (family.members?.[0]?.id || "")
     });
     setIsPaymentModalOpen(true);
   };
@@ -354,6 +365,14 @@ export default function FinancePage() {
         override_fee: paymentForm.override_fee !== "" ? paymentForm.override_fee : null,
         discount: paymentForm.discount !== "" ? parseFloat(paymentForm.discount) : 0.0
       });
+
+      if (user?.role === "owner" && paymentForm.head_camper_id && parseInt(paymentForm.head_camper_id) !== activeFamily.head_camper_id) {
+        await api.post("/api/finance/set-head", {
+          family_group: activeFamily.family_group,
+          head_camper_id: parseInt(paymentForm.head_camper_id)
+        });
+      }
+
       flashSuccess(`Payment details for '${activeFamily.display_name}' saved!`);
       setIsPaymentModalOpen(false);
       fetchFinanceData();
@@ -1034,6 +1053,22 @@ export default function FinancePage() {
                                   }}>
                                     <div>
                                       <span style={{ fontWeight: 600 }}>{m.full_name}</span>
+                                      {user?.role === "owner" && (
+                                        m.id === f.head_camper_id ? (
+                                          <span className="badge badge-warning" style={{ marginLeft: 8, fontSize: "0.7rem", padding: "2px 6px" }}>
+                                            👑 Head of Family
+                                          </span>
+                                        ) : (
+                                          <button 
+                                            className="btn btn-ghost" 
+                                            onClick={() => handleSetHeadOfFamily(f.family_group, m.id)}
+                                            style={{ marginLeft: 8, fontSize: "0.7rem", padding: "2px 6px", border: "1px dashed var(--border-color)", cursor: "pointer" }}
+                                            title="Designate as Head of Family (Owner Only)"
+                                          >
+                                            👑 Make Head
+                                          </button>
+                                        )
+                                      )}
                                       {(m.kayaking > 0 || m.boat_tour > 0) && (
                                         <span style={{ marginLeft: 10, fontSize: "0.75rem", background: "var(--light-bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border-color)", color: "var(--forest)" }}>
                                           {[
@@ -1281,8 +1316,27 @@ export default function FinancePage() {
               </div>
             </div>
             <form onSubmit={handleSavePayment}>
+              {user?.role === "owner" && (
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Head of Family</label>
+                  <select 
+                    className="form-input" 
+                    value={paymentForm.head_camper_id || ""}
+                    onChange={e => setPaymentForm(prev => ({ ...prev, head_camper_id: e.target.value }))}
+                  >
+                    {activeFamily?.members?.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name} {m.id === activeFamily.head_camper_id ? "👑 (Current Head)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginTop: 4 }}>
+                    Designate which member is the official Head of Family.
+                  </span>
+                </div>
+              )}
               <div className="form-group" style={{ marginBottom: 12 }}>
-                <label className="form-label">Amount Paid ($) *</label>
+                <label className="form-label">Payment Amount Paid ($) *</label>
                 <input 
                   type="number" 
                   step="0.01"

@@ -142,6 +142,17 @@ def create_app():
             except Exception as migration_ex:
                 db.session.rollback()
 
+        try:
+            db.session.execute(text("SELECT head_camper_id FROM family_payments LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE family_payments ADD COLUMN head_camper_id INTEGER DEFAULT NULL"))
+                db.session.commit()
+                print("Database migrated: added head_camper_id column to family_payments table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+
         from utils.seed import seed_admin
         seed_admin()
 
