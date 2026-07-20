@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
-const TSHIRT_SIZES = [
+const DEFAULT_US_SIZES = [
   "2T", "3T", "4T", "5T",
   "YXXS", "YXS", "YS", "YM", "YL", "YXL",
   "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"
@@ -33,7 +33,12 @@ export default function TShirtsPage() {
   const [stockFormUs, setStockFormUs] = useState({});
   const [stockFormIndian, setStockFormIndian] = useState({});
   const [savingStock, setSavingStock] = useState(false);
+
+  const [customUsSizes, setCustomUsSizes] = useState([]);
+  const [deletedUsSizes, setDeletedUsSizes] = useState([]);
+
   const [customIndianSizes, setCustomIndianSizes] = useState([]);
+  const [deletedIndianSizes, setDeletedIndianSizes] = useState([]);
 
   const fetchSettings = useCallback(() => {
     api.get("/api/settings/")
@@ -46,8 +51,17 @@ export default function TShirtsPage() {
           if (settings.tshirt_stock_indian) {
             setStockIndian(JSON.parse(settings.tshirt_stock_indian));
           }
+          if (settings.custom_us_sizes) {
+            setCustomUsSizes(JSON.parse(settings.custom_us_sizes));
+          }
+          if (settings.deleted_us_sizes) {
+            setDeletedUsSizes(JSON.parse(settings.deleted_us_sizes));
+          }
           if (settings.custom_indian_sizes) {
             setCustomIndianSizes(JSON.parse(settings.custom_indian_sizes));
+          }
+          if (settings.deleted_indian_sizes) {
+            setDeletedIndianSizes(JSON.parse(settings.deleted_indian_sizes));
           }
         } catch (e) {
           console.error("Failed to parse stock settings", e);
@@ -56,27 +70,148 @@ export default function TShirtsPage() {
       .catch(() => {});
   }, []);
 
+  const handleAddCustomUsSize = async (sizeName) => {
+    const trimmed = sizeName?.trim();
+    if (!trimmed) return;
+
+    const newDeleted = deletedUsSizes.filter(s => s !== trimmed);
+    setDeletedUsSizes(newDeleted);
+
+    if (!customUsSizes.includes(trimmed) && !DEFAULT_US_SIZES.includes(trimmed)) {
+      const updated = [...customUsSizes, trimmed];
+      setCustomUsSizes(updated);
+      try {
+        await api.post("/api/settings/", {
+          custom_us_sizes: JSON.stringify(updated),
+          deleted_us_sizes: JSON.stringify(newDeleted)
+        });
+      } catch {
+        setError("Failed to save custom US T-Shirt size.");
+      }
+    } else if (deletedUsSizes.includes(trimmed)) {
+      try {
+        await api.post("/api/settings/", {
+          deleted_us_sizes: JSON.stringify(newDeleted)
+        });
+      } catch {
+        setError("Failed to restore US T-Shirt size.");
+      }
+    }
+  };
+
+  const handleDeleteUsSize = async (sizeName) => {
+    const claimedCount = usSizeCounts[sizeName] || 0;
+    if (claimedCount > 0) {
+      alert(`Cannot delete US size "${sizeName}" because it is currently assigned to ${claimedCount} camper(s).`);
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete unused US size "${sizeName}"?`)) {
+      const updatedDeleted = Array.from(new Set([...deletedUsSizes, sizeName]));
+      const updatedCustom = customUsSizes.filter(s => s !== sizeName);
+
+      setDeletedUsSizes(updatedDeleted);
+      setCustomUsSizes(updatedCustom);
+
+      setStockFormUs(prev => {
+        const next = { ...prev };
+        delete next[sizeName];
+        return next;
+      });
+
+      const nextStockUs = { ...stockUs };
+      delete nextStockUs[sizeName];
+      setStockUs(nextStockUs);
+
+      try {
+        await api.post("/api/settings/", {
+          deleted_us_sizes: JSON.stringify(updatedDeleted),
+          custom_us_sizes: JSON.stringify(updatedCustom),
+          tshirt_stock_us: JSON.stringify(nextStockUs)
+        });
+      } catch {
+        setError("Failed to delete US size.");
+      }
+    }
+  };
+
   const handleAddCustomSize = async (sizeName) => {
     const trimmed = sizeName?.trim();
     if (!trimmed) return;
+
+    const newDeleted = deletedIndianSizes.filter(s => s !== trimmed);
+    setDeletedIndianSizes(newDeleted);
 
     if (!customIndianSizes.includes(trimmed) && !DEFAULT_INDIAN_SIZES.includes(trimmed)) {
       const updated = [...customIndianSizes, trimmed];
       setCustomIndianSizes(updated);
       try {
         await api.post("/api/settings/", {
-          custom_indian_sizes: JSON.stringify(updated)
+          custom_indian_sizes: JSON.stringify(updated),
+          deleted_indian_sizes: JSON.stringify(newDeleted)
         });
       } catch {
         setError("Failed to save custom Indian T-Shirt size.");
       }
+    } else if (deletedIndianSizes.includes(trimmed)) {
+      try {
+        await api.post("/api/settings/", {
+          deleted_indian_sizes: JSON.stringify(newDeleted)
+        });
+      } catch {
+        setError("Failed to restore Indian T-Shirt size.");
+      }
     }
   };
 
+  const handleDeleteIndianSize = async (sizeName) => {
+    const claimedCount = indianSizeCounts[sizeName] || 0;
+    if (claimedCount > 0) {
+      alert(`Cannot delete size "${sizeName}" because it is currently assigned to ${claimedCount} camper(s).`);
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete unused size "${sizeName}"?`)) {
+      const updatedDeleted = Array.from(new Set([...deletedIndianSizes, sizeName]));
+      const updatedCustom = customIndianSizes.filter(s => s !== sizeName);
+
+      setDeletedIndianSizes(updatedDeleted);
+      setCustomIndianSizes(updatedCustom);
+
+      setStockFormIndian(prev => {
+        const next = { ...prev };
+        delete next[sizeName];
+        return next;
+      });
+
+      const nextStockIndian = { ...stockIndian };
+      delete nextStockIndian[sizeName];
+      setStockIndian(nextStockIndian);
+
+      try {
+        await api.post("/api/settings/", {
+          deleted_indian_sizes: JSON.stringify(updatedDeleted),
+          custom_indian_sizes: JSON.stringify(updatedCustom),
+          tshirt_stock_indian: JSON.stringify(nextStockIndian)
+        });
+      } catch {
+        setError("Failed to delete size.");
+      }
+    }
+  };
+
+  const activeUsSizes = Array.from(
+    new Set([
+      ...DEFAULT_US_SIZES.filter(sz => !deletedUsSizes.includes(sz)),
+      ...customUsSizes.filter(sz => !deletedUsSizes.includes(sz)),
+      ...campers.map(c => c.tshirt_size?.trim()).filter(Boolean)
+    ])
+  );
+
   const activeIndianSizes = Array.from(
     new Set([
-      ...DEFAULT_INDIAN_SIZES,
-      ...customIndianSizes,
+      ...DEFAULT_INDIAN_SIZES.filter(sz => !deletedIndianSizes.includes(sz)),
+      ...customIndianSizes.filter(sz => !deletedIndianSizes.includes(sz)),
       ...campers.map(c => c.indian_size?.trim()).filter(Boolean)
     ])
   );
@@ -292,6 +427,9 @@ export default function TShirtsPage() {
                       <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>Total Remaining Stock</div>
                       <div style={{ fontSize: "1.3rem", fontWeight: 800, color: grandTotalRemaining >= 0 ? "var(--forest)" : "var(--red)", marginTop: 2 }}>
                         {grandTotalRemaining >= 0 ? `${grandTotalRemaining} left` : `🔴 ${Math.abs(grandTotalRemaining)} over limit`}
+                        <span style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text-secondary)", marginLeft: 6 }}>
+                          ({totalUsRemaining !== null ? `${totalUsRemaining} US` : "US N/A"} / {totalIndianRemaining !== null ? `${totalIndianRemaining} IN` : "IN N/A"})
+                        </span>
                       </div>
                     </div>
                   )}
@@ -351,7 +489,7 @@ export default function TShirtsPage() {
                         <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "normal" }}>{totalUsCount} total claimed</span>
                       </h4>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
-                        {TSHIRT_SIZES.map(sz => {
+                        {activeUsSizes.map(sz => {
                           const claimed = usSizeCounts[sz] || 0;
                           const total = stockUs[sz] !== undefined && stockUs[sz] !== "" ? parseInt(stockUs[sz], 10) : null;
                           const hasStockLimit = total !== null && !isNaN(total);
@@ -498,15 +636,28 @@ export default function TShirtsPage() {
                                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                                   <select 
                                     className="form-select" 
-                                    style={{ width: 110, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                    style={{ width: 120, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
                                     value={c.tshirt_size || ""}
-                                    onChange={e => handleTshirtUpdate(c.id, "tshirt_size", e.target.value)}
+                                    onChange={async (e) => {
+                                      const val = e.target.value;
+                                      if (val === "__ADD_CUSTOM__") {
+                                        const custom = window.prompt("Enter new custom US T-Shirt size:");
+                                        if (custom && custom.trim()) {
+                                          const clean = custom.trim();
+                                          await handleAddCustomUsSize(clean);
+                                          handleTshirtUpdate(c.id, "tshirt_size", clean);
+                                        }
+                                      } else {
+                                        handleTshirtUpdate(c.id, "tshirt_size", val);
+                                      }
+                                    }}
                                     disabled={!canEdit}
                                   >
                                     <option value="">— Select —</option>
-                                    {TSHIRT_SIZES.map(sz => (
+                                    {activeUsSizes.map(sz => (
                                       <option key={sz} value={sz}>{sz}</option>
                                     ))}
+                                    <option value="__ADD_CUSTOM__">➕ Custom Size...</option>
                                   </select>
                                   {savingMap[`${c.id}-tshirt_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
                                   {savingMap[`${c.id}-tshirt_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
@@ -579,17 +730,30 @@ export default function TShirtsPage() {
                               <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>US Size</label>
                               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                                 <select 
-                                  className="form-select" 
-                                  style={{ width: 110, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
-                                  value={c.tshirt_size || ""}
-                                  onChange={e => handleTshirtUpdate(c.id, "tshirt_size", e.target.value)}
-                                  disabled={!canEdit}
-                                >
-                                  <option value="">— Select —</option>
-                                  {TSHIRT_SIZES.map(sz => (
-                                    <option key={sz} value={sz}>{sz}</option>
-                                  ))}
-                                </select>
+                                   className="form-select" 
+                                   style={{ width: 120, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                   value={c.tshirt_size || ""}
+                                   onChange={async (e) => {
+                                     const val = e.target.value;
+                                     if (val === "__ADD_CUSTOM__") {
+                                       const custom = window.prompt("Enter new custom US T-Shirt size:");
+                                       if (custom && custom.trim()) {
+                                         const clean = custom.trim();
+                                         await handleAddCustomUsSize(clean);
+                                         handleTshirtUpdate(c.id, "tshirt_size", clean);
+                                       }
+                                     } else {
+                                       handleTshirtUpdate(c.id, "tshirt_size", val);
+                                     }
+                                   }}
+                                   disabled={!canEdit}
+                                 >
+                                   <option value="">— Select —</option>
+                                   {activeUsSizes.map(sz => (
+                                     <option key={sz} value={sz}>{sz}</option>
+                                   ))}
+                                   <option value="__ADD_CUSTOM__">➕ Custom Size...</option>
+                                 </select>
                                 {savingMap[`${c.id}-tshirt_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
                                   {savingMap[`${c.id}-tshirt_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
                                   {savingMap[`${c.id}-tshirt_size`] === "error" && <span style={{ color: "var(--red)", fontSize: "0.8rem", fontWeight: 700 }}>⚠️</span>}
@@ -706,28 +870,62 @@ export default function TShirtsPage() {
                     {modalStockTab === "US" && (
                       <div style={{ marginBottom: 20 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, borderBottom: "1px solid var(--border-color)", paddingBottom: 6 }}>
-                          <h4 style={{ fontSize: "0.9rem", color: "var(--forest-mid)", margin: 0 }}>
-                            🇺🇸 US Size Total Stock Limits
-                          </h4>
-                          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)" }}>
-                            Total US Stock: {formUsTotal}
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <h4 style={{ fontSize: "0.9rem", color: "var(--forest-mid)", margin: 0 }}>
+                              🇺🇸 US Size Total Stock Limits
+                            </h4>
+                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)" }}>
+                              Total US Stock: {formUsTotal}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: "0.75rem", padding: "3px 10px", cursor: "pointer" }}
+                            onClick={async () => {
+                              const custom = window.prompt("Enter new custom US T-Shirt size (e.g. 7XL, Youth XS):");
+                              if (custom && custom.trim()) {
+                                await handleAddCustomUsSize(custom.trim());
+                              }
+                            }}
+                          >
+                            ➕ Add Custom Size
+                          </button>
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12 }}>
-                          {TSHIRT_SIZES.map(sz => (
-                            <div key={sz} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, background: "rgba(0,0,0,0.02)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border-color)" }}>
-                              <label style={{ fontSize: "0.8rem", fontWeight: 700, width: 45 }}>{sz}</label>
-                              <input
-                                type="number"
-                                min="0"
-                                className="form-input"
-                                style={{ height: 30, fontSize: "0.8rem", padding: "2px 6px", width: 70 }}
-                                value={stockFormUs[sz] !== undefined ? stockFormUs[sz] : ""}
-                                placeholder="No limit"
-                                onChange={e => setStockFormUs(prev => ({ ...prev, [sz]: e.target.value }))}
-                              />
-                            </div>
-                          ))}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+                          {activeUsSizes.map(sz => {
+                            const isUsed = (usSizeCounts[sz] || 0) > 0;
+                            return (
+                              <div key={sz} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, background: "rgba(0,0,0,0.02)", padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border-color)" }}>
+                                <label style={{ fontSize: "0.8rem", fontWeight: 700, width: 55, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={sz}>{sz}</label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="form-input"
+                                    style={{ height: 28, fontSize: "0.8rem", padding: "2px 4px", width: 55 }}
+                                    value={stockFormUs[sz] !== undefined ? stockFormUs[sz] : ""}
+                                    placeholder="No limit"
+                                    onChange={e => setStockFormUs(prev => ({ ...prev, [sz]: e.target.value }))}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    style={{
+                                      padding: "1px 4px",
+                                      fontSize: "0.75rem",
+                                      color: isUsed ? "#a0aec0" : "#e53e3e",
+                                      cursor: isUsed ? "not-allowed" : "pointer"
+                                    }}
+                                    title={isUsed ? `Size currently in use by ${usSizeCounts[sz]} camper(s)` : "Delete unused size"}
+                                    onClick={() => handleDeleteUsSize(sz)}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -758,21 +956,40 @@ export default function TShirtsPage() {
                             ➕ Add Custom Size
                           </button>
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
-                          {activeIndianSizes.map(sz => (
-                            <div key={sz} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, background: "rgba(0,0,0,0.02)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--border-color)" }}>
-                              <label style={{ fontSize: "0.8rem", fontWeight: 700, width: 65, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={sz}>{sz}</label>
-                              <input
-                                type="number"
-                                min="0"
-                                className="form-input"
-                                style={{ height: 30, fontSize: "0.8rem", padding: "2px 6px", width: 70 }}
-                                value={stockFormIndian[sz] !== undefined ? stockFormIndian[sz] : ""}
-                                placeholder="No limit"
-                                onChange={e => setStockFormIndian(prev => ({ ...prev, [sz]: e.target.value }))}
-                              />
-                            </div>
-                          ))}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+                          {activeIndianSizes.map(sz => {
+                            const isUsed = (indianSizeCounts[sz] || 0) > 0;
+                            return (
+                              <div key={sz} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, background: "rgba(0,0,0,0.02)", padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border-color)" }}>
+                                <label style={{ fontSize: "0.8rem", fontWeight: 700, width: 55, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={sz}>{sz}</label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="form-input"
+                                    style={{ height: 28, fontSize: "0.8rem", padding: "2px 4px", width: 55 }}
+                                    value={stockFormIndian[sz] !== undefined ? stockFormIndian[sz] : ""}
+                                    placeholder="No limit"
+                                    onChange={e => setStockFormIndian(prev => ({ ...prev, [sz]: e.target.value }))}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    style={{
+                                      padding: "1px 4px",
+                                      fontSize: "0.75rem",
+                                      color: isUsed ? "#a0aec0" : "#e53e3e",
+                                      cursor: isUsed ? "not-allowed" : "pointer"
+                                    }}
+                                    title={isUsed ? `Size currently in use by ${indianSizeCounts[sz]} camper(s)` : "Delete unused size"}
+                                    onClick={() => handleDeleteIndianSize(sz)}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
