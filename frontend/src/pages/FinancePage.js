@@ -629,13 +629,24 @@ export default function FinancePage() {
     document.body.removeChild(link);
   };
 
-  // Filters
-  const filteredFamilies = families.filter(f => {
-    const matchesSearch = f.display_name.toLowerCase().includes(familySearch.toLowerCase()) || 
-      f.members.some(m => m.full_name.toLowerCase().includes(familySearch.toLowerCase()));
-    const matchesStatus = familyFilter === "all" || f.status === familyFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Filters & Alphabetical Sorting by Head of Family's Last Name
+  const filteredFamilies = families
+    .filter(f => {
+      const matchesSearch = f.display_name.toLowerCase().includes(familySearch.toLowerCase()) || 
+        f.members.some(m => m.full_name.toLowerCase().includes(familySearch.toLowerCase()));
+      const matchesStatus = familyFilter === "all" || f.status === familyFilter;
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      const lastA = (a.head_last_name || "").trim();
+      const lastB = (b.head_last_name || "").trim();
+      const firstA = (a.head_first_name || "").trim();
+      const firstB = (b.head_first_name || "").trim();
+
+      const lastComp = lastA.localeCompare(lastB, undefined, { sensitivity: "base", numeric: true });
+      if (lastComp !== 0) return lastComp;
+      return firstA.localeCompare(firstB, undefined, { sensitivity: "base", numeric: true });
+    });
 
   const filteredExpenses = expenses.filter(e => {
     const matchesSearch = e.description.toLowerCase().includes(expenseSearch.toLowerCase()) ||
@@ -944,7 +955,12 @@ export default function FinancePage() {
                             </button>
                           </td>
                           <td>
-                            <strong style={{ display: "block" }}>{f.display_name}</strong>
+                            <strong style={{ display: "block", fontSize: "0.95rem" }}>
+                              {f.head_full_name ? f.head_full_name : f.display_name}
+                            </strong>
+                            <div style={{ fontSize: "0.8rem", color: "var(--forest-mid)", fontWeight: 500 }}>
+                              {f.family_group && !f.family_group.startsWith("single-") ? `(Family #${f.family_group})` : "(Single Registration)"}
+                            </div>
                             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                               {f.members.length} {f.members.length === 1 ? "member" : "members"} total
                             </span>

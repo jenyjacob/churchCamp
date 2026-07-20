@@ -206,11 +206,11 @@ def get_fees():
         head_full_name = head_camper["full_name"] if head_camper else ""
         head_camper_id = head_camper["id"] if head_camper else None
 
-        # Format display name of the family to include Head of Family's First Name & Last Name
+        # Format display name of the family: Head of Family's Name first, then Family # in brackets
         if fg.startswith("single-"):
-            display_name = f"Single: {head_full_name}"
+            display_name = f"{head_full_name} (Single)"
         else:
-            display_name = f"Family #{fg} ({head_full_name})"
+            display_name = f"{head_full_name} (Family #{fg})"
 
         results.append({
             "family_group": fg,
