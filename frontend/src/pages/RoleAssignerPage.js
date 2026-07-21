@@ -281,11 +281,76 @@ export default function RoleAssignerPage() {
     }
   };
 
+  const customStyles = `
+    @media (max-width: 768px) {
+      .top-bar {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+        padding: 16px 14px !important;
+      }
+
+      .mobile-role-selector-card {
+        padding: 14px 16px !important;
+      }
+
+      .access-level-btn-group {
+        display: flex !important;
+        flex-direction: row !important;
+        width: 100% !important;
+      }
+
+      .access-level-btn-group button {
+        padding: 8px 2px !important;
+        font-size: 0.7rem !important;
+      }
+
+      .config-card-form {
+        padding: 16px 14px !important;
+        gap: 14px !important;
+      }
+
+      .excel-upload-container {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+
+      .excel-upload-container input[type="file"] {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+
+      .excel-upload-container button {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+
+      .form-actions-row {
+        width: 100% !important;
+      }
+
+      .form-actions-row button {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+
+      .guide-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  `;
+
   return (
     <>
+      <style>{customStyles}</style>
+
       <div className="top-bar">
-        <h1>Role Assigner</h1>
-        <span className="text-muted">Manage page access privileges across user roles</span>
+        <div>
+          <h1 style={{ margin: 0 }}>Role Assigner & Permissions</h1>
+          <span className="text-muted" style={{ fontSize: "0.85rem" }}>
+            Manage role-based page privileges & system parameters
+          </span>
+        </div>
       </div>
 
       <div className="page-body" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -459,7 +524,7 @@ export default function RoleAssignerPage() {
           <h3 style={{ fontSize: "0.95rem", color: "var(--forest)", marginBottom: 12, fontWeight: 700 }}>
             💡 Access Level Guide
           </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+          <div className="guide-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
             <div style={{ padding: 12, background: "rgba(220, 53, 69, 0.03)", border: "1px solid rgba(220, 53, 69, 0.1)", borderRadius: 6 }}>
               <div style={{ fontWeight: 700, color: "var(--red)", fontSize: "0.85rem", marginBottom: 4 }}>🚫 Hide Access</div>
               <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--charcoal)", lineHeight: 1.5 }}>
@@ -512,7 +577,7 @@ export default function RoleAssignerPage() {
             </div>
 
             {isCampSettingsOpen && (
-              <form onSubmit={handleSaveCampSettings} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
+              <form onSubmit={handleSaveCampSettings} className="config-card-form" style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
                 {/* Group 1: Registration Form Details */}
                 <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
                   📝 Registration Page Branding & Details
@@ -608,7 +673,7 @@ export default function RoleAssignerPage() {
                   </select>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <div className="form-actions-row" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                   <button 
                     type="submit" 
                     className="btn btn-primary" 
@@ -650,7 +715,7 @@ export default function RoleAssignerPage() {
             </div>
 
             {isTeamSettingsOpen && (
-              <form onSubmit={handleSaveTeamSettings} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <form onSubmit={handleSaveTeamSettings} className="config-card-form" style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
                   🏆 Camp Game Teams Name
                 </h4>
@@ -693,7 +758,7 @@ export default function RoleAssignerPage() {
                   </span>
                 </div>
                 
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <div className="form-actions-row" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                   <button 
                     type="submit" 
                     className="btn btn-primary" 
@@ -724,7 +789,7 @@ export default function RoleAssignerPage() {
                     </div>
                   )}
 
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  <div className="excel-upload-container" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                     <input 
                       type="file" 
                       accept=".xlsx" 
@@ -775,7 +840,7 @@ export default function RoleAssignerPage() {
             </div>
 
             {isRoleSettingsOpen && (
-              <form onSubmit={handleCreateRole} style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <form onSubmit={handleCreateRole} className="config-card-form" style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
                   👥 Create New Role
                 </h4>
@@ -797,7 +862,7 @@ export default function RoleAssignerPage() {
                   </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <div className="form-actions-row" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                   <button 
                     type="submit" 
                     className="btn btn-primary" 

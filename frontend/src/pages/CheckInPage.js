@@ -184,22 +184,116 @@ export default function CheckInPage() {
     });
   };
 
-  const handleCheckOut = async (checkin) => {
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    confirmBtnClass: "btn-primary",
+    onConfirm: null,
+    sharedRoommates: [],
+    targetCheckin: null,
+    cabinName: "",
+    checkoutScope: "all"
+  });
+
+  const handleCheckOut = (checkin) => {
+    const camperObj = allCampers.find(c => c.id === checkin.camper_id);
+    const cabinInfo = camperObj?.cabin_group || "";
+    const familyInfo = camperObj?.family_group || checkin.family_group || "";
+
+    let sharedRoommates = [];
+    let groupLabel = "";
+
+    if (cabinInfo) {
+      groupLabel = cabinInfo;
+      sharedRoommates = activeCheckins.filter(ci => {
+        const co = allCampers.find(c => c.id === ci.camper_id);
+        return co && co.cabin_group === cabinInfo;
+      });
+    } else if (familyInfo) {
+      groupLabel = `Family #${familyInfo}`;
+      sharedRoommates = activeCheckins.filter(ci => {
+        const co = allCampers.find(c => c.id === ci.camper_id);
+        return (co && co.family_group === familyInfo) || ci.family_group === familyInfo;
+      });
+    }
+
+    if (sharedRoommates.length > 1) {
+      setConfirmModal({
+        isOpen: true,
+        title: `🔑 Shared Checkout (${groupLabel})`,
+        message: `${checkin.camper_name} shares ${groupLabel} with ${sharedRoommates.length - 1} other camper(s) currently on site.`,
+        sharedRoommates: sharedRoommates,
+        targetCheckin: checkin,
+        cabinName: groupLabel,
+        checkoutScope: "all",
+        confirmBtnClass: "btn-primary",
+        onConfirm: (scope) => {
+          const toCheckout = scope === "single" ? [checkin] : sharedRoommates;
+          performCheckOutMultiple(toCheckout);
+        }
+      });
+    } else {
+      setConfirmModal({
+        isOpen: true,
+        title: "Confirm Check Out",
+        message: `Are you sure you want to check out ${checkin.camper_name}?`,
+        detailsHeader: "🔑 Room Key & Cabin Details",
+        detailsList: [
+          { name: checkin.camper_name, cabin: cabinInfo || "Unassigned Cabin" }
+        ],
+        sharedRoommates: [],
+        targetCheckin: checkin,
+        cabinName: cabinInfo || "Unassigned Cabin",
+        checkoutScope: "single",
+        confirmBtnClass: "btn-primary",
+        onConfirm: () => performCheckOutMultiple([checkin])
+      });
+    }
+  };
+
+  const performCheckOutMultiple = async (checkinList) => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
     try {
-      await api.post(`/api/checkin/${checkin.id}/checkout`);
-      flash("success", `👋 ${checkin.camper_name} checked out.`);
+      await Promise.all(checkinList.map(ci => api.post(`/api/checkin/${ci.id}/checkout`)));
+      const names = checkinList.map(c => c.camper_name).join(", ");
+      flash("success", `👋 Checked out ${checkinList.length} camper(s): ${names}.`);
       fetchActive();
       fetchStats();
       fetchAllCampers();
     } catch (err) {
-      flash("error", err.response?.data?.error || "Check-out failed.");
+      flash("error", "One or more check-outs failed.");
+      fetchActive();
+      fetchStats();
+      fetchAllCampers();
     }
   };
 
-  const handleCheckOutGroup = async (fg, cis) => {
-    if (!window.confirm(`Are you sure you want to check out all ${cis.length} members of Family #${fg}?`)) {
-      return;
-    }
+  const handleCheckOutGroup = (fg, cis) => {
+    const groupDetails = cis.map(ci => {
+      const camperObj = allCampers.find(c => c.id === ci.camper_id);
+      return {
+        name: ci.camper_name,
+        cabin: camperObj?.cabin_group || "Unassigned Cabin"
+      };
+    });
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Confirm Group Check Out",
+      message: `Are you sure you want to check out all ${cis.length} members of Family #${fg}?`,
+      detailsHeader: `🔑 Room Key Checklist (Family #${fg})`,
+      detailsList: groupDetails,
+      sharedRoommates: [],
+      confirmText: `Confirm Keys Returned & Check Out (${cis.length})`,
+      confirmBtnClass: "btn-primary",
+      onConfirm: () => performCheckOutGroup(fg, cis)
+    });
+  };
+
+  const performCheckOutGroup = async (fg, cis) => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
     try {
       await Promise.all(cis.map(ci => api.post(`/api/checkin/${ci.id}/checkout`)));
       flash("success", `👋 Family #${fg} group checked out (${cis.length} campers).`);
@@ -214,10 +308,19 @@ export default function CheckInPage() {
     }
   };
 
-  const handleResetCheckIn = async (checkin) => {
-    if (!window.confirm(`Are you sure you want to reset the check-in for ${checkin.camper_name}? This will completely delete the check-in record.`)) {
-      return;
-    }
+  const handleResetCheckIn = (checkin) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "🔄 Reset Check-In Status",
+      message: `Are you sure you want to reset the check-in for ${checkin.camper_name}? This will completely delete the check-in record.`,
+      confirmText: "Reset Record",
+      confirmBtnClass: "btn-danger",
+      onConfirm: () => performResetCheckIn(checkin)
+    });
+  };
+
+  const performResetCheckIn = async (checkin) => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
     try {
       await api.delete(`/api/checkin/${checkin.id}`);
       flash("success", `🔄 Checked-in status reset for ${checkin.camper_name}.`);
@@ -762,6 +865,117 @@ export default function CheckInPage() {
                 style={{ padding: "10px 24px", fontWeight: 600 }}
               >
                 Complete & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmModal.isOpen && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setConfirmModal(prev => ({ ...prev, isOpen: false }))}>
+          <div className="modal" style={{ maxWidth: 480, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>🔑</div>
+            <h3 style={{ margin: "0 0 8px 0", color: "var(--forest-dark)", fontWeight: 700, fontSize: "1.2rem" }}>
+              {confirmModal.title}
+            </h3>
+            <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginBottom: 16, lineHeight: 1.5 }}>
+              {confirmModal.message}
+            </p>
+
+            {/* Shared Cabin Scope Selector */}
+            {confirmModal.sharedRoommates && confirmModal.sharedRoommates.length > 1 && (
+              <div style={{
+                background: "#f4f8f5",
+                border: "1px solid #d1e2d7",
+                borderRadius: "8px",
+                padding: "12px 14px",
+                marginBottom: 16,
+                textAlign: "left"
+              }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--forest)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+                  🛖 Shared Cabin Checkout Options ({confirmModal.cabinName})
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: "0.86rem", fontWeight: 600, color: "var(--dark)" }}>
+                    <input 
+                      type="radio" 
+                      name="checkoutScope" 
+                      checked={confirmModal.checkoutScope === "all"} 
+                      onChange={() => setConfirmModal(prev => ({ ...prev, checkoutScope: "all" }))}
+                    />
+                    Check Out ALL {confirmModal.sharedRoommates.length} Roommates in {confirmModal.cabinName}
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: "0.86rem", fontWeight: 600, color: "var(--dark)" }}>
+                    <input 
+                      type="radio" 
+                      name="checkoutScope" 
+                      checked={confirmModal.checkoutScope === "single"} 
+                      onChange={() => setConfirmModal(prev => ({ ...prev, checkoutScope: "single" }))}
+                    />
+                    Check Out ONLY {confirmModal.targetCheckin?.camper_name}
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Room Key Checklist */}
+            {(() => {
+              const activeList = (confirmModal.sharedRoommates && confirmModal.sharedRoommates.length > 1)
+                ? (confirmModal.checkoutScope === "single" ? [confirmModal.targetCheckin] : confirmModal.sharedRoommates)
+                : null;
+              const displayList = activeList 
+                ? activeList.map(ci => ({ name: ci?.camper_name, cabin: confirmModal.cabinName }))
+                : confirmModal.detailsList;
+
+              return displayList && displayList.length > 0 ? (
+                <div style={{
+                  background: "rgba(180, 151, 90, 0.08)",
+                  border: "1px solid rgba(180, 151, 90, 0.25)",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: 20,
+                  textAlign: "left"
+                }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--gold-dark, #a37d24)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+                    🔑 Room Key Checklist ({displayList.length} Camper{displayList.length > 1 ? "s" : ""})
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+                    {displayList.map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.83rem" }}>
+                        <span style={{ fontWeight: 600, color: "var(--dark)" }}>{item.name}</span>
+                        <span style={{ fontSize: "0.78rem", background: "#fff", border: "1px solid var(--border)", padding: "2px 8px", borderRadius: "12px", color: "var(--forest)" }}>
+                          ⛺ {item.cabin}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--red)", marginTop: 8, fontWeight: 600, borderTop: "1px dashed rgba(180, 151, 90, 0.3)", paddingTop: 6 }}>
+                    ⚠️ Please collect all room keys before completing checkout!
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button 
+                type="button" 
+                className="btn btn-ghost" 
+                style={{ padding: "8px 20px", fontWeight: 600 }}
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className={`btn ${confirmModal.confirmBtnClass}`} 
+                style={{ padding: "8px 24px", fontWeight: 600 }}
+                onClick={() => confirmModal.onConfirm(confirmModal.checkoutScope)}
+              >
+                {confirmModal.sharedRoommates && confirmModal.sharedRoommates.length > 1
+                  ? (confirmModal.checkoutScope === "single"
+                      ? `Check Out ONLY ${confirmModal.targetCheckin?.camper_name}`
+                      : `Confirm Keys Returned & Check Out All ${confirmModal.sharedRoommates.length} Roommates`)
+                  : (confirmModal.confirmText || "Confirm Key Return & Check Out")}
               </button>
             </div>
           </div>

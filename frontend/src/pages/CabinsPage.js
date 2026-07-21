@@ -499,8 +499,7 @@ export default function CabinsPage() {
       display: grid;
       grid-template-columns: 330px 1fr;
       gap: 24px;
-      height: calc(100vh - 150px);
-      min-height: 520px;
+      align-items: start;
     }
 
     .sidebar-panel {
@@ -510,7 +509,10 @@ export default function CabinsPage() {
       border: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      height: 100%;
+      max-height: calc(100vh - 220px);
+      min-height: 400px;
+      position: sticky;
+      top: 20px;
       overflow: hidden;
     }
 
@@ -533,9 +535,6 @@ export default function CabinsPage() {
       display: flex;
       flex-direction: column;
       gap: 24px;
-      height: 100%;
-      overflow-y: auto;
-      padding-right: 8px;
     }
 
     .cabin-card {
