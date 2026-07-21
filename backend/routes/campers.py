@@ -647,3 +647,94 @@ def download_cabins_pdf():
         as_attachment=True,
         download_name="gca_camp_cabins_report.pdf"
     )
+
+@campers_bp.route("/upload-teams", methods=["POST"])
+@jwt_required()
+@require_page_permission("teams", "edit")
+def upload_teams():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if not file or not file.filename.lower().endswith(".xlsx"):
+        return jsonify({"error": "Please upload a valid Excel (.xlsx) file"}), 400
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(file, data_only=True)
+        sheet = wb.active
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows or len(rows) < 2:
+            return jsonify({"error": "Excel sheet contains no data rows"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse Excel file: {str(e)}"}), 400
+
+    header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
+    name_idx = -1
+    team_idx = -1
+
+    for i, col in enumerate(header):
+        if "name" in col and name_idx == -1:
+            name_idx = i
+        elif "team" in col and team_idx == -1:
+            team_idx = i
+
+    if name_idx == -1:
+        name_idx = 1 if len(header) > 1 else 0
+    if team_idx == -1:
+        team_idx = 4 if len(header) > 4 else (len(header) - 1)
+
+    campers = Camper.query.all()
+    campers_by_name = {f"{c.first_name.strip()} {c.last_name.strip()}".lower(): c for c in campers}
+
+    matched_count = 0
+    updated_count = 0
+    unmatched = []
+
+    for row in rows[1:]:
+        if not row or len(row) <= name_idx or not row[name_idx]:
+            continue
+
+        raw_name = str(row[name_idx]).strip()
+        raw_team = str(row[team_idx]).strip() if len(row) > team_idx and row[team_idx] is not None else ""
+
+        if not raw_name or raw_name.lower() == "name":
+            continue
+
+        canonical_team = raw_team
+        lowered_team = raw_team.lower()
+        if "1" in lowered_team or "peter" in lowered_team:
+            canonical_team = "Team 1"
+        elif "2" in lowered_team or "paul" in lowered_team:
+            canonical_team = "Team 2"
+
+        key = raw_name.lower()
+        target_camper = campers_by_name.get(key)
+
+        if not target_camper:
+            parts = raw_name.split()
+            if len(parts) >= 2:
+                first = parts[0].lower()
+                last = parts[-1].lower()
+                for c_key, c_obj in campers_by_name.items():
+                    if first in c_key and last in c_key:
+                        target_camper = c_obj
+                        break
+
+        if target_camper:
+            matched_count += 1
+            if target_camper.team_name != canonical_team:
+                target_camper.team_name = canonical_team
+                updated_count += 1
+        else:
+            unmatched.append(raw_name)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Successfully processed {len(rows)-1} rows. Matched {matched_count} campers.",
+        "processed": len(rows) - 1,
+        "matched": matched_count,
+        "updated": updated_count,
+        "unmatched": unmatched
+    }), 200

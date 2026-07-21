@@ -835,7 +835,6 @@ export default function CabinsPage() {
                               <div key={m.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem" }}>
                                 <span>
                                   {m.first_name} {m.last_name}
-                                  {m.team_name && <span style={{ fontSize: "0.7rem", color: "var(--gold)", fontWeight: 700, marginLeft: 4 }}>({m.team_name})</span>}
                                 </span>
                                 <span className="text-muted">
                                   {m.age !== null && m.age !== undefined && m.age !== "" ? "Child" : "Adult"}
@@ -863,11 +862,6 @@ export default function CabinsPage() {
                               <span className="text-muted" style={{ fontSize: "0.75rem" }}>
                                 {c.age !== null && c.age !== undefined && c.age !== "" ? "Child" : "Adult"}
                               </span>
-                              {c.team_name && (
-                                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--gold)" }}>
-                                  🏆 {c.team_name}
-                                </span>
-                              )}
                             </div>
                           </div>
                           {c.allergies && (
@@ -992,11 +986,6 @@ export default function CabinsPage() {
                                         <span className="text-muted" style={{ fontSize: "0.7rem" }}>
                                           ({occ.age !== null && occ.age !== undefined && occ.age !== "" ? "Child" : "Adult"})
                                         </span>
-                                        {occ.team_name && (
-                                          <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--gold)", marginLeft: 4 }}>
-                                            ({occ.team_name})
-                                          </span>
-                                        )}
                                       </div>
                                       
                                       {isAdmin && (

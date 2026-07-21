@@ -56,8 +56,41 @@ export default function RoleAssignerPage() {
   const [updatingTeams, setUpdatingTeams] = useState(false);
   const [settingsError, setSettingsError] = useState("");
   const [settingsSuccess, setSettingsSuccess] = useState("");
+  const [teamSuccess, setTeamSuccess] = useState("");
+  const [teamError, setTeamError] = useState("");
   const [isCampSettingsOpen, setIsCampSettingsOpen] = useState(true);
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(true);
+
+  // Excel Upload State for Teams
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  const [uploadError, setUploadError] = useState("");
+
+  const handleUploadExcel = async (e) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      setUploadError("Please select an Excel (.xlsx) file first.");
+      return;
+    }
+    setUploadingExcel(true);
+    setUploadError("");
+    setUploadResult(null);
+
+    const formData = new FormData();
+    formData.append("file", uploadFile);
+
+    try {
+      const res = await api.post("/api/campers/upload-teams", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setUploadResult(res.data);
+    } catch (err) {
+      setUploadError(err.response?.data?.error || "Failed to upload and process Excel sheet.");
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
 
   useEffect(() => {
     // Fetch privileges
@@ -158,23 +191,24 @@ export default function RoleAssignerPage() {
   const handleSaveTeamSettings = (e) => {
     e.preventDefault();
     setUpdatingTeams(true);
-    setSettingsError("");
-    setSettingsSuccess("");
+    setTeamError("");
+    setTeamSuccess("");
 
     const payload = {
       team_1_name: settings.team_1_name,
-      team_2_name: settings.team_2_name
+      team_2_name: settings.team_2_name,
+      teams_published: settings.teams_published || "true"
     };
 
     api.post("/api/settings/", payload)
       .then(res => {
         if (res.data.settings) {
           setSettings(prev => ({ ...prev, ...res.data.settings }));
-          setSettingsSuccess("Game teams configurations updated successfully!");
-          setTimeout(() => setSettingsSuccess(""), 4000);
+          setTeamSuccess("Game teams configuration saved successfully!");
+          setTimeout(() => setTeamSuccess(""), 5000);
         }
       })
-      .catch(() => setSettingsError("Failed to update game teams configurations."))
+      .catch(() => setTeamError("Failed to update game teams configuration."))
       .finally(() => setUpdatingTeams(false));
   };
 
@@ -620,6 +654,9 @@ export default function RoleAssignerPage() {
                 <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
                   🏆 Camp Game Teams Name
                 </h4>
+
+                {teamSuccess && <div className="alert alert-success" style={{ margin: "4px 0 8px" }}>🎉 {teamSuccess}</div>}
+                {teamError && <div className="alert alert-error" style={{ margin: "4px 0 8px" }}>⚠️ {teamError}</div>}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 600 }}>First Team Name</label>
@@ -640,6 +677,21 @@ export default function RoleAssignerPage() {
                     />
                   </div>
                 </div>
+
+                <div className="form-group" style={{ margin: "8px 0", padding: "12px 14px", background: "rgba(180, 151, 90, 0.05)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 600, fontSize: "0.9rem", color: "var(--forest)" }}>
+                    <input 
+                      type="checkbox"
+                      checked={settings.teams_published !== "false"}
+                      onChange={e => setSettings(prev => ({ ...prev, teams_published: e.target.checked ? "true" : "false" }))}
+                      style={{ width: 18, height: 18, accentColor: "var(--forest)" }}
+                    />
+                    <span>👁️ Show Team Names on Campers Page (Publish Teams)</span>
+                  </label>
+                  <span className="text-muted" style={{ fontSize: "0.78rem", marginLeft: 28, marginTop: 4, display: "block" }}>
+                    When checked, team badges are visible to everyone on the Campers page. When unchecked, team names are hidden on the Campers page except for users with Team Selection access.
+                  </span>
+                </div>
                 
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                   <button 
@@ -650,6 +702,46 @@ export default function RoleAssignerPage() {
                   >
                     {updatingTeams ? "Saving Teams…" : "Save Teams Configuration"}
                   </button>
+                </div>
+
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px dashed var(--border)" }}>
+                  <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 8, fontWeight: 700 }}>
+                    📁 Import Team Assignments from Excel (.xlsx)
+                  </h4>
+                  <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: 12 }}>
+                    Upload an Excel sheet containing camper names and assigned teams to automatically match campers and update their database team assignments.
+                  </p>
+
+                  {uploadError && <div className="alert alert-error" style={{ marginBottom: 12 }}>{uploadError}</div>}
+                  {uploadResult && (
+                    <div className="alert alert-success" style={{ marginBottom: 12 }}>
+                      🎉 {uploadResult.message} (Updated: {uploadResult.updated})
+                      {uploadResult.unmatched && uploadResult.unmatched.length > 0 && (
+                        <div style={{ fontSize: "0.75rem", marginTop: 4, color: "var(--red)" }}>
+                          Unmatched names ({uploadResult.unmatched.length}): {uploadResult.unmatched.slice(0, 5).join(", ")}{uploadResult.unmatched.length > 5 ? "..." : ""}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <input 
+                      type="file" 
+                      accept=".xlsx" 
+                      onChange={e => setUploadFile(e.target.files[0])}
+                      className="form-input" 
+                      style={{ padding: "6px 12px", flex: 1, maxWidth: 360 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleUploadExcel}
+                      disabled={uploadingExcel || !uploadFile}
+                      className="btn btn-secondary"
+                      style={{ padding: "8px 18px", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      {uploadingExcel ? "Importing Teams..." : "📤 Upload & Sync Team Assignments"}
+                    </button>
+                  </div>
                 </div>
               </form>
             )}

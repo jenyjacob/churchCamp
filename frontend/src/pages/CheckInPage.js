@@ -14,7 +14,22 @@ export default function CheckInPage() {
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
   const [allCampers, setAllCampers] = useState([]);
   const [checkedInSummary, setCheckedInSummary] = useState(null); // array of campers recently checked in
-  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
+
+  const showTeams = settings.teams_published !== "false";
+
+  const getDisplayTeamName = (rawTeam) => {
+    if (!rawTeam) return null;
+    const clean = String(rawTeam).trim();
+    const lower = clean.toLowerCase();
+    if (lower === "team 1" || lower.includes("team 1") || lower.includes("peter")) {
+      return settings.team_1_name || "Team 1";
+    }
+    if (lower === "team 2" || lower.includes("team 2") || lower.includes("paul")) {
+      return settings.team_2_name || "Team 2";
+    }
+    return clean;
+  };
   const [expandedGroups, setExpandedGroups] = useState({});
   const [waiverModal, setWaiverModal] = useState({
     isOpen: false,
@@ -352,7 +367,7 @@ export default function CheckInPage() {
                           <div className="text-muted" style={{ fontSize: "0.8rem" }}>
                             {c.family_group && `Family ${c.family_group} · `}
                             {c.cabin_group && `${c.cabin_group} · `}
-                            {c.team_name && `${c.team_name} · `}
+                            {showTeams && c.team_name && `${getDisplayTeamName(c.team_name)} · `}
                             {c.age && `Age ${c.age}`}
                           </div>
                           <div style={{ marginTop: 4, display: "flex", gap: 6 }}>
@@ -719,20 +734,22 @@ export default function CheckInPage() {
                         )}
                       </strong>
                     </div>
-                    <div style={{ gridColumn: "span 2", marginTop: 4 }}>
-                      <span className="text-muted" style={{ display: "block", fontSize: "0.72rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-                        Team
-                      </span>
-                      <span className={`badge ${
-                        camper.team_name === (settings.team_1_name || "Team Peter") 
-                          ? "badge-gold" 
-                          : camper.team_name === (settings.team_2_name || "Team Paul") 
-                          ? "badge-blue" 
-                          : "badge-gray"
-                      }`} style={{ display: "inline-block", marginTop: 4, padding: "4px 8px", fontSize: "0.8rem", fontWeight: 700 }}>
-                        🏆 {camper.team_name || "Not Allocated Yet"}
-                      </span>
-                    </div>
+                    {showTeams && (
+                      <div style={{ gridColumn: "span 2", marginTop: 4 }}>
+                        <span className="text-muted" style={{ display: "block", fontSize: "0.72rem", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                          Team
+                        </span>
+                        <span className={`badge ${
+                          camper.team_name && (camper.team_name.toLowerCase().includes("1") || camper.team_name.toLowerCase().includes("peter"))
+                            ? "badge-gold" 
+                            : camper.team_name && (camper.team_name.toLowerCase().includes("2") || camper.team_name.toLowerCase().includes("paul"))
+                            ? "badge-blue" 
+                            : "badge-gray"
+                        }`} style={{ display: "inline-block", marginTop: 4, padding: "4px 8px", fontSize: "0.8rem", fontWeight: 700 }}>
+                          🏆 {getDisplayTeamName(camper.team_name) || "Not Allocated Yet"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

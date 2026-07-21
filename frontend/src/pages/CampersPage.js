@@ -68,10 +68,18 @@ function CamperModal({ camper, onClose, onSave, teamNames }) {
             {canEditTeams && (
               <div className="form-group">
                 <label className="form-label">Team</label>
-                <select className="form-select" value={form.team_name || ""} onChange={e => set("team_name", e.target.value)}>
+                <select 
+                  className="form-select" 
+                  value={
+                    form.team_name 
+                      ? (form.team_name.toLowerCase().includes("1") || form.team_name.toLowerCase().includes("peter") ? "Team 1" : "Team 2") 
+                      : ""
+                  } 
+                  onChange={e => set("team_name", e.target.value)}
+                >
                   <option value="">— Unassigned —</option>
-                  <option value={teamNames.team_1}>{teamNames.team_1}</option>
-                  <option value={teamNames.team_2}>{teamNames.team_2}</option>
+                  <option value="Team 1">{teamNames.team_1 || "Team 1"}</option>
+                  <option value="Team 2">{teamNames.team_2 || "Team 2"}</option>
                 </select>
               </div>
             )}
@@ -150,8 +158,23 @@ export default function CampersPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("camperViewMode") || "table");
-  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
   const [revealedPhones, setRevealedPhones] = useState({});
+
+  const showTeams = settings.teams_published !== "false";
+
+  const getDisplayTeamName = (rawTeam) => {
+    if (!rawTeam) return null;
+    const clean = String(rawTeam).trim();
+    const lower = clean.toLowerCase();
+    if (lower === "team 1" || lower.includes("team 1") || lower.includes("peter")) {
+      return settings.team_1_name || "Team 1";
+    }
+    if (lower === "team 2" || lower.includes("team 2") || lower.includes("paul")) {
+      return settings.team_2_name || "Team 2";
+    }
+    return clean;
+  };
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
@@ -176,7 +199,12 @@ export default function CampersPage() {
       .finally(() => setLoading(false));
   }, [page, search, statusFilter, viewMode]);
 
-  useEffect(() => { fetchCampers(); }, [fetchCampers]);
+  useEffect(() => { 
+    fetchCampers(); 
+    api.get("/api/settings/").then(r => {
+      if (r.data.settings) setSettings(r.data.settings);
+    }).catch(() => {});
+  }, [fetchCampers]);
 
   useEffect(() => {
     api.get("/api/settings/")
@@ -322,13 +350,13 @@ export default function CampersPage() {
                       )}
                     </td>
                     <td>
-                      {c.team_name ? (
+                      {showTeams && c.team_name ? (
                         <span className={`badge ${
-                          c.team_name === (settings.team_1_name || "Team Peter") 
+                          c.team_name.toLowerCase().includes("1") || c.team_name.toLowerCase().includes("peter")
                             ? "badge-gold" 
                             : "badge-blue"
                         }`} style={{ fontSize: "0.75rem", padding: "4px 8px", fontWeight: 700 }}>
-                          🏆 {c.team_name}
+                          🏆 {getDisplayTeamName(c.team_name)}
                         </span>
                       ) : (
                         <span className="text-muted">—</span>
@@ -401,9 +429,9 @@ export default function CampersPage() {
                                 👶 Age: {c.age}
                               </span>
                             )}
-                            {c.team_name && (
+                            {showTeams && c.team_name && (
                               <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(180, 151, 90, 0.08)", border: "1px solid rgba(180, 151, 90, 0.2)", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", color: "var(--gold-dark, #a37d24)", fontWeight: 600 }}>
-                                🏆 {c.team_name}
+                                🏆 {getDisplayTeamName(c.team_name)}
                               </span>
                             )}
                           </div>
@@ -460,9 +488,9 @@ export default function CampersPage() {
                               👶 Age: {c.age}
                             </span>
                           )}
-                          {c.team_name && (
+                          {showTeams && c.team_name && (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(180, 151, 90, 0.08)", border: "1px solid rgba(180, 151, 90, 0.2)", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", color: "var(--gold-dark, #a37d24)", fontWeight: 600 }}>
-                              🏆 {c.team_name}
+                              🏆 {getDisplayTeamName(c.team_name)}
                             </span>
                           )}
                         </div>
