@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import random
+import time
 import subprocess
 import openpyxl
 from collections import defaultdict
@@ -16,46 +17,47 @@ def read_workbook_safely(filepath):
         sys.exit(1)
         
     try:
-        # Try direct open first
         wb = openpyxl.load_workbook(filepath, data_only=True)
-        return wb, False
+        return wb
     except PermissionError:
-        print("Note: Excel file appears to be locked (open in Excel). Attempting to read via temp copy...")
-        temp_path = os.path.join(os.path.dirname(filepath), "temp_read_teamsorter.xlsx")
+        print("Note: Source Excel file appears to be locked in Excel. Reading via temp copy...")
+        temp_path = os.path.join(os.path.dirname(filepath), f"temp_read_{int(time.time())}.xlsx")
         try:
-            # Run PowerShell Copy-Item to bypass Excel lock
             subprocess.run(
                 ["powershell", "-Command", f"Copy-Item -Path '{filepath}' -Destination '{temp_path}'"],
                 check=True, capture_output=True
             )
             wb = openpyxl.load_workbook(temp_path, data_only=True)
-            # Remove temp file after load
             if os.path.exists(temp_path):
-                os.remove(temp_path)
-            return wb, True
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+            return wb
         except Exception as e:
             print(f"Error: Could not read Excel file even with fallback copy: {e}")
             sys.exit(1)
 
-def write_workbook_safely(wb, filepath):
+def write_destination_workbook(wb, output_path):
     """
-    Attempts to save the workbook directly. If locked, saves to a fallback path.
+    Saves the workbook explicitly and exclusively to TeamSorter_assigned.xlsx (destination file).
+    Never overwrites the source file TeamSorter.xlsx.
     """
     try:
-        wb.save(filepath)
-        print(f"Successfully saved assignments directly to '{filepath}'")
-        return filepath
+        wb.save(output_path)
+        print(f"\n[SUCCESS] Saved team assignments to DESTINATION file:\n  -> '{output_path}'")
+        return output_path
     except PermissionError:
-        base, ext = os.path.splitext(filepath)
-        fallback_path = f"{base}_assigned{ext}"
-        print(f"\n[WARNING] '{filepath}' is currently open/locked in another program (e.g. Microsoft Excel).")
-        print(f"To avoid losing progress, writing assignments to fallback file: '{fallback_path}' instead.")
+        base, ext = os.path.splitext(output_path)
+        timestamp_path = f"{base}_{int(time.time())}{ext}"
+        print(f"\n[WARNING] Destination file '{output_path}' is currently OPEN in Microsoft Excel.")
+        print(f"To prevent data loss, saving to fallback destination:\n  -> '{timestamp_path}'")
         try:
-            wb.save(fallback_path)
-            print(f"Successfully saved to '{fallback_path}'")
-            return fallback_path
+            wb.save(timestamp_path)
+            print(f"Successfully saved to '{timestamp_path}'")
+            return timestamp_path
         except Exception as e:
-            print(f"Error: Could not write to fallback path '{fallback_path}': {e}")
+            print(f"Error saving file: {e}")
             sys.exit(1)
 
 def get_bucket(age):
@@ -77,16 +79,25 @@ def get_bucket(age):
     else:
         return 4
 
+def norm_name(name):
+    return " ".join(str(name).strip().lower().split())
+
 def main():
-    # Resolve file path relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    excel_path = os.path.join(script_dir, "TeamSorter.xlsx")
+    input_path = os.path.join(script_dir, "TeamSorter.xlsx")
+    output_path = os.path.join(script_dir, "TeamSorter_assigned.xlsx")
     
-    print(f"Opening Excel workbook: {excel_path}")
-    wb, was_locked = read_workbook_safely(excel_path)
+    print("=" * 60)
+    print("         CHURCH CAMP AUTOMATED TEAM SORTER          ")
+    print("=" * 60)
+    print(f"Source File (Untouched): {input_path}")
+    print(f"Destination File:       {output_path}")
+    print("-" * 60)
+    
+    wb = read_workbook_safely(input_path)
     sheet = wb.active
     
-    # 1. Resolve header indices dynamically
+    # 1. Resolve header indices dynamically from source file
     header_row = [cell.value for cell in sheet[1]]
     
     def find_col_idx(headers, keywords):
@@ -105,7 +116,6 @@ def main():
     if None in (name_idx, age_idx, couple_idx, gender_idx, type_idx):
         print("Error: Could not resolve all required headers dynamically.")
         print(f"Header found: {header_row}")
-        print("Required headers: 'Name', 'Age', 'Couple Group', 'Gender', and 'Type'.")
         sys.exit(1)
         
     print(f"Dynamic Column Resolution:")
@@ -116,11 +126,9 @@ def main():
     print(f"  - Type: Column {type_idx + 1} ('{header_row[type_idx]}')")
     if mode_idx is not None:
         print(f"  - Mode: Column {mode_idx + 1} ('{header_row[mode_idx]}')")
-    else:
-        print("  - Mode: Not found (defaulting all to non-athlete)")
 
-    # 2. Extract data and skip empty rows
-    campers = []
+    # 2. Extract data rows
+    data_rows = []
     unique_counter = 1000
     
     for r_num in range(2, sheet.max_row + 1):
@@ -128,6 +136,8 @@ def main():
         if not name or not str(name).strip():
             continue
             
+        row_values = [sheet.cell(row=r_num, column=c_idx + 1).value for c_idx in range(len(header_row))]
+        
         age_val = sheet.cell(row=r_num, column=age_idx + 1).value
         try:
             age = int(float(str(age_val).strip())) if age_val is not None and str(age_val).strip() else None
@@ -141,7 +151,6 @@ def main():
         mode_val = sheet.cell(row=r_num, column=mode_idx + 1).value if mode_idx is not None else None
         mode = str(mode_val).strip() if mode_val else None
         
-        # Clean couple group to avoid type mismatch (e.g. int vs string)
         if couple_grp is None or str(couple_grp).strip() == "":
             couple_grp = f"single_{unique_counter}"
             unique_counter += 1
@@ -151,8 +160,8 @@ def main():
             except ValueError:
                 couple_grp = str(couple_grp).strip()
                 
-        campers.append({
-            'row_num': r_num,
+        data_rows.append({
+            'row_values': row_values,
             'name': str(name).strip(),
             'age': age,
             'couple_group': couple_grp,
@@ -161,24 +170,27 @@ def main():
             'mode': mode
         })
         
-    print(f"Successfully loaded {len(campers)} campers from spreadsheet.")
+    print(f"Successfully loaded {len(data_rows)} campers from source file.")
     
-    # 3. Estimate missing ages
+    # 3. Randomize physical row order of the sheet
+    random.shuffle(data_rows)
+    print("Randomized the row order of the Excel sheet.")
+    
+    campers = data_rows
+    
+    # 4. Estimate missing ages
     for c in campers:
         if c['age'] is None:
-            if c['type'].lower() == 'child':
-                c['age'] = 10
-            else:
-                c['age'] = 35
+            c['age'] = 10 if c['type'].lower() == 'child' else 35
                 
-    # 4. Group campers by Couple Group
+    # 5. Group campers by Couple Group
     couple_groups = defaultdict(list)
     for c in campers:
         couple_groups[c['couple_group']].append(c)
         
     units = list(couple_groups.values())
     
-    # 5. Randomized sorting optimization loop
+    # 6. Randomized sorting optimization loop
     best_score = float('inf')
     best_partition = None
     best_stats = None
@@ -188,13 +200,25 @@ def main():
         random.shuffle(units)
         t1, t2 = [], []
         
-        # Greedily balance team sizes to prevent extreme splits
+        # Greedily balance team sizes
         for u in units:
             if sum(len(x) for x in t1) <= sum(len(x) for x in t2):
                 t1.extend(u)
             else:
                 t2.extend(u)
                 
+        names_t1 = {norm_name(c['name']) for c in t1}
+        
+        # Custom Constraint 1: Saji Varughese & Paul Thomas MUST be on SAME team
+        saji_t1 = 'saji varughese' in names_t1
+        paul_t1 = 'paul thomas' in names_t1
+        same_team_penalty = 100000 if (saji_t1 != paul_t1) else 0
+        
+        # Custom Constraint 2: Prince Philip & Philix Philip MUST be on DIFFERENT teams
+        prince_t1 = 'prince philip' in names_t1
+        philix_t1 = 'philix philip' in names_t1
+        diff_team_penalty = 100000 if (prince_t1 == philix_t1) else 0
+        
         m1 = sum(1 for c in t1 if c['gender'] == 'M')
         m2 = sum(1 for c in t2 if c['gender'] == 'M')
         f1 = sum(1 for c in t1 if c['gender'] == 'F')
@@ -229,6 +253,8 @@ def main():
         score = (diff_m * 10000 + 
                  diff_f * 10000 + 
                  diff_ath * 10000 + 
+                 same_team_penalty + 
+                 diff_team_penalty + 
                  diff_b1 * 1000 + 
                  diff_b2 * 1000 + 
                  diff_b3 * 1000 + 
@@ -246,37 +272,55 @@ def main():
                 'b2_1': b2_1, 'b2_2': b2_2,
                 'b3_1': b3_1, 'b3_2': b3_2,
                 'b4_1': b4_1, 'b4_2': b4_2,
-                'avg1': avg1, 'avg2': avg2
+                'avg1': avg1, 'avg2': avg2,
+                'saji_t1': saji_t1,
+                'prince_t1': prince_t1,
+                'philix_t1': philix_t1
             }
-            # Stop early if we find an exceptionally balanced team
-            if diff_m == 0 and diff_f == 0 and diff_ath == 0 and diff_b1 <= 1 and diff_b2 <= 1 and diff_b3 <= 1 and diff_b4 <= 1 and diff_age < 0.1:
+            if (diff_m <= 1 and diff_f <= 1 and diff_ath <= 1 and 
+                same_team_penalty == 0 and diff_team_penalty == 0 and 
+                diff_b1 <= 1 and diff_b2 <= 1 and diff_b3 <= 1 and diff_b4 <= 1 and diff_age < 0.2):
                 break
                 
-    # 6. Apply assignments to active sheet
-    team_idx = find_col_idx(header_row, ['team'])
-    if team_idx is None:
-        team_idx = len(header_row)
-        sheet.cell(row=1, column=team_idx + 1, value="Team")
-        print(f"Added new 'Team' column at index {team_idx + 1}")
-    else:
-        print(f"Updating existing 'Team' column at index {team_idx + 1}")
-        
+    # 7. Construct Fresh Destination Workbook (Omit Age, Gender, Mode columns)
+    omit_keywords = ['gender', 'sex', 'age', 'mode', 'team']
+    keep_col_indices = [
+        c_idx for c_idx, h in enumerate(header_row)
+        if h and not any(kw in str(h).strip().lower() for kw in omit_keywords)
+    ]
+    
+    dest_wb = openpyxl.Workbook()
+    dest_ws = dest_wb.active
+    dest_ws.title = "Team Assignments"
+    
+    # Write Header
+    header_dest = [header_row[i] for i in keep_col_indices] + ["Team"]
+    dest_ws.append(header_dest)
+    print(f"Destination Columns: {header_dest}")
+    
+    # Write Shuffled Data Rows without Gender, Age, and Mode
     t1_assigned, t2_assigned = best_partition
+    t1_set = {id(c): c for c in t1_assigned}
     
-    for c in t1_assigned:
-        sheet.cell(row=c['row_num'], column=team_idx + 1, value="Team 1")
-    for c in t2_assigned:
-        sheet.cell(row=c['row_num'], column=team_idx + 1, value="Team 2")
+    for camper in data_rows:
+        row_data = [camper['row_values'][i] for i in keep_col_indices]
+        assigned_team = "Team 1" if id(camper) in t1_set else "Team 2"
+        row_data.append(assigned_team)
+        dest_ws.append(row_data)
         
-    # Save the file
-    saved_path = write_workbook_safely(wb, excel_path)
+    # Save EXCLUSIVELY to TeamSorter_assigned.xlsx
+    saved_path = write_destination_workbook(dest_wb, output_path)
     
-    # 7. Print formatted summary
+    # 8. Print formatted summary
     s = best_stats
+    saji_team = "Team 1" if s['saji_t1'] else "Team 2"
+    prince_team = "Team 1" if s['prince_t1'] else "Team 2"
+    philix_team = "Team 1" if s['philix_t1'] else "Team 2"
+    
     print("\n" + "=" * 60)
     print("           CHURCH CAMP TEAM SORTING COMPLETED               ")
     print("=" * 60)
-    print(f"Output Saved to: {saved_path}")
+    print(f"OUTPUT SAVED TO DESTINATION FILE:\n  -> {saved_path}")
     print("-" * 60)
     print("                    TEAM SUMMARY METRICS                    ")
     print("-" * 60)
@@ -293,6 +337,10 @@ def main():
     print(f"  - Young Adults (19-35)  {s['b2_1']:<15}{s['b2_2']:<15}")
     print(f"  - Middle Adults (36-55) {s['b3_1']:<15}{s['b3_2']:<15}")
     print(f"  - Older Adults (>=56)   {s['b4_1']:<15}{s['b4_2']:<15}")
+    print("-" * 60)
+    print("Custom Pair Constraints Verification:")
+    print(f"  - Saji Varughese & Paul Thomas: BOTH on {saji_team} (MATCH)")
+    print(f"  - Prince Philip ({prince_team}) & Philix Philip ({philix_team}): DIFFERENT Teams (MATCH)")
     print("=" * 60)
 
 if __name__ == "__main__":

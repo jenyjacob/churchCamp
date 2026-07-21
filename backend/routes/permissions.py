@@ -70,7 +70,7 @@ DEFAULT_PERMISSIONS = {
         "cabins": "hide",
         "schedule": "hide",
         "outdoor": "hide",
-        "apparel": "hide",
+        "apparel": "edit",
         "users": "hide",
         "logs": "hide",
         "role_assigner": "hide",

@@ -9,7 +9,7 @@ const DEFAULT_US_SIZES = [
 ];
 
 const DEFAULT_INDIAN_SIZES = [
-  "1-2 year", "3-4 year", "5-6 year", "7-8 year", "9-10 year", "11-12 year",
+  "1-2 YR", "3-4 YR", "5-6 YR", "7-8 YR", "9-10 YR", "11-12 YR",
   "S", "M", "L", "XL", "2XL", "3XL",
   '52"', '56"', '68"'
 ];
@@ -242,6 +242,7 @@ export default function TShirtsPage() {
   const handleSaveStock = async (e) => {
     e.preventDefault();
     setSavingStock(true);
+    setError("");
     try {
       await api.post("/api/settings/", {
         tshirt_stock_us: JSON.stringify(stockFormUs),
@@ -250,8 +251,10 @@ export default function TShirtsPage() {
       setStockUs(stockFormUs);
       setStockIndian(stockFormIndian);
       setIsStockModalOpen(false);
-    } catch {
-      setError("Failed to save T-Shirt inventory stock limit settings.");
+      fetchSettings();
+    } catch (err) {
+      console.error("Save stock error:", err);
+      setError(err.response?.data?.error || "Failed to save T-Shirt inventory stock limit settings.");
     } finally {
       setSavingStock(false);
     }
