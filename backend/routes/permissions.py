@@ -10,6 +10,7 @@ DEFAULT_PERMISSIONS = {
     "owner": {
         "dashboard": "edit",
         "campers": "edit",
+        "teams": "edit",
         "checkin": "edit",
         "cabins": "edit",
         "schedule": "edit",
@@ -24,6 +25,7 @@ DEFAULT_PERMISSIONS = {
     "admin": {
         "dashboard": "read",
         "campers": "edit",
+        "teams": "edit",
         "checkin": "edit",
         "cabins": "edit",
         "schedule": "edit",
@@ -38,6 +40,7 @@ DEFAULT_PERMISSIONS = {
     "director": {
         "dashboard": "read",
         "campers": "edit",
+        "teams": "hide",
         "checkin": "edit",
         "cabins": "edit",
         "schedule": "edit",
@@ -52,6 +55,7 @@ DEFAULT_PERMISSIONS = {
     "user": {
         "dashboard": "read",
         "campers": "edit",
+        "teams": "hide",
         "checkin": "edit",
         "cabins": "hide",
         "schedule": "hide",
@@ -66,6 +70,7 @@ DEFAULT_PERMISSIONS = {
     "finance": {
         "dashboard": "read",
         "campers": "hide",
+        "teams": "hide",
         "checkin": "hide",
         "cabins": "hide",
         "schedule": "hide",

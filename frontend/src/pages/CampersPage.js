@@ -11,6 +11,8 @@ const EMPTY_CAMPER = {
 };
 
 function CamperModal({ camper, onClose, onSave, teamNames }) {
+  const { hasPermission } = useAuth();
+  const canEditTeams = hasPermission("teams", "edit");
   const [form, setForm] = useState(camper || EMPTY_CAMPER);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -63,14 +65,16 @@ function CamperModal({ camper, onClose, onSave, teamNames }) {
             </div>
             <div className="form-group"><label className="form-label">Cabin / Group</label><input {...inp("cabin_group")} /></div>
             <div className="form-group"><label className="form-label">Family Group</label><input {...inp("family_group")} placeholder="e.g. 101" /></div>
-            <div className="form-group">
-              <label className="form-label">Team</label>
-              <select className="form-select" value={form.team_name || ""} onChange={e => set("team_name", e.target.value)}>
-                <option value="">— Unassigned —</option>
-                <option value={teamNames.team_1}>{teamNames.team_1}</option>
-                <option value={teamNames.team_2}>{teamNames.team_2}</option>
-              </select>
-            </div>
+            {canEditTeams && (
+              <div className="form-group">
+                <label className="form-label">Team</label>
+                <select className="form-select" value={form.team_name || ""} onChange={e => set("team_name", e.target.value)}>
+                  <option value="">— Unassigned —</option>
+                  <option value={teamNames.team_1}>{teamNames.team_1}</option>
+                  <option value={teamNames.team_2}>{teamNames.team_2}</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Guardian & Emergency</div>

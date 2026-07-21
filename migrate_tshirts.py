@@ -2,40 +2,15 @@ import os
 import sys
 import openpyxl
 import pymysql
+import urllib.parse as urlparse
 from dotenv import load_dotenv
 
-# Add backend directory to path
-sys.path.append(os.path.abspath('backend'))
+file_path = r"C:\Users\jenyj\OneDrive\MACBOOK\GCA\church-camp\GCA Tshirt Report.xlsx"
+if not os.path.exists(file_path):
+    file_path = "GCA Tshirt Report.xlsx"
 
-# Load .env file relative to backend directory to connect to MySQL
-from dotenv import load_dotenv
-basedir = os.path.abspath('backend')
-load_dotenv(os.path.join(basedir, ".env"))
-
-db_url = os.environ.get("DATABASE_URL")
-if not db_url or not db_url.startswith("mysql"):
-    print("Database URL must be MySQL for this migration:", db_url)
-    exit(1)
-
-# Extract connection details
-try:
-    url_parts = db_url.split("://")[1]
-    credentials, rest = url_parts.split("@")
-    user, password = credentials.split(":")
-    host_port, dbname = rest.split("/")
-    if ":" in host_port:
-        host, port = host_port.split(":")
-        port = int(port)
-    else:
-        host = host_port
-        port = 3306
-except Exception as e:
-    print("Error parsing DATABASE_URL:", e)
-    user = os.environ.get("DB_USER", "")
-    password = os.environ.get("DB_PASSWORD", "")
-    host = os.environ.get("DB_HOST", "localhost")
-    port = int(os.environ.get("DB_PORT", 3306))
-    dbname = os.environ.get("DB_NAME", "churchcamp")
+if not os.path.exists(file_path):
+    file_path = "GCA Camp Report.xlsx"
 
 def normalize_size(val):
     if not val:
@@ -45,100 +20,172 @@ def normalize_size(val):
         return None
     return val
 
-excel_file = "GCA Tshirt Report.xlsx"
-if not os.path.exists(excel_file):
-    # Fallback to general report if tshirt report doesn't exist locally
-    excel_file = "GCA Camp Report.xlsx"
-    print(f"T-Shirt report not found, falling back to: {excel_file}")
+def migrate():
+    if not os.path.exists(file_path):
+        print(f"Error: No T-Shirt Excel file found at: {file_path}")
+        return
 
-if not os.path.exists(excel_file):
-    print("No Excel file found for T-shirt migration.")
-    exit(1)
-
-print(f"Loading workbook {excel_file}...")
-wb = openpyxl.load_workbook(excel_file, data_only=True)
-sheet = wb.active
-rows = list(sheet.iter_rows(values_only=True))
-print(f"Loaded {len(rows)} rows.")
-
-print("Connecting to database...")
-conn = pymysql.connect(host=host, user=user, password=password, port=port, database=dbname)
-cursor = conn.cursor(pymysql.cursors.DictCursor)
-
-matched_count = 0
-created_count = 0
-updated_count = 0
-unmatched_campers = []
-
-for idx, row in enumerate(rows[1:], start=1):
-    if not row or len(row) < 4:
-        continue
-        
-    name = row[2]
-    raw_size = row[3]
-    family_group = str(row[10]) if len(row) > 10 and row[10] is not None else ""
-    
-    if not name or not raw_size:
-        continue
-        
-    name = str(name).strip()
-    tshirt_size = normalize_size(raw_size)
-    if not tshirt_size:
-        continue
-        
-    # Match camper
-    query = """
-        SELECT id, first_name, last_name, family_group 
-        FROM campers 
-        WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER(%s)
-    """
-    cursor.execute(query, (name,))
-    db_campers = cursor.fetchall()
-    
-    matched_camper = None
-    if len(db_campers) == 1:
-        matched_camper = db_campers[0]
-    elif len(db_campers) > 1:
-        # Resolve by family group
-        for dbc in db_campers:
-            dbc_fg = str(dbc["family_group"]) if dbc["family_group"] is not None else ""
-            if dbc_fg == family_group:
-                matched_camper = dbc
-                break
-        if not matched_camper:
-            matched_camper = db_campers[0]
-            
-    if matched_camper:
-        matched_count += 1
-        camper_id = matched_camper["id"]
-        full_name = f"{matched_camper['first_name']} {matched_camper['last_name']}"
-        
-        cursor.execute("SELECT id, tshirt_size FROM tshirts WHERE camper_id = %s", (camper_id,))
-        existing_tshirt = cursor.fetchone()
-        
-        if existing_tshirt:
-            if existing_tshirt["tshirt_size"] != tshirt_size:
-                cursor.execute(
-                    "UPDATE tshirts SET tshirt_size = %s, attendee_name = %s WHERE id = %s",
-                    (tshirt_size, full_name, existing_tshirt["id"])
-                )
-                updated_count += 1
+    print(f"Loading workbook: {file_path}...")
+    try:
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        if "T-Shirts" in wb.sheetnames:
+            sheet = wb["T-Shirts"]
+        elif "Adults_Children" in wb.sheetnames:
+            sheet = wb["Adults_Children"]
         else:
-            cursor.execute(
-                "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size) VALUES (%s, %s, %s)",
-                (camper_id, full_name, tshirt_size)
-            )
-            created_count += 1
-    else:
-        unmatched_campers.append((name, family_group, raw_size))
+            sheet = wb.active
 
-conn.commit()
-cursor.close()
-conn.close()
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows:
+            raise ValueError("T-Shirt Excel file has no data rows")
+    except Exception as e:
+        print(f"Error: Failed to load T-Shirt Excel workbook from {file_path}. Aborting.")
+        print(f"Details: {e}")
+        return
 
-print("\nT-SHIRT MIGRATION SUMMARY:")
-print(f"Total T-Shirt Excel rows processed: {len(rows) - 1}")
-print(f"Total matched campers in DB: {matched_count}")
-print(f"Total T-shirts created: {created_count}")
-print(f"Total T-shirts updated: {updated_count}")
-print(f"Total unmatched campers: {len(unmatched_campers)}")
+    # Connect to local MySQL database
+    load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+    load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))
+    
+    db_url = os.environ.get("DATABASE_URL")
+    db_user = os.environ.get("DB_USER", "")
+    db_password = os.environ.get("DB_PASSWORD", "")
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_port = int(os.environ.get("DB_PORT", 3306))
+    db_name = os.environ.get("DB_NAME", "churchcamp")
+
+    if db_url:
+        try:
+            parsed_url = db_url.replace("mysql+pymysql://", "http://")
+            url = urlparse.urlparse(parsed_url)
+            db_user = url.username or db_user
+            db_password = url.password or db_password
+            db_host = url.hostname or db_host
+            db_port = url.port or db_port
+            db_name = url.path.lstrip('/') or db_name
+        except Exception as e:
+            print(f"Warning: Failed to parse DATABASE_URL from environment: {e}. Using default values.")
+
+    conn = pymysql.connect(
+        host=db_host, 
+        user=db_user, 
+        password=db_password, 
+        port=db_port, 
+        database=db_name
+    )
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    matched_count = 0
+    created_count = 0
+    updated_count = 0
+    unmatched_campers = []
+
+    # Locate column indexes dynamically from the header row
+    header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
+    name_idx = -1
+    tshirt_idx = -1
+    indian_idx = -1
+
+    for i, col in enumerate(header):
+        if "name" in col and name_idx == -1:
+            name_idx = i
+        elif ("t-shirt" in col or "tshirt" in col or "size" in col) and "indian" not in col and tshirt_idx == -1:
+            tshirt_idx = i
+        elif "indian" in col and indian_idx == -1:
+            indian_idx = i
+
+    # Fallbacks if dynamic detection fails
+    if name_idx == -1:
+        name_idx = 1
+    if tshirt_idx == -1:
+        tshirt_idx = 3
+
+    print(f"Using Columns -> Name: Col {name_idx+1}, US Size: Col {tshirt_idx+1}, Indian Size: Col {indian_idx+1 if indian_idx != -1 else 'N/A'}")
+
+    # Process rows
+    for idx, row in enumerate(rows[1:], start=1):
+        if not row or len(row) <= name_idx or not row[name_idx]:
+            continue
+            
+        name = str(row[name_idx]).strip()
+        raw_us_size = row[tshirt_idx] if len(row) > tshirt_idx else None
+        raw_indian_size = row[indian_idx] if indian_idx != -1 and len(row) > indian_idx else None
+        
+        if not name or name.lower() == "name":
+            continue
+            
+        us_size = normalize_size(raw_us_size) or ""
+        indian_size = normalize_size(raw_indian_size) or ""
+            
+        # Match camper in the local database by first_name + ' ' + last_name
+        query = """
+            SELECT id, first_name, last_name 
+            FROM campers 
+            WHERE LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER(%s)
+        """
+        cursor.execute(query, (name,))
+        db_campers = cursor.fetchall()
+        
+        matched_camper = None
+        if len(db_campers) >= 1:
+            matched_camper = db_campers[0]
+        else:
+            # First & last name fallback
+            name_parts = name.split()
+            if len(name_parts) >= 2:
+                first = name_parts[0].lower()
+                last = name_parts[-1].lower()
+                cursor.execute("SELECT id, first_name, last_name FROM campers")
+                all_campers = cursor.fetchall()
+                for c in all_campers:
+                    c_first = c["first_name"].strip().lower()
+                    c_last = c["last_name"].strip().lower()
+                    if first in c_first and last in c_last:
+                        matched_camper = c
+                        break
+
+        if matched_camper:
+            matched_count += 1
+            camper_id = matched_camper["id"]
+            full_name = f"{matched_camper['first_name']} {matched_camper['last_name']}"
+            
+            # Check if Tshirt record exists
+            cursor.execute("SELECT id, tshirt_size, indian_size FROM tshirts WHERE camper_id = %s", (camper_id,))
+            existing_tshirt = cursor.fetchone()
+            
+            if existing_tshirt:
+                if existing_tshirt["tshirt_size"] != us_size or existing_tshirt["indian_size"] != indian_size:
+                    cursor.execute(
+                        "UPDATE tshirts SET tshirt_size = %s, indian_size = %s, attendee_name = %s WHERE id = %s",
+                        (us_size, indian_size, full_name, existing_tshirt["id"])
+                    )
+                    updated_count += 1
+            else:
+                cursor.execute(
+                    "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size, indian_size) VALUES (%s, %s, %s, %s)",
+                    (camper_id, full_name, us_size, indian_size)
+                )
+                created_count += 1
+        else:
+            unmatched_campers.append((name, raw_us_size, raw_indian_size))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print("\n" + "="*50)
+    print("T-SHIRT LOCAL DB MIGRATION SUMMARY:")
+    print(f"Total T-Shirt Excel rows processed: {len(rows) - 1}")
+    print(f"Total matched campers in local DB: {matched_count}")
+    print(f"Total T-shirts created: {created_count}")
+    print(f"Total T-shirts updated: {updated_count}")
+    print(f"Total unmatched campers: {len(unmatched_campers)}")
+
+    if unmatched_campers:
+        print("\nUnmatched campers from T-Shirt Excel:")
+        for name, us_sz, ind_sz in unmatched_campers[:15]:
+            print(f" - Name: {name}, US Size: {us_sz}, Indian Size: {ind_sz}")
+    print("="*50)
+
+if __name__ == "__main__":
+    migrate()

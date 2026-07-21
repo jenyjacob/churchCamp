@@ -139,7 +139,7 @@ def migrate():
             continue
             
         name = str(name).strip()
-        us_size = normalize_size(raw_us_size) or "Adult M"
+        us_size = normalize_size(raw_us_size) or "CUSTOM"
         indian_size = str(raw_indian_size).strip() if raw_indian_size is not None else None
             
         # Match camper in the database by first_name + ' ' + last_name

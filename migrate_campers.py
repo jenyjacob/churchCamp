@@ -16,7 +16,7 @@ def migrate():
     # 1. Load Excel workbook first to prevent database wipe if file loading fails
     try:
         wb = openpyxl.load_workbook(file_path, data_only=True)
-        sheet = wb.active
+        sheet = wb["Adults_Children"] if "Adults_Children" in wb.sheetnames else wb.active
         rows = list(sheet.iter_rows(values_only=True))
         if not rows:
             raise ValueError("Excel file has no data rows")
@@ -72,13 +72,13 @@ def migrate():
         # 3. First pass: group adults by Family Group to extract parent/guardian details
         family_guardians = {}
         for row in data_rows:
-            if not row or len(row) < 11:
+            if not row or len(row) < 3 or not row[2]:
                 continue
-            member_type = row[1] # 'Adult' or 'Child'
-            name = row[2]
-            phone = row[8]
-            email = row[9]
-            family_group = str(row[10]) if row[10] is not None else None
+            member_type = str(row[1]).strip() if len(row) > 1 and row[1] else 'Adult'
+            name = str(row[2]).strip()
+            phone = row[8] if len(row) > 8 else None
+            email = row[9] if len(row) > 9 else None
+            family_group = str(row[10]).strip() if len(row) > 10 and row[10] is not None else None
             
             if not family_group or not name:
                 continue
@@ -95,6 +95,7 @@ def migrate():
 
         # 4. Second pass: insert campers
         inserted_count = 0
+        tshirt_count = 0
         
         insert_sql = """
             INSERT INTO campers (
@@ -109,28 +110,29 @@ def migrate():
         """
         
         for row in data_rows:
-            if not row or len(row) < 11:
+            if not row or len(row) < 3 or not row[2]:
                 continue
             
-            member_type = row[1] # 'Adult' or 'Child'
-            name = row[2]
-            child_age = row[4]
-            allergies = row[7]
-            phone = row[8]
-            email = row[9]
-            family_group = str(row[10]) if row[10] is not None else None
+            member_type = str(row[1]).strip() if len(row) > 1 and row[1] else 'Adult'
+            name = str(row[2]).strip()
+            raw_tshirt_size = str(row[3]).strip() if len(row) > 3 and row[3] else None
+            child_age = row[4] if len(row) > 4 else None
+            allergies = str(row[7]).strip() if len(row) > 7 and row[7] else None
+            phone = row[8] if len(row) > 8 else None
+            email = row[9] if len(row) > 9 else None
+            family_group = str(row[10]).strip() if len(row) > 10 and row[10] is not None else None
             
             # Parse outdoor activities
             kayaking_val = 0
             try:
-                if row[5] is not None and str(row[5]).strip() != "":
+                if len(row) > 5 and row[5] is not None and str(row[5]).strip() != "":
                     kayaking_val = int(float(row[5]))
             except:
                 pass
 
             boat_tour_val = 0
             try:
-                if row[6] is not None and str(row[6]).strip() != "":
+                if len(row) > 6 and row[6] is not None and str(row[6]).strip() != "":
                     boat_tour_val = int(float(row[6]))
             except:
                 pass
@@ -176,10 +178,18 @@ def migrate():
                 kayaking_val,
                 boat_tour_val
             ))
+            inserted_camper_id = cursor.lastrowid
             inserted_count += 1
+
+            if raw_tshirt_size:
+                cursor.execute(
+                    "INSERT INTO tshirts (camper_id, attendee_name, tshirt_size, indian_size) VALUES (%s, %s, %s, %s)",
+                    (inserted_camper_id, f"{first_name} {last_name}".strip(), raw_tshirt_size, "")
+                )
+                tshirt_count += 1
             
         conn.commit()
-        print(f"Data migration finished! Successfully inserted {inserted_count} members.")
+        print(f"Data migration finished! Successfully inserted {inserted_count} members and {tshirt_count} T-shirt sizes.")
     except Exception as e:
         conn.rollback()
         print(f"Error occurred during database operations: {e}")

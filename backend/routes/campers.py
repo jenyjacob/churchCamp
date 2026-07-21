@@ -277,9 +277,6 @@ def public_signup():
 def update_camper(camper_id):
     claims = get_jwt()
     role = claims.get("role")
-    
-    if role not in ["admin", "owner", "director"]:
-        return jsonify({"error": "Admin or Director access required"}), 403
 
     camper = Camper.query.get_or_404(camper_id)
     data = request.get_json()
@@ -305,8 +302,18 @@ def update_camper(camper_id):
         
         waiver_changed = "waiver_submitted" in data and data["waiver_submitted"] != camper.waiver_submitted
 
+        from models.permission import PagePermission
+        from routes.permissions import DEFAULT_PERMISSIONS
+
+        has_teams_edit = (DEFAULT_PERMISSIONS.get(role, {}).get("teams") == "edit")
+        custom_teams_perm = PagePermission.query.filter_by(role=role, page_key="teams").first()
+        if custom_teams_perm:
+            has_teams_edit = (custom_teams_perm.access_level == "edit")
+
         for field in fields:
             if field in data:
+                if field == "team_name" and not has_teams_edit:
+                    continue
                 val = data[field]
                 if field in ["kayaking", "boat_tour"]:
                     try:

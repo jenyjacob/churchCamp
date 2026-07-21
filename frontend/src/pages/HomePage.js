@@ -55,16 +55,14 @@ export default function HomePage() {
   const verse = getDailyVerse();
 
   useEffect(() => {
-    Promise.all([
-      api.get("/api/campers/stats"),
-      api.get("/api/checkin/?active_only=true&per_page=8"),
-    ])
-      .then(([statsRes, checkinsRes]) => {
-        setStats(statsRes.data);
-        setRecentCheckins(checkinsRes.data.checkins);
-      })
-      .catch(() => {})
+    api.get("/api/campers/stats")
+      .then((res) => setStats(res.data))
+      .catch((err) => console.error("Error fetching camper stats:", err))
       .finally(() => setLoading(false));
+
+    api.get("/api/checkin/?active_only=true&per_page=8")
+      .then((res) => setRecentCheckins(res.data.logs || []))
+      .catch(() => setRecentCheckins([]));
   }, []);
 
   const greeting = () => {

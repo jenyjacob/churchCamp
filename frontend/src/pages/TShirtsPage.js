@@ -25,7 +25,7 @@ export default function TShirtsPage() {
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 
   // Inventory & Choice Tabs
-  const [sizeSystemTab, setSizeSystemTab] = useState("BOTH"); // "US" | "INDIAN" | "BOTH"
+  const [sizeSystemTab, setSizeSystemTab] = useState("US"); // "US" | "INDIAN"
   const [stockUs, setStockUs] = useState({});
   const [stockIndian, setStockIndian] = useState({});
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
@@ -264,28 +264,21 @@ export default function TShirtsPage() {
     const key = `${camperId}-${field}`;
     setSavingMap(prev => ({ ...prev, [key]: "saving" }));
 
-    // Mutually exclusive shirt selection: if picking a size in one system, clear the other system
+    // Allow selecting both US size and Indian size independently
     const payload = { [field]: value };
-    if (value) {
-      if (field === "tshirt_size") {
-        payload.indian_size = "";
-      } else if (field === "indian_size") {
-        payload.tshirt_size = "";
-      }
-    }
 
     try {
-      await api.put(`/api/campers/${camperId}`, payload);
+      await api.post(`/api/tshirts/`, { camper_id: camperId, ...payload })
+        .catch(async () => {
+          // Fallback to camper update endpoint if tshirt endpoint doesn't exist
+          await api.put(`/api/campers/${camperId}`, payload);
+        });
+      
       setSavingMap(prev => ({ ...prev, [key]: "saved" }));
       
       setCampers(prev => prev.map(c => {
         if (c.id === camperId) {
-          const updated = { ...c, [field]: value };
-          if (value) {
-            if (field === "tshirt_size") updated.indian_size = "";
-            if (field === "indian_size") updated.tshirt_size = "";
-          }
-          return updated;
+          return { ...c, [field]: value };
         }
         return c;
       }));
@@ -442,14 +435,6 @@ export default function TShirtsPage() {
                         onClick={() => setSizeSystemTab("INDIAN")}
                       >
                         🇮🇳 Indian Sizes
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${sizeSystemTab === "BOTH" ? "btn-primary" : "btn-ghost"}`}
-                        style={{ padding: "4px 12px", fontSize: "0.8rem", borderRadius: 6 }}
-                        onClick={() => setSizeSystemTab("BOTH")}
-                      >
-                        📊 Both Systems
                       </button>
                     </div>
                   </div>

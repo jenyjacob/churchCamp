@@ -4,6 +4,7 @@ import api from "../utils/api";
 const PAGES = [
   { key: "dashboard", label: "🏠 Dashboard" },
   { key: "campers", label: "👤 Campers" },
+  { key: "teams", label: "🏆 Team Selection" },
   { key: "checkin", label: "✅ Check-In" },
   { key: "cabins", label: "⛺ Cabins" },
   { key: "schedule", label: "📅 Schedule" },
