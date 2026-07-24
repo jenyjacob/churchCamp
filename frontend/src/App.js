@@ -15,6 +15,7 @@ import OutdoorPage from "./pages/OutdoorPage";
 import SignupPage from "./pages/SignupPage";
 import TShirtsPage from "./pages/TShirtsPage";
 import RoleAssignerPage from "./pages/RoleAssignerPage";
+import CampInfoPage from "./pages/CampInfoPage";
 
 
 function RequireAuth({ children }) {
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="finance" element={<RequireFinanceOrReceiptPermission><FinancePage /></RequireFinanceOrReceiptPermission>} />
         <Route path="logs" element={<RequirePermission pageKey="logs"><AuditLogsPage /></RequirePermission>} />
         <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
+        <Route path="camp-info" element={<RequirePermission pageKey="camp_info"><CampInfoPage /></RequirePermission>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

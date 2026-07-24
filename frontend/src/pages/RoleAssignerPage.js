@@ -13,7 +13,8 @@ const PAGES = [
   { key: "finance", label: "💰 Finance" },
   { key: "receipt_upload", label: "🧾 Upload Receipts" },
   { key: "users", label: "⚙️ Users" },
-  { key: "logs", label: "📄 Audit Logs" }
+  { key: "logs", label: "📄 Audit Logs" },
+  { key: "camp_info", label: "ℹ️ Camp Info" }
 ];
 
 const getRoleLabel = (roleKey) => {

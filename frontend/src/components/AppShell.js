@@ -17,6 +17,7 @@ const navItems = [
   { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
   { to: "/outdoor", icon: "🛶", label: "Outdoor Activities", pageKey: "outdoor" },
   { to: "/tshirts", icon: "👕", label: "Apparel", pageKey: "apparel" },
+  { to: "/camp-info", icon: "ℹ️", label: "Camp Info", pageKey: "camp_info" },
 ];
 
 const adminItems = [

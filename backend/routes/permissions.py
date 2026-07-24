@@ -20,7 +20,8 @@ DEFAULT_PERMISSIONS = {
         "logs": "edit",
         "role_assigner": "edit",
         "finance": "edit",
-        "receipt_upload": "edit"
+        "receipt_upload": "edit",
+        "camp_info": "edit"
     },
     "admin": {
         "dashboard": "read",
@@ -35,7 +36,8 @@ DEFAULT_PERMISSIONS = {
         "logs": "hide",
         "role_assigner": "hide",
         "finance": "edit",
-        "receipt_upload": "edit"
+        "receipt_upload": "edit",
+        "camp_info": "read"
     },
     "director": {
         "dashboard": "read",
@@ -50,7 +52,8 @@ DEFAULT_PERMISSIONS = {
         "logs": "hide",
         "role_assigner": "hide",
         "finance": "read",
-        "receipt_upload": "hide"
+        "receipt_upload": "hide",
+        "camp_info": "read"
     },
     "user": {
         "dashboard": "read",
@@ -65,7 +68,8 @@ DEFAULT_PERMISSIONS = {
         "logs": "hide",
         "role_assigner": "hide",
         "finance": "hide",
-        "receipt_upload": "hide"
+        "receipt_upload": "hide",
+        "camp_info": "read"
     },
     "finance": {
         "dashboard": "read",
@@ -80,7 +84,8 @@ DEFAULT_PERMISSIONS = {
         "logs": "hide",
         "role_assigner": "hide",
         "finance": "edit",
-        "receipt_upload": "edit"
+        "receipt_upload": "edit",
+        "camp_info": "read"
     }
 }
 
