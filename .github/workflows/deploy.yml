@@ -114,7 +114,7 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt -q
           # python migrate_campers_ec2.py
-          python migrate_tshirts_ec2.py
+          # python migrate_tshirts_ec2.py
           sudo systemctl restart churchcamp
           sudo systemctl reload nginx
           sleep 3
