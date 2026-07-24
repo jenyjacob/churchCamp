@@ -210,15 +210,48 @@ def fetch_all_nearby_places(location, radius, type_filter, keyword_filter, api_k
         pass
     return results
 
+import json
+import os
+
+CACHE_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "places_cache.json")
+
+def read_places_cache():
+    if os.path.exists(CACHE_FILE_PATH):
+        try:
+            with open(CACHE_FILE_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def write_places_cache(cache_data):
+    try:
+        with open(CACHE_FILE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache_data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
 @settings_bp.route("/places", methods=["GET"])
 @jwt_required()
 def get_nearby_places():
     import requests
+    import time
     
     # 1. Get camp location & API key
     location_setting = Setting.query.filter_by(key="signup_location").first()
     camp_address = location_setting.value if location_setting else DEFAULT_SETTINGS["signup_location"]
     
+    # Check persistent cache first
+    force_refresh = request.args.get("refresh", "false").lower() == "true"
+    cache_dict = read_places_cache()
+    norm_address = camp_address.strip().upper()
+    
+    if not force_refresh and norm_address in cache_dict:
+        cached = cache_dict[norm_address]
+        if cached and "data" in cached:
+            if time.time() - cached.get("timestamp", 0) < 604800:  # 7 days
+                return jsonify(cached["data"]), 200
+            
     api_key_setting = Setting.query.filter_by(key="google_places_api_key").first()
     api_key = api_key_setting.value if api_key_setting else ""
     
@@ -237,8 +270,19 @@ def get_nearby_places():
                 loc = geo_data["results"][0]["geometry"]["location"]
                 lat, lng = loc["lat"], loc["lng"]
                 
-                # Search Hospitals (25 miles = 40233 meters)
-                hosp_raw = fetch_all_nearby_places(f"{lat},{lng}", 40233, "hospital", None, api_key)
+                # Search Google Places concurrently to avoid sequential time.sleep delays
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    hosp_future = executor.submit(fetch_all_nearby_places, f"{lat},{lng}", 40233, "hospital", None, api_key)
+                    rest_future = executor.submit(fetch_all_nearby_places, f"{lat},{lng}", 40233, "restaurant", None, api_key)
+                    ff_future = executor.submit(fetch_all_nearby_places, f"{lat},{lng}", 40233, "restaurant", "fast food", api_key)
+                    mcd_future = executor.submit(fetch_all_nearby_places, f"{lat},{lng}", 40233, "restaurant", "McDonald's", api_key)
+                    
+                    hosp_raw = hosp_future.result()
+                    rest_raw = rest_future.result()
+                    ff_raw = ff_future.result()
+                    mcd_raw = mcd_future.result()
+                
+                # Parse Hospitals
                 if hosp_raw:
                     using_mock = False
                     for item in hosp_raw:
@@ -258,37 +302,14 @@ def get_nearby_places():
                     # Sort hospitals by distance
                     hospitals.sort(key=lambda x: x.get("dist_val", 999.0))
                 
-                # Search Sit-down Restaurants
-                rest_raw = fetch_all_nearby_places(f"{lat},{lng}", 40233, "restaurant", None, api_key)
-                
+                # Parse Restaurants & Dining
                 raw_dining_items = []
                 seen_place_ids = set()
                 
-                if rest_raw:
+                combined_raw_dining = (rest_raw or []) + (ff_raw or [])
+                if combined_raw_dining:
                     using_mock = False
-                    for item in rest_raw:
-                        pid = item.get("place_id")
-                        if pid and pid not in seen_place_ids:
-                            seen_place_ids.add(pid)
-                            place_loc = item.get("geometry", {}).get("location", {})
-                            p_lat, p_lng = place_loc.get("lat"), place_loc.get("lng")
-                            dist = calculate_distance(lat, lng, p_lat, p_lng) if p_lat and p_lng else 999.0
-                            if dist <= 25.0:
-                                raw_dining_items.append({
-                                    "place_id": pid,
-                                    "name": item.get("name"),
-                                    "rating": item.get("rating", "N/A"),
-                                    "address": item.get("vicinity"),
-                                    "distance": f"{dist} miles",
-                                    "dist_val": dist,
-                                    "open_now": item.get("opening_hours", {}).get("open_now", True)
-                                })
-
-                # Search Fast Food
-                ff_raw = fetch_all_nearby_places(f"{lat},{lng}", 40233, "restaurant", "fast food", api_key)
-                if ff_raw:
-                    using_mock = False
-                    for item in ff_raw:
+                    for item in combined_raw_dining:
                         pid = item.get("place_id")
                         if pid and pid not in seen_place_ids:
                             seen_place_ids.add(pid)
@@ -308,10 +329,8 @@ def get_nearby_places():
                             
                     # Guarantee a McDonald's is in the list
                     has_mcdonalds = any("mcdonald" in it["name"].lower() for it in raw_dining_items)
-                    if not has_mcdonalds:
-                        mcd_raw = fetch_all_nearby_places(f"{lat},{lng}", 40233, "restaurant", "McDonald's", api_key)
-                        if mcd_raw:
-                            mcd_item = mcd_raw[0]
+                    if not has_mcdonalds and mcd_raw:
+                        for mcd_item in mcd_raw:
                             pid = mcd_item.get("place_id")
                             if pid and pid not in seen_place_ids:
                                 seen_place_ids.add(pid)
@@ -328,17 +347,19 @@ def get_nearby_places():
                                         "dist_val": dist,
                                         "open_now": mcd_item.get("opening_hours", {}).get("open_now", True)
                                     })
+                                    break
                 
                 # Sort combined list by distance
                 raw_dining_items.sort(key=lambda x: x.get("dist_val", 999.0))
                 restaurants = raw_dining_items
                 
-                # Fetch Phone Numbers in Parallel
-                all_items = hospitals + restaurants
-                with ThreadPoolExecutor(max_workers=20) as executor:
+                # Fetch Phone Numbers in Parallel for ALL items
+                all_items_to_fetch = hospitals + restaurants
+                
+                with ThreadPoolExecutor(max_workers=35) as executor:
                     futures = {
                         executor.submit(fetch_phone_number, item.get("place_id"), api_key): item 
-                        for item in all_items if item.get("place_id")
+                        for item in all_items_to_fetch if item.get("place_id")
                     }
                     for fut in futures:
                         target_item = futures[fut]
@@ -400,9 +421,18 @@ def get_nearby_places():
                 {"name": "Burger King", "rating": 3.9, "address": f"805 S West Ave, {city}, {state}", "distance": "0.8 miles", "phone": "+1 (555) 019-4456", "open_now": True}
             ]
         
-    return jsonify({
+    response_data = {
         "hospitals": hospitals,
         "restaurants": restaurants,
         "is_mock": using_mock,
         "camp_address": camp_address
-    }), 200
+    }
+    
+    # Store in persistent file cache
+    cache_dict[norm_address] = {
+        "timestamp": time.time(),
+        "data": response_data
+    }
+    write_places_cache(cache_dict)
+    
+    return jsonify(response_data), 200

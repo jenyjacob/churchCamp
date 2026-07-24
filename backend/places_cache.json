@@ -1,0 +1,1560 @@
+{
+  "269 METHODIST LN, POTTSBORO, TX 75076": {
+    "timestamp": 1784924488.5881996,
+    "data": {
+      "hospitals": [
+        {
+          "place_id": "ChIJfafl0hOFTIYRvhE6fRQ7FeM",
+          "name": "DaVita Denison Dialysis Center",
+          "rating": 5,
+          "address": "1220 Reba McEntire Lane, Denison",
+          "distance": "8.6 miles",
+          "dist_val": 8.6,
+          "open_now": true,
+          "phone": "(833) 325-3080"
+        },
+        {
+          "place_id": "ChIJ5TR2bgSFTIYRwvWqj1_0jhw",
+          "name": "Morton Center",
+          "rating": "N/A",
+          "address": "2402 West Morton Street, Denison",
+          "distance": "8.8 miles",
+          "dist_val": 8.8,
+          "open_now": true,
+          "phone": "(903) 815-7769"
+        },
+        {
+          "place_id": "ChIJ_XKADu1fS4YRDwu9_erjUPw",
+          "name": "Ned Hemric, MD",
+          "rating": "N/A",
+          "address": "701 U.S. 70 #307, Kingston",
+          "distance": "9.5 miles",
+          "dist_val": 9.5,
+          "open_now": true,
+          "phone": "(580) 564-7338"
+        },
+        {
+          "place_id": "ChIJ9zPQHgu_TIYR4PcPfVYh8oQ",
+          "name": "Nedal Amin Elass, M.D.",
+          "rating": 5,
+          "address": "701 U.S. 70, Kingston",
+          "distance": "9.6 miles",
+          "dist_val": 9.6,
+          "open_now": false,
+          "phone": "(580) 564-7338"
+        },
+        {
+          "place_id": "ChIJQa-kaexfS4YRZ4pHuQcmrFo",
+          "name": "Ana Crew, DO",
+          "rating": 5,
+          "address": "21 North Main, Kingston",
+          "distance": "9.8 miles",
+          "dist_val": 9.8,
+          "open_now": false,
+          "phone": "(580) 924-3400"
+        },
+        {
+          "place_id": "ChIJN7wysayITIYRNq-nqv55NDs",
+          "name": "TexomaCare - Orthopedic and Spine Surgery",
+          "rating": 3,
+          "address": "5012 U.S. 75 Suite 170, Denison",
+          "distance": "11.1 miles",
+          "dist_val": 11.1,
+          "open_now": true,
+          "phone": "(903) 416-5300"
+        },
+        {
+          "place_id": "ChIJK_-tBwaGTIYRmbPpfR-Ct4k",
+          "name": "Women's Center of Texoma",
+          "rating": 5,
+          "address": "5012 North Highway 75 #105, Denison",
+          "distance": "11.6 miles",
+          "dist_val": 11.6,
+          "open_now": true,
+          "phone": "(903) 548-4966"
+        },
+        {
+          "place_id": "ChIJC1CQdlOPTIYRD3F-wlGke_E",
+          "name": "Texoma Medical Plaza",
+          "rating": 3.8,
+          "address": "5012 U.S. 75, Denison",
+          "distance": "11.6 miles",
+          "dist_val": 11.6,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJe6mnmEaPTIYRSVvQo7E64x4",
+          "name": "TexomaCare - OB/GYN",
+          "rating": "N/A",
+          "address": "5012 U.S. 75 #300, Denison",
+          "distance": "11.6 miles",
+          "dist_val": 11.6,
+          "open_now": true,
+          "phone": "(903) 416-6430"
+        },
+        {
+          "place_id": "ChIJRwU03YURTIYRmeHDG9jIt3o",
+          "name": "TexomaCare - Vascular Surgery",
+          "rating": "N/A",
+          "address": "5012 U.S. 75 #100, Denison",
+          "distance": "11.6 miles",
+          "dist_val": 11.6,
+          "open_now": true,
+          "phone": "(903) 416-6419"
+        },
+        {
+          "place_id": "ChIJPcX_yKyITIYR3v7k9oQ8ICI",
+          "name": "Texoma Cardiovascular Care Associates",
+          "rating": 3.3,
+          "address": "5012 U.S. 75 #100, Denison",
+          "distance": "11.6 miles",
+          "dist_val": 11.6,
+          "open_now": true,
+          "phone": "(903) 416-6419"
+        },
+        {
+          "place_id": "ChIJK_-tBwaGTIYRBRFGCevmwmo",
+          "name": "Texoma Medical Center",
+          "rating": 4.4,
+          "address": "5016 North Highway 75, Denison",
+          "distance": "11.7 miles",
+          "dist_val": 11.7,
+          "open_now": true,
+          "phone": "(903) 416-4000"
+        },
+        {
+          "place_id": "ChIJR__YiBKFTIYRriX3ucjVH5o",
+          "name": "Texas Oncology-Denison Cancer Center",
+          "rating": 3.2,
+          "address": "5125 Texoma Medical Center Drive Suite 100, Denison",
+          "distance": "11.8 miles",
+          "dist_val": 11.8,
+          "open_now": true,
+          "phone": "(903) 868-4700"
+        },
+        {
+          "place_id": "ChIJkaLdIS3JyFIRMnbzzapXJeg",
+          "name": "Baylor Scott & White Urgent Care+, Sherman",
+          "rating": 4.6,
+          "address": "4028 North Highway 75, Sherman",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true,
+          "phone": "(903) 375-0800"
+        },
+        {
+          "place_id": "ChIJzfmKe_KITIYRLfUMGYeABf4",
+          "name": "Baylor Scott & White Surgical Hospital at Sherman",
+          "rating": 4,
+          "address": "3601 North Calais Street, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 870-0999"
+        },
+        {
+          "place_id": "ChIJgwYh4Q6JTIYRX5TADmRFzsQ",
+          "name": "Carrus Health - Main Campus",
+          "rating": 3.4,
+          "address": "1810 West US Highway 82, Sherman",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(903) 870-2600"
+        },
+        {
+          "place_id": "ChIJKXVN_VSITIYR2ehoX07k7_s",
+          "name": "DaVita Sherman Dialysis Center",
+          "rating": 3.4,
+          "address": "1724 West US Highway 82 Suite 100, Sherman",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(833) 325-3079"
+        },
+        {
+          "place_id": "ChIJKUyXL_KITIYRUa44AgTNseo",
+          "name": "Wilson N Jones Regional Medical Center-Behavioral Health Services",
+          "rating": 1.5,
+          "address": "Sherman",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(903) 870-7322"
+        },
+        {
+          "place_id": "ChIJo3Dx24iJTIYRlOtRvO20LQU",
+          "name": "Carrus Health - Behavioral Health Hospital",
+          "rating": 3.3,
+          "address": "1724 West US Highway 82, Sherman",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(903) 870-1222"
+        },
+        {
+          "place_id": "ChIJ--IpSp-JTIYRQPtFJs2HhPs",
+          "name": "Hearing Healthcare Center",
+          "rating": "N/A",
+          "address": "2907 Overland Trail #300, Sherman",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(903) 892-1597"
+        },
+        {
+          "place_id": "ChIJaTwsHlGITIYRDrkKzdL6WeE",
+          "name": "Red River ER & Hospital",
+          "rating": 4.8,
+          "address": "2022 North Highway 75, Sherman",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true,
+          "phone": "(430) 362-8034"
+        },
+        {
+          "place_id": "ChIJVfxs7F-JTIYRUufcBv3NWZc",
+          "name": "OmniSpine Pain Management",
+          "rating": 5,
+          "address": "600 East Taylor Street #308, Sherman",
+          "distance": "14.9 miles",
+          "dist_val": 14.9,
+          "open_now": true,
+          "phone": "(903) 218-8122"
+        },
+        {
+          "place_id": "ChIJVVVVVe6ITIYRTs_O7a8Xdtc",
+          "name": "Sherman VA Clinic",
+          "rating": 2.8,
+          "address": "1715 Texoma Parkway, Sherman",
+          "distance": "15.1 miles",
+          "dist_val": 15.1,
+          "open_now": true,
+          "phone": "(903) 487-0477"
+        },
+        {
+          "place_id": "ChIJr05ZDfeJTIYRsggf9n1n9Cc",
+          "name": "Dr. Clint A. Hayes, MD",
+          "rating": 4.9,
+          "address": "1325 North Travis Street, Sherman",
+          "distance": "15.4 miles",
+          "dist_val": 15.4,
+          "open_now": false,
+          "phone": "(903) 893-0123"
+        },
+        {
+          "place_id": "ChIJ9caPsw-FTIYR10E8YW7Ju9U",
+          "name": "Vein Center of North Texas",
+          "rating": 5,
+          "address": "1325 North Travis Street, Sherman",
+          "distance": "15.4 miles",
+          "dist_val": 15.4,
+          "open_now": false,
+          "phone": "(903) 893-0123"
+        },
+        {
+          "place_id": "ChIJ3bNUxJyJTIYRUxZdn7YopPg",
+          "name": "Baylor Scott & White The Heart Group - Sherman",
+          "rating": 5,
+          "address": "230 East Sycamore Street Suite 205, Sherman",
+          "distance": "15.5 miles",
+          "dist_val": 15.5,
+          "open_now": true,
+          "phone": "(469) 800-6100"
+        },
+        {
+          "place_id": "ChIJDZUabh-JTIYRRf0SyCH7GQQ",
+          "name": "Pioneer Primary care and Cardiology clinic",
+          "rating": 4.9,
+          "address": "200 East Evergreen Street Ste 200A, Sherman",
+          "distance": "15.5 miles",
+          "dist_val": 15.5,
+          "open_now": true,
+          "phone": "(469) 888-4890"
+        },
+        {
+          "place_id": "ChIJsY1_q8uJTIYRRu_LmnO-57s",
+          "name": "Wellstone Health Partners",
+          "rating": "N/A",
+          "address": "600 North Highland Avenue, Sherman",
+          "distance": "16.1 miles",
+          "dist_val": 16.1,
+          "open_now": true,
+          "phone": "(903) 957-2100"
+        },
+        {
+          "place_id": "ChIJY83Ace6JTIYRm-jPaF1q7aI",
+          "name": "Texoma Gastroenterology Assoc.",
+          "rating": "N/A",
+          "address": "425 North Highland Avenue, Sherman",
+          "distance": "16.1 miles",
+          "dist_val": 16.1,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJM3PFgsuJTIYRtS7ICMHJHdg",
+          "name": "Sherman Medical Center",
+          "rating": 3.2,
+          "address": "500 North Highland Avenue, Sherman",
+          "distance": "16.1 miles",
+          "dist_val": 16.1,
+          "open_now": true,
+          "phone": "(903) 870-4611"
+        },
+        {
+          "place_id": "ChIJnz1dmsyJTIYRSQsOKzESMFI",
+          "name": "LHP Hospital",
+          "rating": 1,
+          "address": "300 North Highland Avenue, Sherman",
+          "distance": "16.2 miles",
+          "dist_val": 16.2,
+          "open_now": true,
+          "phone": "(903) 957-0349"
+        },
+        {
+          "place_id": "ChIJl7WwzhbHTIYRRt2rsTma65A",
+          "name": "AllianceHealth Madill",
+          "rating": 3.9,
+          "address": "901 South 5th Avenue, Madill",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true,
+          "phone": "(580) 795-3384"
+        },
+        {
+          "place_id": "ChIJb2TiAhfHTIYR1l7Fe8FOrQ0",
+          "name": "INTEGRIS Marshall County Medical Center",
+          "rating": 3.8,
+          "address": "1 Hospital Drive, Madill",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true,
+          "phone": "(580) 795-3384"
+        },
+        {
+          "place_id": "ChIJkYKErPdfS4YRBhLW1Cqt7Zg",
+          "name": "DaVita Durant Dialysis Center",
+          "rating": 3.4,
+          "address": "411 Westside Drive, Durant",
+          "distance": "16.7 miles",
+          "dist_val": 16.7,
+          "open_now": true,
+          "phone": "(833) 344-2506"
+        },
+        {
+          "place_id": "ChIJa79zCe1fS4YRKxrZHYtwCFw",
+          "name": "The Heart and Medical Center and Urgent Care",
+          "rating": 4.9,
+          "address": "2701 University Boulevard, Durant",
+          "distance": "17.0 miles",
+          "dist_val": 17.0,
+          "open_now": true,
+          "phone": "(580) 931-0500"
+        },
+        {
+          "place_id": "ChIJI8zrM-xfS4YRs3lk2eMBgA8",
+          "name": "Angela Wright, RN, MSN, NP-C",
+          "rating": "N/A",
+          "address": "1805 University Boulevard, Durant",
+          "distance": "17.4 miles",
+          "dist_val": 17.4,
+          "open_now": true,
+          "phone": "(580) 924-4704"
+        },
+        {
+          "place_id": "ChIJC-VYVuxfS4YRkNYOZboLLTo",
+          "name": "AllianceHealth Durant",
+          "rating": 4.2,
+          "address": "1800 University Boulevard, Durant",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": true,
+          "phone": "(580) 924-3080"
+        },
+        {
+          "place_id": "ChIJ_XKADu1fS4YRNdpXQIOnu5o",
+          "name": "Steve White, MD",
+          "rating": "N/A",
+          "address": "1400 Bryan Drive #300, Durant",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": false,
+          "phone": "(580) 920-0300"
+        },
+        {
+          "place_id": "ChIJQa-kaexfS4YRv-t46nJmfDI",
+          "name": "Lynn Jestis, DO",
+          "rating": 3.7,
+          "address": "1610 University Boulevard, Durant",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": true,
+          "phone": "(580) 924-3400"
+        },
+        {
+          "place_id": "ChIJkbTRa-xfS4YRCMs_gOHAHfw",
+          "name": "David Dillow, DO",
+          "rating": 5,
+          "address": "1610 University Boulevard, Durant",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": true,
+          "phone": "(580) 924-3400"
+        },
+        {
+          "place_id": "ChIJa_sD_RpfS4YRQjEHQ0m9UVc",
+          "name": "Durant Medical Center",
+          "rating": 2.9,
+          "address": "Durant",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": true,
+          "phone": "(539) 777-4648"
+        },
+        {
+          "place_id": "ChIJz26i8exfS4YRU-JsOIpZYQg",
+          "name": "Medical Center-Southeastern Ok",
+          "rating": 1,
+          "address": "1800 University Boulevard, Durant",
+          "distance": "17.6 miles",
+          "dist_val": 17.6,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJH_emrNZfS4YRaGZPGA9VSu4",
+          "name": "Carey Hearing Center",
+          "rating": 4.6,
+          "address": "400 West Main Street B, Durant",
+          "distance": "17.7 miles",
+          "dist_val": 17.7,
+          "open_now": false,
+          "phone": "(580) 920-1233"
+        },
+        {
+          "place_id": "ChIJw-MajGn3TIYRYXUHLx7h-fc",
+          "name": "TexomaCare - Whitesboro",
+          "rating": 4.2,
+          "address": "308 Charlie Drive West Suite, Whitesboro",
+          "distance": "20.1 miles",
+          "dist_val": 20.1,
+          "open_now": true,
+          "phone": "(903) 564-9090"
+        },
+        {
+          "place_id": "ChIJTX8fY7q2TIYR5Knx4ysy4vg",
+          "name": "Mercy Hospital Tishomingo",
+          "rating": 3.9,
+          "address": "1000 South Byrd Street, Tishomingo",
+          "distance": "24.5 miles",
+          "dist_val": 24.5,
+          "open_now": true,
+          "phone": "(580) 371-2327"
+        },
+        {
+          "place_id": "ChIJ9yFeXrq2TIYRDqgybw3DYCo",
+          "name": "Mercy Emergency Department - Tishomingo",
+          "rating": 2,
+          "address": "1000 South Byrd Street, Tishomingo",
+          "distance": "24.5 miles",
+          "dist_val": 24.5,
+          "open_now": true,
+          "phone": "(580) 371-2327"
+        }
+      ],
+      "restaurants": [
+        {
+          "place_id": "ChIJS5HV81eSTIYR37WNZwh4Tns",
+          "name": "The Island Bar & Grill",
+          "rating": 4.1,
+          "address": "120 Texoma Harbor Drive, Pottsboro",
+          "distance": "4.3 miles",
+          "dist_val": 4.3,
+          "open_now": true,
+          "phone": "(903) 786-7654"
+        },
+        {
+          "place_id": "ChIJcz9ePcGXTIYRXZvsfh_mCnU",
+          "name": "Alberta Creek Resort & Marina",
+          "rating": 4.4,
+          "address": "9040 Clear Lake Drive, Kingston",
+          "distance": "6.7 miles",
+          "dist_val": 6.7,
+          "open_now": true,
+          "phone": "(580) 564-2552"
+        },
+        {
+          "place_id": "ChIJPdOPfXqOTIYRK1GzckVMTgg",
+          "name": "Roma's Pizza",
+          "rating": 4.7,
+          "address": "682 Farm to Market 120 Suite 9, Pottsboro",
+          "distance": "7.4 miles",
+          "dist_val": 7.4,
+          "open_now": true,
+          "phone": "(903) 786-4560"
+        },
+        {
+          "place_id": "ChIJywRqU5uPTIYRxSihayPk6NE",
+          "name": "Subway",
+          "rating": 4.1,
+          "address": "3427 Farm to Market 120 E, Denison",
+          "distance": "8.3 miles",
+          "dist_val": 8.3,
+          "open_now": true,
+          "phone": "(903) 465-7900"
+        },
+        {
+          "place_id": "ChIJlTarRJuPTIYRaafmUm4f7pU",
+          "name": "Papa Johns Pizza",
+          "rating": 4,
+          "address": "CROSSROADS CENTER, 3515 Farm to Market 120 Suite 112, Denison",
+          "distance": "8.3 miles",
+          "dist_val": 8.3,
+          "open_now": true,
+          "phone": "(903) 463-7272"
+        },
+        {
+          "place_id": "ChIJG50cJoSPTIYRIUVbFCB1zEs",
+          "name": "McDonald's",
+          "rating": 3.6,
+          "address": "600 North Highway 75, Denison",
+          "distance": "8.3 miles",
+          "dist_val": 8.3,
+          "open_now": true,
+          "phone": "(903) 465-5075"
+        },
+        {
+          "place_id": "ChIJM9br9YSPTIYRMVXeEm2Jlvo",
+          "name": "Sonic Drive-In",
+          "rating": 4,
+          "address": "3325 FM 120, Denison",
+          "distance": "8.3 miles",
+          "dist_val": 8.3,
+          "open_now": true,
+          "phone": "(903) 465-5720"
+        },
+        {
+          "place_id": "ChIJ0QaFQ4SPTIYRG_kb-8IftWg",
+          "name": "Taco Bell",
+          "rating": 3.6,
+          "address": "3420 FM 120, Denison",
+          "distance": "8.3 miles",
+          "dist_val": 8.3,
+          "open_now": true,
+          "phone": "(903) 337-0086"
+        },
+        {
+          "place_id": "ChIJf3fVAt2FTIYRz4A4cCptav8",
+          "name": "Arby's",
+          "rating": 4.1,
+          "address": "515 N Hwy 75, Denison",
+          "distance": "8.3 miles",
+          "dist_val": 8.3,
+          "open_now": true,
+          "phone": "(903) 465-7794"
+        },
+        {
+          "place_id": "ChIJf3fVAt2FTIYR3zQio75Rgus",
+          "name": "North Rig Grill",
+          "rating": 4.2,
+          "address": "414 U.S. 75, Denison",
+          "distance": "8.4 miles",
+          "dist_val": 8.4,
+          "open_now": true,
+          "phone": "(903) 464-9999"
+        },
+        {
+          "place_id": "ChIJd6t3lZyPTIYRrtOFHzmJ-Zg",
+          "name": "Chicken Express Denison",
+          "rating": 3.7,
+          "address": "3606 Farm to Market 120, Denison",
+          "distance": "8.4 miles",
+          "dist_val": 8.4,
+          "open_now": true,
+          "phone": "(903) 462-4032"
+        },
+        {
+          "place_id": "ChIJo60qfQCPTIYRXuh5f4eJ62k",
+          "name": "Whataburger",
+          "rating": 3.8,
+          "address": "2971 FM 120, Denison",
+          "distance": "8.4 miles",
+          "dist_val": 8.4,
+          "open_now": true,
+          "phone": "(903) 462-0259"
+        },
+        {
+          "place_id": "ChIJyWvmGMuPTIYRsaznN-hN_TA",
+          "name": "Chick-fil-A",
+          "rating": 4.1,
+          "address": "2801 FM 120, Denison",
+          "distance": "8.4 miles",
+          "dist_val": 8.4,
+          "open_now": true,
+          "phone": "(903) 465-1615"
+        },
+        {
+          "place_id": "ChIJPUtfXIObTIYRWQ8Af70gB3g",
+          "name": "The Farmstead",
+          "rating": 4.5,
+          "address": "117 South Franklin Street, Colbert",
+          "distance": "8.6 miles",
+          "dist_val": 8.6,
+          "open_now": true,
+          "phone": "(580) 296-2201"
+        },
+        {
+          "place_id": "ChIJm958WfybTIYRq3M-8ULnGJo",
+          "name": "Subway",
+          "rating": 4,
+          "address": "2150 Leavenworth Trail, Calera",
+          "distance": "8.7 miles",
+          "dist_val": 8.7,
+          "open_now": true,
+          "phone": "(580) 296-5946"
+        },
+        {
+          "place_id": "ChIJ4RSrNwuFTIYRiACPrT5t70s",
+          "name": "Little Caesars Pizza",
+          "rating": 3.7,
+          "address": "1431 West Morton Street #101, Denison",
+          "distance": "9.3 miles",
+          "dist_val": 9.3,
+          "open_now": true,
+          "phone": "(903) 463-4100"
+        },
+        {
+          "place_id": "ChIJlcAKHRAtzYcRFRIMLBQAlwY",
+          "name": "Gecko's At Lake Texoma",
+          "rating": 4.3,
+          "address": "1006 U.S. 70, Kingston",
+          "distance": "9.4 miles",
+          "dist_val": 9.4,
+          "open_now": true,
+          "phone": "(580) 564-9599"
+        },
+        {
+          "place_id": "ChIJGxFlXLO_TIYRKWwT97gnoDo",
+          "name": "Sonic Drive-In",
+          "rating": 3.7,
+          "address": "705 U.S. 70, Kingston",
+          "distance": "9.5 miles",
+          "dist_val": 9.5,
+          "open_now": true,
+          "phone": "(580) 564-4666"
+        },
+        {
+          "place_id": "ChIJY7VzdknsTIYRjSG7V74Se58",
+          "name": "Pelicans Landing Restaurant",
+          "rating": 4.1,
+          "address": "500 Harbour View Road, Gordonville",
+          "distance": "9.6 miles",
+          "dist_val": 9.6,
+          "open_now": true,
+          "phone": "(903) 523-4500"
+        },
+        {
+          "place_id": "ChIJwRsyOKiFTIYRr8t2T5oWaN0",
+          "name": "Watson's Drive In",
+          "rating": 4.6,
+          "address": "631 W Main St, Denison",
+          "distance": "9.9 miles",
+          "dist_val": 9.9,
+          "open_now": true,
+          "phone": "(903) 465-4669"
+        },
+        {
+          "place_id": "ChIJccXFSQCFTIYRTc87uSbZmLk",
+          "name": "Church's Texas Chicken",
+          "rating": 3.6,
+          "address": "501 N Austin Ave, Denison",
+          "distance": "10.0 miles",
+          "dist_val": 10.0,
+          "open_now": true,
+          "phone": "(903) 465-9689"
+        },
+        {
+          "place_id": "ChIJg80vdKmFTIYRN20mod115TQ",
+          "name": "Rustico Fine Mexican Cuisine",
+          "rating": 4.4,
+          "address": "506 West Chestnut Street, Denison",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": true,
+          "phone": "(903) 337-1447"
+        },
+        {
+          "place_id": "ChIJo1sMIcyFTIYRpewXrjUZXp4",
+          "name": "Jimmy John's",
+          "rating": 4.1,
+          "address": "317 W Main St Ste 101, Denison",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": true,
+          "phone": "(430) 964-0057"
+        },
+        {
+          "place_id": "ChIJ4yJhA16PTIYRPj0K_jZ-MN0",
+          "name": "Huck's Catfish",
+          "rating": 4.7,
+          "address": "2811 South Trail Drive, Denison",
+          "distance": "10.2 miles",
+          "dist_val": 10.2,
+          "open_now": true,
+          "phone": "(903) 337-0033"
+        },
+        {
+          "place_id": "ChIJ3aL-IlWETIYReFT4EUnsWwk",
+          "name": "The Katy Depot",
+          "rating": 4.7,
+          "address": "101 East Main Street, Denison",
+          "distance": "10.3 miles",
+          "dist_val": 10.3,
+          "open_now": true,
+          "phone": "(903) 463-7729"
+        },
+        {
+          "place_id": "ChIJUWhboqqFTIYRs-dFA6c3EjU",
+          "name": "Whataburger",
+          "rating": 4,
+          "address": "231 S Austin Ave, Denison",
+          "distance": "10.3 miles",
+          "dist_val": 10.3,
+          "open_now": true,
+          "phone": "(903) 465-6105"
+        },
+        {
+          "place_id": "ChIJ5yIH9_2ETIYRsbb5RUX1E5w",
+          "name": "Taco Bell",
+          "rating": 3.6,
+          "address": "900 S Austin Ave, Denison",
+          "distance": "10.7 miles",
+          "dist_val": 10.7,
+          "open_now": true,
+          "phone": "(903) 463-5140"
+        },
+        {
+          "place_id": "ChIJkd20G7yOTIYRjYbpSxHQiHc",
+          "name": "The Barn Grill",
+          "rating": 4.6,
+          "address": "4906 FM1417, Denison",
+          "distance": "10.9 miles",
+          "dist_val": 10.9,
+          "open_now": true,
+          "phone": "(903) 786-9012"
+        },
+        {
+          "place_id": "ChIJ51jotsuFTIYRMFWb8jIcPTs",
+          "name": "Sonic Drive-In",
+          "rating": 4,
+          "address": "2405 South Austin Avenue, Denison",
+          "distance": "11.4 miles",
+          "dist_val": 11.4,
+          "open_now": true,
+          "phone": "(903) 462-6625"
+        },
+        {
+          "place_id": "ChIJ3xuJ9PGFTIYRF9m6DjQa-XM",
+          "name": "IFLY Tacos and Burritos",
+          "rating": 4.2,
+          "address": "400 US-69, Denison",
+          "distance": "11.4 miles",
+          "dist_val": 11.4,
+          "open_now": true,
+          "phone": "(903) 463-6775"
+        },
+        {
+          "place_id": "ChIJm1D5FltxbYgRsp-TAOSdtUI",
+          "name": "Culver's",
+          "rating": 4.4,
+          "address": "5131 Gateway Blvd, Denison",
+          "distance": "11.6 miles",
+          "dist_val": 11.6,
+          "open_now": true,
+          "phone": "(903) 548-2873"
+        },
+        {
+          "place_id": "ChIJc4EiiESbQIYRpzsOhtzDFrc",
+          "name": "Firehouse Subs Sherman",
+          "rating": 4,
+          "address": "853 East North Creek Drive, Sherman",
+          "distance": "13.0 miles",
+          "dist_val": 13.0,
+          "open_now": true,
+          "phone": "(903) 892-6400"
+        },
+        {
+          "place_id": "ChIJnWE65amJTIYRIxEW3HLjrzQ",
+          "name": "Cold Stone Creamery",
+          "rating": 3.2,
+          "address": "4062 U.S. 75, Sherman",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true,
+          "phone": "(903) 891-3832"
+        },
+        {
+          "place_id": "ChIJ-fnh0f2ITIYRYloOvILRShI",
+          "name": "Panera Bread",
+          "rating": 3.8,
+          "address": "4040 North Highway 75, Sherman",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true,
+          "phone": "(903) 893-5252"
+        },
+        {
+          "place_id": "ChIJf17CQe-ITIYRj2JAfH5HFTk",
+          "name": "Panda Express",
+          "rating": 3.6,
+          "address": "4030 North Highway 75, Sherman",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true,
+          "phone": "(903) 892-4722"
+        },
+        {
+          "place_id": "ChIJOfnJseiITIYRRxu9nhUYaIk",
+          "name": "MOOYAH Burgers, Fries & Shakes",
+          "rating": 4.6,
+          "address": "4114 N Hwy 75 Ste 100, Sherman",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true,
+          "phone": "(903) 771-2616"
+        },
+        {
+          "place_id": "ChIJSUbtMvCITIYRb4-8uoe2-Nw",
+          "name": "Wendy's",
+          "rating": 3.5,
+          "address": "4100 US-75, Sherman",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true,
+          "phone": "(903) 892-8723"
+        },
+        {
+          "place_id": "ChIJAQBwc_eITIYRmv9OlYkAHZo",
+          "name": "Wingstop",
+          "rating": 3.7,
+          "address": "4001 U.S. 75 Ste 100, Sherman",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": true,
+          "phone": "(903) 893-9466"
+        },
+        {
+          "place_id": "ChIJ8WsXl-OJTIYRFMLvnXyAA4s",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.2,
+          "address": "3700 N Hwy 75, Sherman",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": true,
+          "phone": "(903) 813-0023"
+        },
+        {
+          "place_id": "ChIJgwkenzqJTIYRaMNyVGJgaoM",
+          "name": "Jersey Mike's Subs",
+          "rating": 4.3,
+          "address": "4001 US-75 Ste 400, Sherman",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": true,
+          "phone": "(903) 328-6753"
+        },
+        {
+          "place_id": "ChIJ_Wv0szWeTIYRBLzTNVLJoeI",
+          "name": "Subway",
+          "rating": 4.2,
+          "address": "102 West Main Street, Calera",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(580) 434-8225"
+        },
+        {
+          "place_id": "ChIJJbmWYbKITIYR8z5QgvAsBI0",
+          "name": "Red Lobster",
+          "rating": 4.3,
+          "address": "3600 North Highway 75, Sherman",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(903) 891-1830"
+        },
+        {
+          "place_id": "ChIJP_zga-6ITIYRYW6nszSnB2g",
+          "name": "Cowboy Chicken",
+          "rating": 4.2,
+          "address": "3811 North Highway 75 Suite 200, Sherman",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(903) 328-6940"
+        },
+        {
+          "place_id": "ChIJYW5C_--ITIYRUeL8jQp2Nac",
+          "name": "Chick-fil-A",
+          "rating": 4.5,
+          "address": "3500 US-75, Sherman",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(903) 870-2000"
+        },
+        {
+          "place_id": "ChIJVxgLhuxiTIYR7r8R-XESSoo",
+          "name": "McAlister's Deli",
+          "rating": 4.4,
+          "address": "3801 N Hwy 75, Sherman",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(903) 813-3354"
+        },
+        {
+          "place_id": "ChIJ0Q-P2OWITIYR6QuFRp-4YRo",
+          "name": "Cinemark Sherman",
+          "rating": 4.5,
+          "address": "3310 Town Center Drive, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 868-4337"
+        },
+        {
+          "place_id": "ChIJwbEqX_eITIYRnrZYVccJafk",
+          "name": "Cheddar's Scratch Kitchen",
+          "rating": 4.1,
+          "address": "3300 North Highway 75, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 870-9797"
+        },
+        {
+          "place_id": "ChIJSUbtMvCITIYRb755qmdDX1A",
+          "name": "Cracker Barrel Old Country Store",
+          "rating": 4.2,
+          "address": "3501 U.S. 75, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 868-9437"
+        },
+        {
+          "place_id": "ChIJ0ecjU-6ITIYROQjEfL2XMyk",
+          "name": "Olive Garden Italian Restaurant",
+          "rating": 4.4,
+          "address": "3701 North Highway 75, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 892-1794"
+        },
+        {
+          "place_id": "ChIJR1VyR4mITIYRBZH4_vx3RC4",
+          "name": "Whataburger",
+          "rating": 4,
+          "address": "3609 US-75, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 868-1236"
+        },
+        {
+          "place_id": "ChIJYW5C_--ITIYRmsvCyBzf51U",
+          "name": "Sonic Drive-In",
+          "rating": 3.6,
+          "address": "3400 US-75, Sherman",
+          "distance": "13.6 miles",
+          "dist_val": 13.6,
+          "open_now": true,
+          "phone": "(903) 891-3178"
+        },
+        {
+          "place_id": "ChIJV9dn7vCITIYRrSZpd2ZoPqY",
+          "name": "RibCrib BBQ",
+          "rating": 4.3,
+          "address": "3205 North Highway 75, Sherman",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(903) 771-0141"
+        },
+        {
+          "place_id": "ChIJkX_F_oSPTIYRFfae71zXBz4",
+          "name": "Jimmy John's",
+          "rating": 3.8,
+          "address": "3209 N Hwy 75, Sherman",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(903) 893-4080"
+        },
+        {
+          "place_id": "ChIJszwVMc2fTIYRtu3SeIqaACI",
+          "name": "Sonic Drive-In",
+          "rating": 3.6,
+          "address": "713 Service Road, Calera",
+          "distance": "13.9 miles",
+          "dist_val": 13.9,
+          "open_now": true,
+          "phone": "(580) 931-7777"
+        },
+        {
+          "place_id": "ChIJaeWiX8ShTIYRaIHPaMTheNc",
+          "name": "One Stop Durant",
+          "rating": 4,
+          "address": "8988 West Highway 70, Durant",
+          "distance": "13.9 miles",
+          "dist_val": 13.9,
+          "open_now": true,
+          "phone": "(580) 853-5185"
+        },
+        {
+          "place_id": "ChIJAQBwc_eITIYRA4-StszmVUQ",
+          "name": "Popeyes Louisiana Kitchen",
+          "rating": 3.1,
+          "address": "3109 North Highway 75, Sherman",
+          "distance": "13.9 miles",
+          "dist_val": 13.9,
+          "open_now": true,
+          "phone": "(903) 892-1006"
+        },
+        {
+          "place_id": "ChIJ_Wv0szWeTIYRIIA6cQtzGX8",
+          "name": "Taco Casa",
+          "rating": 4.2,
+          "address": "703 Service Rd, Calera",
+          "distance": "13.9 miles",
+          "dist_val": 13.9,
+          "open_now": true,
+          "phone": "(580) 434-4090"
+        },
+        {
+          "place_id": "ChIJExM_T0MbTIYRjkwF_VLVOYg",
+          "name": "Mells Grill Catering & Food Truck Company",
+          "rating": 4.9,
+          "address": "711 North McKinley Avenue Unit 2, Calera",
+          "distance": "14.0 miles",
+          "dist_val": 14.0,
+          "open_now": false,
+          "phone": "(214) 900-5081"
+        },
+        {
+          "place_id": "ChIJ1eYW7fmITIYRVwmGoqpNJ-8",
+          "name": "Papa Johns Pizza",
+          "rating": 3.8,
+          "address": "2918 North Sam Rayburn Freeway, Sherman",
+          "distance": "14.0 miles",
+          "dist_val": 14.0,
+          "open_now": true,
+          "phone": "(903) 891-8777"
+        },
+        {
+          "place_id": "ChIJ_1_TXveITIYRGZlG2ZKynTE",
+          "name": "Texas Roadhouse",
+          "rating": 4.5,
+          "address": "2773 U.S. 75, Sherman",
+          "distance": "14.2 miles",
+          "dist_val": 14.2,
+          "open_now": true,
+          "phone": "(903) 893-0290"
+        },
+        {
+          "place_id": "ChIJm196_PeITIYRGW78s0HpSQY",
+          "name": "IHOP",
+          "rating": 4.2,
+          "address": "2617 North Highway 75, Sherman",
+          "distance": "14.3 miles",
+          "dist_val": 14.3,
+          "open_now": true,
+          "phone": "(903) 893-8262"
+        },
+        {
+          "place_id": "ChIJ6-cjU-6ITIYRpZvPxoLZeAs",
+          "name": "Braum's Ice Cream & Dairy Store",
+          "rating": 4.2,
+          "address": "2506 N, U.S. 75, Sherman",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(903) 891-4547"
+        },
+        {
+          "place_id": "ChIJyY3gH16ITIYRmWq6TavUvT4",
+          "name": "Subway",
+          "rating": 4,
+          "address": "2114 Texoma Parkway Suite 200, Sherman",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(903) 870-7071"
+        },
+        {
+          "place_id": "ChIJyY3gH16ITIYRbhjb8f84o30",
+          "name": "Little Caesars Pizza",
+          "rating": 3.7,
+          "address": "2114 Texoma Parkway SUITE 600, Sherman",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(903) 868-8400"
+        },
+        {
+          "place_id": "ChIJceEXhmCITIYRntwQ0uB1dJM",
+          "name": "Taco Bueno",
+          "rating": 3.5,
+          "address": "2204 Texoma Parkway, Sherman",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(903) 401-8896"
+        },
+        {
+          "place_id": "ChIJ8afPStefTIYRZdEQKhKUMy0",
+          "name": "1832 Steakhouse",
+          "rating": 4.1,
+          "address": "4216 U.S. 69, Durant",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": false,
+          "phone": "(580) 920-0160"
+        },
+        {
+          "place_id": "ChIJbbY8WmCITIYRHaF9CqbW67I",
+          "name": "McDonald's",
+          "rating": 3.6,
+          "address": "2217 Texoma Pkwy, Sherman",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(903) 893-5927"
+        },
+        {
+          "place_id": "ChIJEfJgJ16ITIYRTZlKudAvyrM",
+          "name": "La Mesa Mexican Restaurante & Cantina",
+          "rating": 4.2,
+          "address": "2124 Texoma Parkway, Sherman",
+          "distance": "14.7 miles",
+          "dist_val": 14.7,
+          "open_now": true,
+          "phone": "(903) 892-1644"
+        },
+        {
+          "place_id": "ChIJiZ3PttCfTIYRXo3xHQrEpPA",
+          "name": "Smashburger",
+          "rating": 4.1,
+          "address": "3735 Choctaw Road, Durant",
+          "distance": "14.7 miles",
+          "dist_val": 14.7,
+          "open_now": true,
+          "phone": "(888) 652-4628"
+        },
+        {
+          "place_id": "ChIJdYLNk2CITIYRrRun879jL-Y",
+          "name": "Jack in the Box",
+          "rating": 3.7,
+          "address": "2133 Texoma Pkwy, Sherman",
+          "distance": "14.7 miles",
+          "dist_val": 14.7,
+          "open_now": true,
+          "phone": "(903) 893-2919"
+        },
+        {
+          "place_id": "ChIJN6taNdefTIYRYR8y2NhN4JQ",
+          "name": "Butterfields Buffet",
+          "rating": 3.2,
+          "address": "4216 U.S. 69, Durant",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true,
+          "phone": "(580) 920-0160"
+        },
+        {
+          "place_id": "ChIJsRwQKNGfTIYR2QBFz5zoqFI",
+          "name": "Krispy Krunchy Chicken",
+          "rating": 2.7,
+          "address": "4216 U.S. 69, Durant",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true,
+          "phone": "(580) 920-0160"
+        },
+        {
+          "place_id": "ChIJUx-gx9CfTIYR8U0l52PStUg",
+          "name": "Gilley's",
+          "rating": 2.9,
+          "address": "4216 U.S. 69, Durant",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true,
+          "phone": "(580) 920-0160"
+        },
+        {
+          "place_id": "ChIJAc2oe1uITIYRAgALO1_LSnI",
+          "name": "Chicken Express-Sherman",
+          "rating": 4,
+          "address": "1824 Texoma Parkway, Sherman",
+          "distance": "15.0 miles",
+          "dist_val": 15.0,
+          "open_now": true,
+          "phone": "(903) 813-3330"
+        },
+        {
+          "place_id": "ChIJRyxG4HQywVYRytDACJyHdh0",
+          "name": "Sweetberries Cafe",
+          "rating": 4,
+          "address": "1835 Texoma Parkway, Sherman",
+          "distance": "15.0 miles",
+          "dist_val": 15.0,
+          "open_now": false,
+          "phone": "(903) 891-1401"
+        },
+        {
+          "place_id": "ChIJ8zP0QluITIYR1dzG9NmG2S0",
+          "name": "Sonic Drive-In",
+          "rating": 3.8,
+          "address": "1820 Texoma Pkwy, Sherman",
+          "distance": "15.0 miles",
+          "dist_val": 15.0,
+          "open_now": true,
+          "phone": "(903) 891-0646"
+        },
+        {
+          "place_id": "ChIJM-fkQ1uITIYRCXUpod3G-ho",
+          "name": "Taco Bell",
+          "rating": 3.6,
+          "address": "1800 Texoma Pkwy, Sherman",
+          "distance": "15.0 miles",
+          "dist_val": 15.0,
+          "open_now": true,
+          "phone": "(903) 891-7257"
+        },
+        {
+          "place_id": "ChIJWZpnSD-JTIYRYRZKWTWzndo",
+          "name": "MG's Burgers",
+          "rating": 4.7,
+          "address": "1715 N Woods St, Sherman",
+          "distance": "15.1 miles",
+          "dist_val": 15.1,
+          "open_now": true,
+          "phone": "(903) 893-9011"
+        },
+        {
+          "place_id": "ChIJoZZeg2vHTIYRPPJ2cR72J3M",
+          "name": "Braum's Ice Cream & Dairy Store",
+          "rating": 4.1,
+          "address": "825 South 1st Street, Madill",
+          "distance": "16.0 miles",
+          "dist_val": 16.0,
+          "open_now": true,
+          "phone": "(580) 795-3777"
+        },
+        {
+          "place_id": "ChIJxT_8aFWJTIYRCgkdE5XohSU",
+          "name": "Wanna Burger",
+          "rating": 4.4,
+          "address": "706 W Houston St, Sherman",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true,
+          "phone": "(903) 892-1240"
+        },
+        {
+          "place_id": "ChIJpV1jYACJTIYR1JVRK-wAqZw",
+          "name": "Tx Southern Sweets",
+          "rating": 4.7,
+          "address": "320 W Houston St, Sherman",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true,
+          "phone": "(940) 641-4282"
+        },
+        {
+          "place_id": "ChIJ9UpLKjqITIYREZf5VlQpyD4",
+          "name": "Church's Texas Chicken",
+          "rating": 3.8,
+          "address": "200 E Houston St, Sherman",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true,
+          "phone": "(903) 892-1441"
+        },
+        {
+          "place_id": "ChIJi4tfag-gTIYRvzbJRt-Op00",
+          "name": "Little Caesars Pizza",
+          "rating": 3.5,
+          "address": "3601 West Main Street Suite 110, Durant",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(580) 579-8242"
+        },
+        {
+          "place_id": "ChIJi4tfag-gTIYRPTTjN1ho8_4",
+          "name": "Sonic Drive-In",
+          "rating": 3.8,
+          "address": "3619 West Main Street, Durant",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(580) 920-2206"
+        },
+        {
+          "place_id": "ChIJMYq20tlfS4YRHrkdkPDLBm8",
+          "name": "Subway",
+          "rating": 3.1,
+          "address": "3601 West Main Street Suite 100, Durant",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(580) 931-9348"
+        },
+        {
+          "place_id": "ChIJCxx0iwigTIYRcmM9M_Urvo8",
+          "name": "Whataburger",
+          "rating": 4.2,
+          "address": "3505 W Main St, Durant",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(580) 745-9003"
+        },
+        {
+          "place_id": "ChIJ6wGLMW3HTIYRWHSDPb0a6Ec",
+          "name": "Love's Country Store",
+          "rating": 4,
+          "address": "411 South 1st Street, Madill",
+          "distance": "16.5 miles",
+          "dist_val": 16.5,
+          "open_now": true,
+          "phone": "(580) 795-2612"
+        },
+        {
+          "place_id": "ChIJd4H8JQigTIYR5n0wWRwIAx4",
+          "name": "Chicken Express",
+          "rating": 4.3,
+          "address": "227 Radio Road, Durant",
+          "distance": "16.6 miles",
+          "dist_val": 16.6,
+          "open_now": true,
+          "phone": "(580) 924-4300"
+        },
+        {
+          "place_id": "ChIJ_WB33vdfS4YRGuOTmMEpzYI",
+          "name": "Wendy's",
+          "rating": 3.5,
+          "address": "2420 W Main St, Durant",
+          "distance": "16.6 miles",
+          "dist_val": 16.6,
+          "open_now": true,
+          "phone": "(580) 634-2809"
+        },
+        {
+          "place_id": "ChIJR5vWifdfS4YRyQrwTrihQEo",
+          "name": "McDonald's",
+          "rating": 3.5,
+          "address": "2227 W Main St, Durant",
+          "distance": "16.6 miles",
+          "dist_val": 16.6,
+          "open_now": true,
+          "phone": "(580) 920-0126"
+        },
+        {
+          "place_id": "ChIJEXP-gAvHTIYRwaAqeBhsDFE",
+          "name": "Subway",
+          "rating": 4.1,
+          "address": "513 North 1st Street, Madill",
+          "distance": "17.2 miles",
+          "dist_val": 17.2,
+          "open_now": true,
+          "phone": "(580) 677-9452"
+        },
+        {
+          "place_id": "ChIJ4UlH7rBfS4YRVjfywb87Y0Q",
+          "name": "Freddy's Frozen Custard & Steakburgers",
+          "rating": 4,
+          "address": "1051 Westside Dr, Durant",
+          "distance": "17.3 miles",
+          "dist_val": 17.3,
+          "open_now": true,
+          "phone": "(580) 916-9062"
+        },
+        {
+          "place_id": "ChIJoy4J1d9fS4YRJr4thhT9rj0",
+          "name": "Wright's Drive In",
+          "rating": 4.6,
+          "address": "319 S 9th Ave, Durant",
+          "distance": "17.3 miles",
+          "dist_val": 17.3,
+          "open_now": true,
+          "phone": "(580) 924-4793"
+        },
+        {
+          "place_id": "ChIJW_7PtAvHTIYR7QhVxBCOQdk",
+          "name": "Sonic Drive-In",
+          "rating": 3.7,
+          "address": "708 N 1st St, Madill",
+          "distance": "17.3 miles",
+          "dist_val": 17.3,
+          "open_now": true,
+          "phone": "(580) 795-5523"
+        },
+        {
+          "place_id": "ChIJM9IrMthfS4YRm_1EkltOJdw",
+          "name": "Roma",
+          "rating": 4.6,
+          "address": "121 West Main Street, Durant",
+          "distance": "17.8 miles",
+          "dist_val": 17.8,
+          "open_now": true,
+          "phone": "(580) 931-9961"
+        },
+        {
+          "place_id": "ChIJy8mDUtdfS4YRLb9VYgdtCfs",
+          "name": "Taco Casa",
+          "rating": 4.1,
+          "address": "324 N 1st Ave, Durant",
+          "distance": "18.0 miles",
+          "dist_val": 18.0,
+          "open_now": true,
+          "phone": "(580) 920-2820"
+        },
+        {
+          "place_id": "ChIJ12LimPZfS4YRTKsu3ILh0eU",
+          "name": "Nick’s Burger",
+          "rating": 4.3,
+          "address": "520 N 1st Ave, Durant",
+          "distance": "18.1 miles",
+          "dist_val": 18.1,
+          "open_now": true,
+          "phone": "(580) 745-8002"
+        },
+        {
+          "place_id": "ChIJjVvitM9fS4YRxnd4iw_KTbI",
+          "name": "Sonic Drive-In",
+          "rating": 3.9,
+          "address": "1111 N 1st Ave, Durant",
+          "distance": "18.3 miles",
+          "dist_val": 18.3,
+          "open_now": true,
+          "phone": "(580) 924-5050"
+        },
+        {
+          "place_id": "ChIJRQkz_M5fS4YRATngZeFiOKs",
+          "name": "Love's Country Store",
+          "rating": 4,
+          "address": "1223 North 1st Avenue, Durant",
+          "distance": "18.4 miles",
+          "dist_val": 18.4,
+          "open_now": true,
+          "phone": "(580) 924-9304"
+        },
+        {
+          "place_id": "ChIJS7nEDgBjTIYR-BdDTuy6qI0",
+          "name": "Whataburger",
+          "rating": 3.8,
+          "address": "3010 US-75, Sherman",
+          "distance": "18.7 miles",
+          "dist_val": 18.7,
+          "open_now": true,
+          "phone": "(903) 357-5223"
+        },
+        {
+          "place_id": "ChIJSxsbDQBjTIYROIQrvz-m9vo",
+          "name": "Chick-fil-A",
+          "rating": 4,
+          "address": "3350 US-75, Sherman",
+          "distance": "18.9 miles",
+          "dist_val": 18.9,
+          "open_now": true,
+          "phone": "(903) 771-3551"
+        },
+        {
+          "place_id": "ChIJ6w6iAe6bTIYRp0XaSBSQt88",
+          "name": "Chipotle Mexican Grill",
+          "rating": 3.6,
+          "address": "3514 US-75, Sherman",
+          "distance": "19.0 miles",
+          "dist_val": 19.0,
+          "open_now": true,
+          "phone": "(430) 262-5757"
+        },
+        {
+          "place_id": "ChIJX7klzM5jTIYRBpnXJksCALo",
+          "name": "Taco Bell",
+          "rating": 3.6,
+          "address": "3310 US-75, Sherman",
+          "distance": "19.1 miles",
+          "dist_val": 19.1,
+          "open_now": true,
+          "phone": "(940) 666-7205"
+        },
+        {
+          "place_id": "ChIJGUlY0yiJTIYRihSPYPbUm_s",
+          "name": "Freddy's Frozen Custard & Steakburgers",
+          "rating": 4.1,
+          "address": "3715 US-75, Sherman",
+          "distance": "19.2 miles",
+          "dist_val": 19.2,
+          "open_now": true,
+          "phone": "(903) 328-2049"
+        },
+        {
+          "place_id": "ChIJoTZr3UP3TIYRfeCVg1LXKo0",
+          "name": "Golden Chick",
+          "rating": 3.9,
+          "address": "1022 US-377, Whitesboro",
+          "distance": "19.8 miles",
+          "dist_val": 19.8,
+          "open_now": true,
+          "phone": "(903) 651-0015"
+        },
+        {
+          "place_id": "ChIJa6zo_c_5TIYRPPyTSIje_6U",
+          "name": "Whataburger",
+          "rating": 4.2,
+          "address": "1001 US-82, Whitesboro",
+          "distance": "20.0 miles",
+          "dist_val": 20.0,
+          "open_now": true,
+          "phone": "(903) 564-3019"
+        },
+        {
+          "place_id": "ChIJ--0esUP3TIYREqVYkWnQY-w",
+          "name": "Sonic Drive-In",
+          "rating": 4,
+          "address": "1003 US-377, Whitesboro",
+          "distance": "20.0 miles",
+          "dist_val": 20.0,
+          "open_now": true,
+          "phone": "(903) 564-6391"
+        },
+        {
+          "place_id": "ChIJrRUKjGn3TIYRx5OQmUTlLwM",
+          "name": "Subway",
+          "rating": 4,
+          "address": "809 North Union Street Suite B, Whitesboro",
+          "distance": "20.2 miles",
+          "dist_val": 20.2,
+          "open_now": true,
+          "phone": "(903) 651-2508"
+        },
+        {
+          "place_id": "ChIJd7RlgkCxTIYRC7zq9GSAkwY",
+          "name": "McDonald's",
+          "rating": 2.9,
+          "address": "1305 E Main St, Tishomingo",
+          "distance": "25.0 miles",
+          "dist_val": 25.0,
+          "open_now": true,
+          "phone": "(580) 371-0518"
+        }
+      ],
+      "is_mock": false,
+      "camp_address": "269 Methodist Ln, Pottsboro, TX 75076"
+    }
+  }
+}

@@ -51,10 +51,11 @@ export default function CampInfoPage() {
     }
   };
 
-  const fetchPlaces = async () => {
+  const fetchPlaces = async (forceRefresh = false) => {
     try {
       setPlacesLoading(true);
-      const res = await api.get("/api/settings/places");
+      const url = forceRefresh ? "/api/settings/places?refresh=true" : "/api/settings/places";
+      const res = await api.get(url);
       setPlaces(res.data);
     } catch (err) {
       // Ignored - fall back gracefully
@@ -191,8 +192,13 @@ export default function CampInfoPage() {
     }
 
     @media (max-width: 820px) {
-      .info-grid, .places-grid {
+      .info-grid {
         grid-template-columns: 1fr;
+      }
+      .places-grid {
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 16px;
       }
     }
   `;
@@ -281,9 +287,32 @@ export default function CampInfoPage() {
             {/* Row 2: Google Places nearby search */}
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 16 }}>
-                <h3 style={{ color: "var(--forest-dark)", fontWeight: 700, fontSize: "1.15rem", margin: 0 }}>
-                  🗺️ Nearest Local Services
-                </h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <h3 style={{ color: "var(--forest-dark)", fontWeight: 700, fontSize: "1.15rem", margin: 0 }}>
+                    🗺️ Nearest Local Services
+                  </h3>
+                  <button
+                    onClick={() => fetchPlaces(true)}
+                    disabled={placesLoading}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: "0.75rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "none",
+                      border: "1px solid var(--border)",
+                      color: "var(--forest)",
+                      cursor: "pointer",
+                      borderRadius: 4,
+                      transition: "all 0.2s ease"
+                    }}
+                    title="Force refresh live results from Google Places API"
+                  >
+                    🔄 {placesLoading ? "Updating..." : "Refresh"}
+                  </button>
+                </div>
                 {places.is_mock && (
                   <span className="badge badge-gold" style={{ fontSize: "0.72rem", padding: "2px 8px" }} title="API Key is not configured. Displaying local directory fallback.">
                     📁 Offline Sandbox Fallback
