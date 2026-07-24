@@ -169,6 +169,9 @@ export default function HomePage() {
                   <Link to="/campers" className="btn btn-outline" style={{ justifyContent: "flex-start" }}>
                     👤 View Camper List
                   </Link>
+                  <Link to="/camp-info" className="btn btn-outline" style={{ justifyContent: "flex-start" }}>
+                    🗺️ Nearest Local Services
+                  </Link>
                   {isAdmin && (
                     <Link to="/campers?new=1" className="btn btn-ghost" style={{ justifyContent: "flex-start" }}>
                       ➕ Register New Camper
