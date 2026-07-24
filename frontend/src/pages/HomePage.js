@@ -42,6 +42,9 @@ export default function HomePage() {
   const [stats, setStats] = useState(null);
   const [recentCheckins, setRecentCheckins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [seenAnnounce, setSeenAnnounce] = useState(
+    localStorage.getItem("seen_announce_places_v3") === "true"
+  );
 
   const getDailyVerse = () => {
     const dateStr = new Date().toDateString();
@@ -72,6 +75,11 @@ export default function HomePage() {
     return "Good evening";
   };
 
+  const dismissAnnounce = () => {
+    localStorage.setItem("seen_announce_places_v3", "true");
+    setSeenAnnounce(true);
+  };
+
   return (
     <>
       <div className="top-bar">
@@ -85,6 +93,98 @@ export default function HomePage() {
             {greeting()}, {user?.full_name?.split(" ")[0] || user?.username}! 👋
           </h2>
         </div>
+
+        {!seenAnnounce && (
+          <div className="card" style={{
+            background: "linear-gradient(135deg, #1e4620 0%, #112e12 100%)",
+            color: "white",
+            padding: "20px",
+            borderRadius: "var(--radius-md)",
+            position: "relative",
+            marginBottom: 24,
+            boxShadow: "0 10px 20px rgba(30, 70, 32, 0.15)",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              position: "absolute",
+              right: "-20px",
+              bottom: "-20px",
+              width: "120px",
+              height: "120px",
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.06)"
+            }} />
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <span style={{ 
+                background: "var(--gold)", 
+                color: "var(--charcoal)", 
+                fontWeight: 700, 
+                fontSize: "0.7rem", 
+                padding: "3px 8px", 
+                borderRadius: "12px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em"
+              }}>
+                🔥 New Feature
+              </span>
+              <button 
+                onClick={dismissAnnounce}
+                style={{ 
+                  background: "none", 
+                  border: "none", 
+                  color: "rgba(255,255,255,0.8)", 
+                  cursor: "pointer", 
+                  fontSize: "1.2rem",
+                  padding: 0,
+                  lineHeight: 1
+                }}
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <h3 style={{ margin: "0 0 8px 0", color: "white", fontSize: "1.2rem", fontWeight: 700 }}>
+              🗺️ Nearest Local Services Directory!
+            </h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: "0.88rem", opacity: 0.95, lineHeight: 1.4 }}>
+              We've integrated a Google-powered directory of nearby hospitals and restaurants within a 25-mile radius of the camp! Phone numbers are loaded directly, and clicking any listing opens Google Maps.
+            </p>
+            
+            <div style={{ display: "flex", gap: 12 }}>
+              <Link 
+                to="/camp-info" 
+                onClick={dismissAnnounce}
+                style={{ 
+                  background: "white", 
+                  color: "#112e12", 
+                  border: "none",
+                  padding: "8px 18px",
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  borderRadius: 4,
+                  display: "inline-block"
+                }}
+              >
+                Explore Services →
+              </Link>
+              <button 
+                onClick={dismissAnnounce}
+                className="btn btn-outline" 
+                style={{ 
+                  color: "white", 
+                  borderColor: "rgba(255,255,255,0.3)",
+                  padding: "6px 16px",
+                  fontSize: "0.8rem"
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="card" style={{
           borderLeft: "4px solid var(--forest)",
