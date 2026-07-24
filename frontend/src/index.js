@@ -16,10 +16,20 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/service-worker.js")
       .then(reg => {
         console.log("[PWA] Service Worker registered successfully scope:", reg.scope);
+        // Force update check on load
+        reg.update();
       })
       .catch(err => {
         console.error("[PWA] Service Worker registration failed:", err);
       });
+  });
+
+  // Automatically reload page when new service worker activates and takes control
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
   });
 }
 
