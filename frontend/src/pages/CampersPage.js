@@ -20,6 +20,60 @@ function CamperModal({ camper, onClose, onSave, teamNames }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const inp = (k) => ({ value: form[k] || "", onChange: e => set(k, e.target.value), className: "form-input" });
 
+  useEffect(() => {
+    const ageVal = parseInt(form.age);
+    const hasFamily = form.family_group && form.family_group.trim();
+    
+    if (hasFamily && !isNaN(ageVal) && ageVal < 18) {
+      if (!form.guardian_name || !form.guardian_phone) {
+        api.get(`/api/campers/?search=${form.family_group.trim()}`)
+          .then(res => {
+            const list = res.data?.campers || [];
+            const adult = list.find(m => 
+              m.family_group === form.family_group.trim() && 
+              (m.age === null || m.age === undefined || m.age === "" || parseInt(m.age) >= 18)
+            );
+            
+            if (adult) {
+              setForm(f => ({
+                ...f,
+                guardian_name: f.guardian_name || `${adult.first_name} ${adult.last_name}`,
+                guardian_phone: f.guardian_phone || adult.guardian_phone || ""
+              }));
+            } else {
+              const anyMemberWithPhone = list.find(m => m.family_group === form.family_group.trim() && m.guardian_phone);
+              if (anyMemberWithPhone) {
+                setForm(f => ({
+                  ...f,
+                  guardian_name: f.guardian_name || anyMemberWithPhone.guardian_name || "",
+                  guardian_phone: f.guardian_phone || anyMemberWithPhone.guardian_phone || ""
+                }));
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [form.family_group, form.age]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const ageVal = parseInt(form.age);
+    const type = (!isNaN(ageVal) && ageVal <= 18) ? "Child" : "Adult";
+    
+    setForm(f => {
+      const clean = (f.notes || "")
+        .replace(/Type:\s*(Child|Adult)\s*\n?/gi, "")
+        .trim();
+      const suffix = `Type: ${type}`;
+      const newNotes = clean ? `${clean}\n${suffix}` : suffix;
+      
+      if (f.notes !== newNotes) {
+        return { ...f, notes: newNotes };
+      }
+      return f;
+    });
+  }, [form.age]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -54,7 +108,7 @@ function CamperModal({ camper, onClose, onSave, teamNames }) {
           <div className="form-grid">
             <div className="form-group"><label className="form-label">First Name *</label><input {...inp("first_name")} required /></div>
             <div className="form-group"><label className="form-label">Last Name *</label><input {...inp("last_name")} required /></div>
-            <div className="form-group"><label className="form-label">Age</label><input {...inp("age")} type="number" min="1" max="100" /></div>
+            <div className="form-group"><label className="form-label">Age</label><input {...inp("age")} type="number" min="0" max="100" /></div>
             <div className="form-group">
               <label className="form-label">Gender</label>
               <select className="form-select" value={form.gender || ""} onChange={e => set("gender", e.target.value)}>

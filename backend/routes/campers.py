@@ -12,10 +12,28 @@ def require_admin():
     claims = get_jwt()
     return claims.get("role") in ["admin", "owner"]
 
+def check_permission(role, page_key, required_level="read"):
+    from models.permission import PagePermission
+    from routes.permissions import DEFAULT_PERMISSIONS
+    if role == "owner":
+        return True
+    access_level = DEFAULT_PERMISSIONS.get(role, {}).get(page_key, "hide")
+    custom_perm = PagePermission.query.filter_by(role=role, page_key=page_key).first()
+    if custom_perm:
+        access_level = custom_perm.access_level
+    if required_level == "edit" and access_level != "edit":
+        return False
+    if required_level == "read" and access_level == "hide":
+        return False
+    return True
+
 @campers_bp.route("/", methods=["GET"])
 @jwt_required()
-@require_page_permission("campers", "read")
 def get_campers():
+    claims = get_jwt()
+    role = claims.get("role", "user")
+    if not check_permission(role, "campers", "read") and not check_permission(role, "teams", "read"):
+        return jsonify({"error": "Access denied"}), 403
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
     page = int(request.args.get("page", 1))

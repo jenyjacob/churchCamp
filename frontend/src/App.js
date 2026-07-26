@@ -16,6 +16,7 @@ import SignupPage from "./pages/SignupPage";
 import TShirtsPage from "./pages/TShirtsPage";
 import RoleAssignerPage from "./pages/RoleAssignerPage";
 import CampInfoPage from "./pages/CampInfoPage";
+import TeamsPage from "./pages/TeamsPage";
 
 
 function RequireAuth({ children }) {
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<RequirePermission pageKey="dashboard"><HomePage /></RequirePermission>} />
         <Route path="campers" element={<RequirePermission pageKey="campers"><CampersPage /></RequirePermission>} />
+        <Route path="teams" element={<RequirePermission pageKey="teams"><TeamsPage /></RequirePermission>} />
         <Route path="checkin" element={<RequirePermission pageKey="checkin"><CheckInPage /></RequirePermission>} />
         <Route path="cabins" element={<RequirePermission pageKey="cabins"><CabinsPage /></RequirePermission>} />
         <Route path="app/schedule" element={<RequirePermission pageKey="schedule"><SchedulePage /></RequirePermission>} />

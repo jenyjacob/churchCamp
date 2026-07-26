@@ -12,6 +12,7 @@ import {
 const navItems = [
   { to: "/",        icon: "🏠", label: "Dashboard",  exact: true, pageKey: "dashboard" },
   { to: "/campers", icon: "👤", label: "Campers", pageKey: "campers" },
+  { to: "/teams",   icon: "🏆", label: "Teams", pageKey: "teams" },
   { to: "/checkin", icon: "✅", label: "Check-In", pageKey: "checkin" },
   { to: "/cabins",  icon: "⛺", label: "Cabins", pageKey: "cabins" },
   { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
