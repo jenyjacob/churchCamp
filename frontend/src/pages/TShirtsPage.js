@@ -857,20 +857,35 @@ export default function TShirtsPage() {
                               </div>
                             </div>
 
-                            {/* Indian Size Input */}
+                            {/* Indian Size Select */}
                             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                               <label style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600 }}>Indian Size</label>
                               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <input 
-                                  type="text"
-                                  className="form-input" 
-                                  placeholder="e.g. M"
-                                  style={{ width: 80, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
-                                  key={c.indian_size || ""}
-                                  defaultValue={c.indian_size || ""}
-                                  onBlur={e => handleTshirtUpdate(c.id, "indian_size", e.target.value)}
+                                <select 
+                                  className="form-select" 
+                                  style={{ width: 120, padding: "4px 8px", fontSize: "0.8rem", height: "30px" }}
+                                  value={c.indian_size || ""}
+                                  onChange={async (e) => {
+                                    const val = e.target.value;
+                                    if (val === "__ADD_CUSTOM__") {
+                                      const custom = window.prompt("Enter new custom Indian T-Shirt size:");
+                                      if (custom && custom.trim()) {
+                                        const clean = custom.trim();
+                                        await handleAddCustomSize(clean);
+                                        handleTshirtUpdate(c.id, "indian_size", clean);
+                                      }
+                                    } else {
+                                      handleTshirtUpdate(c.id, "indian_size", val);
+                                    }
+                                  }}
                                   disabled={!canEdit}
-                                />
+                                >
+                                  <option value="">— Select —</option>
+                                  {activeIndianSizes.map(sz => (
+                                    <option key={sz} value={sz}>{sz}</option>
+                                  ))}
+                                  <option value="__ADD_CUSTOM__">➕ Custom Size...</option>
+                                </select>
                                 {savingMap[`${c.id}-indian_size`] === "saving" && <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />}
                                   {savingMap[`${c.id}-indian_size`] === "saved" && <span style={{ color: "var(--forest)", fontSize: "0.8rem", fontWeight: 700 }}>✓</span>}
                                   {savingMap[`${c.id}-indian_size`] === "error" && <span style={{ color: "var(--red)", fontSize: "0.8rem", fontWeight: 700 }}>⚠️</span>}
