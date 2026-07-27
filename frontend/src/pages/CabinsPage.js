@@ -12,16 +12,49 @@ const parseCabinGroup = (cabinGroupString) => {
   return { cabin: cabinGroupString.trim(), room: "General" };
 };
 
+// Helper to normalize room data object
+const normalizeRoom = (r) => {
+  if (typeof r === "string") {
+    return {
+      name: r,
+      max_occupancy: 4,
+      location: "Single Level",
+      beds: { king: 0, queen: 0, full: 0, twin: 0, bunk: 0 }
+    };
+  }
+  return {
+    name: r.name || "",
+    max_occupancy: r.max_occupancy !== undefined ? parseInt(r.max_occupancy) : 4,
+    location: r.location || "Single Level",
+    beds: {
+      king: r.beds?.king !== undefined ? parseInt(r.beds.king) : 0,
+      queen: r.beds?.queen !== undefined ? parseInt(r.beds.queen) : 0,
+      full: r.beds?.full !== undefined ? parseInt(r.beds.full) : 0,
+      twin: r.beds?.twin !== undefined ? parseInt(r.beds.twin) : 0,
+      bunk: r.beds?.bunk !== undefined ? parseInt(r.beds.bunk) : 0
+    }
+  };
+};
+
 export default function CabinsPage() {
   const { user, hasPermission } = useAuth();
   const isAdmin = hasPermission("cabins", "edit");
   const canExport = user?.role === "owner" || user?.role === "admin";
+  const isOwner = user?.role === "owner";
   
   // Campers data state
   const [campers, setCampers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
+  const [editingRoom, setEditingRoom] = useState(null); // { cabinName, room }
+  const [addingRoomToCabin, setAddingRoomToCabin] = useState(null); // cabinName
+  const [newRoomForm, setNewRoomForm] = useState({
+    name: "",
+    max_occupancy: 4,
+    location: "Single Level",
+    beds: { king: 0, queen: 0, full: 0, twin: 0, bunk: 0 }
+  });
 
   const handleExportExcel = () => {
     if (!canExport) return;
@@ -71,7 +104,11 @@ export default function CabinsPage() {
     const saved = localStorage.getItem("gca_cabins_config");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return parsed.map(c => ({
+          ...c,
+          rooms: (c.rooms || []).map(normalizeRoom)
+        }));
       } catch (e) {
         // Fallback below
       }
@@ -110,10 +147,13 @@ export default function CabinsPage() {
                 // Find or add cabin
                 let cab = updated.find(cb => cb.name.toLowerCase() === cabin.toLowerCase());
                 if (!cab) {
-                  cab = { name: cabin, rooms: [room] };
+                  cab = { name: cabin, rooms: [normalizeRoom(room)] };
                   updated.push(cab);
-                } else if (!cab.rooms.map(rm => rm.toLowerCase()).includes(room.toLowerCase())) {
-                  cab.rooms.push(room);
+                } else {
+                  const roomNames = cab.rooms.map(rm => typeof rm === "string" ? rm.toLowerCase() : rm.name.toLowerCase());
+                  if (!roomNames.includes(room.toLowerCase())) {
+                    cab.rooms.push(normalizeRoom(room));
+                  }
                 }
               }
             }
@@ -122,7 +162,7 @@ export default function CabinsPage() {
           // Sort cabins and rooms alphabetically/numerically
           updated = updated.map(cb => ({
             ...cb,
-            rooms: [...cb.rooms].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+            rooms: [...cb.rooms].map(normalizeRoom).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
           })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
           localStorage.setItem("gca_cabins_config", JSON.stringify(updated));
@@ -301,27 +341,77 @@ export default function CabinsPage() {
     flash("success", `Deleted empty cabin "${cabinName}".`);
   };
 
+  const handleImportExcel = async (e) => {
+    if (!isOwner) {
+      alert("Only owners are allowed to import cabins Excel sheets.");
+      e.target.value = null;
+      return;
+    }
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!window.confirm("Importing an Excel sheet will overwrite any duplicate cabins/rooms. Do you want to proceed?")) {
+      e.target.value = null;
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    flash("info", "Processing Excel file...");
+    try {
+      const res = await api.post("/api/campers/upload-cabins", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      
+      const parsedConfig = res.data.config;
+      let merged = [...cabinsConfig];
+      
+      parsedConfig.forEach(parsedCab => {
+        let existingCab = merged.find(c => c.name.toLowerCase() === parsedCab.name.toLowerCase());
+        if (!existingCab) {
+          merged.push(parsedCab);
+        } else {
+          parsedCab.rooms.forEach(parsedRm => {
+            let existingRmIdx = existingCab.rooms.findIndex(r => {
+              const name = typeof r === "string" ? r : r.name;
+              return name.toLowerCase() === parsedRm.name.toLowerCase();
+            });
+            if (existingRmIdx === -1) {
+              existingCab.rooms.push(parsedRm);
+            } else {
+              existingCab.rooms[existingRmIdx] = parsedRm;
+            }
+          });
+          
+          existingCab.rooms.sort((a, b) => {
+            const nameA = typeof a === "string" ? a : a.name;
+            const nameB = typeof b === "string" ? b : b.name;
+            return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+          });
+        }
+      });
+      
+      merged.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+      saveConfig(merged);
+      flash("success", `Successfully imported cabins from Excel!`);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to process Excel sheet.");
+    } finally {
+      e.target.value = null;
+    }
+  };
+
   // Add room to cabin
   const handleAddRoom = (cabinName) => {
-    const roomName = prompt(`Enter new Room name for ${cabinName}:`, "Room X");
-    if (!roomName || !roomName.trim()) return;
-
-    const newConfig = cabinsConfig.map(c => {
-      if (c.name.toLowerCase() === cabinName.toLowerCase()) {
-        if (c.rooms.map(r => r.toLowerCase()).includes(roomName.trim().toLowerCase())) {
-          alert("Room name already exists inside this cabin.");
-          return c;
-        }
-        const updatedRooms = [...c.rooms, roomName.trim()].sort((a, b) => 
-          a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-        );
-        return { ...c, rooms: updatedRooms };
-      }
-      return c;
+    setNewRoomForm({
+      name: "",
+      max_occupancy: 4,
+      location: "Single Level",
+      beds: { king: 0, queen: 0, full: 0, twin: 0, bunk: 0 }
     });
-
-    saveConfig(newConfig);
-    flash("success", `Added "${roomName.trim()}" to ${cabinName}.`);
+    setAddingRoomToCabin(cabinName);
   };
 
   // Delete room from cabin (only if empty)
@@ -338,7 +428,7 @@ export default function CabinsPage() {
 
     const newConfig = cabinsConfig.map(c => {
       if (c.name.toLowerCase() === cabinName.toLowerCase()) {
-        return { ...c, rooms: c.rooms.filter(r => r.toLowerCase() !== roomName.toLowerCase()) };
+        return { ...c, rooms: c.rooms.filter(r => (typeof r === "string" ? r.toLowerCase() : r.name.toLowerCase()) !== roomName.toLowerCase()) };
       }
       return c;
     });
@@ -482,11 +572,14 @@ export default function CabinsPage() {
         <option value="">Move to...</option>
         {cabinsConfig.map(cb => (
           <optgroup key={cb.name} label={cb.name}>
-            {cb.rooms.map(rm => (
-              <option key={`${cb.name} | ${rm}`} value={`${cb.name} | ${rm}`}>
-                {cb.name} — {rm}
-              </option>
-            ))}
+            {cb.rooms.map(rm => {
+              const rmName = typeof rm === "string" ? rm : rm.name;
+              return (
+                <option key={`${cb.name} | ${rmName}`} value={`${cb.name} | ${rmName}`}>
+                  {cb.name} — {rmName}
+                </option>
+              );
+            })}
           </optgroup>
         ))}
       </select>
@@ -777,7 +870,7 @@ export default function CabinsPage() {
           </div>
 
           {isAdmin && (
-            <form onSubmit={handleAddCabin} style={{ display: "flex", gap: 8 }}>
+            <form onSubmit={handleAddCabin} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 className="form-input"
                 placeholder="Cabin Name (e.g. Cabin D)…"
@@ -788,6 +881,27 @@ export default function CabinsPage() {
               <button type="submit" className="btn btn-outline" style={{ padding: "8px 16px", height: "38px" }}>
                 ⛺ Add Cabin
               </button>
+              {isOwner && (
+                <label className="btn btn-secondary" style={{
+                  padding: "8px 16px",
+                  height: "38px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  margin: 0,
+                  fontSize: "0.85rem",
+                  fontWeight: 600
+                }}>
+                  📥 Import Excel
+                  <input
+                    type="file"
+                    accept=".xlsx"
+                    onChange={handleImportExcel}
+                    style={{ display: "none" }}
+                  />
+                </label>
+              )}
             </form>
           )}
         </div>
@@ -925,31 +1039,53 @@ export default function CabinsPage() {
                         </div>
                       ) : (
                         cabin.rooms.map(room => {
-                          const occupants = getRoomOccupants(cabin.name, room);
+                          const roomObj = normalizeRoom(room);
+                          const roomName = roomObj.name;
+                          const maxOccupancy = roomObj.max_occupancy;
+                          const occupants = getRoomOccupants(cabin.name, roomName);
                           const status = getRoomStatus(occupants);
-                          const boxId = `${cabin.name} | ${room}`;
+                          const boxId = `${cabin.name} | ${roomName}`;
                           const isOver = dragOverBox === boxId;
 
                           return (
                             <div 
-                              key={room}
+                              key={roomName}
                               className={`room-box ${isOver ? "drag-over" : ""}`}
                               onDragOver={e => handleDragOver(e, boxId)}
                               onDragLeave={handleDragLeave}
-                              onDrop={e => handleDrop(e, cabin.name, room)}
+                              onDrop={e => handleDrop(e, cabin.name, roomName)}
                             >
                               <div className="room-header">
                                 <span className="room-title">
-                                  <span>🚪</span> {room} <span style={{ fontWeight: 400, fontSize: "0.78rem", color: "var(--muted)", marginLeft: 4 }}>({occupants.length})</span>
+                                  <span>🚪</span> {roomName} <span style={{ fontWeight: 400, fontSize: "0.78rem", color: "var(--muted)", marginLeft: 4 }}>({occupants.length}/{maxOccupancy})</span>
                                 </span>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                   <span className={`room-status-badge ${status.class}`}>
                                     {status.label}
                                   </span>
+                                  {isAdmin && (
+                                    <button 
+                                      onClick={() => setEditingRoom({ cabinName: cabin.name, room: roomObj })}
+                                      title="Configure max occupancy and beds"
+                                      style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        cursor: "pointer",
+                                        fontSize: "0.85rem",
+                                        padding: 0,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        color: "var(--muted)",
+                                        transition: "color 0.2s"
+                                      }}
+                                    >
+                                      ⚙️
+                                    </button>
+                                  )}
                                   {isAdmin && occupants.length > 0 && (
                                     <button 
                                       className="btn-clear-room"
-                                      onClick={() => clearRoom(cabin.name, room)}
+                                      onClick={() => clearRoom(cabin.name, roomName)}
                                       title="Unassign all campers from this room"
                                       style={{
                                         border: "none",
@@ -967,6 +1103,60 @@ export default function CabinsPage() {
                                     </button>
                                   )}
                                 </div>
+                              </div>
+
+                              {/* Capacity Warning Box */}
+                              {occupants.length > maxOccupancy && (
+                                <div style={{
+                                  backgroundColor: "rgba(220, 53, 69, 0.08)",
+                                  border: "1px solid rgba(220, 53, 69, 0.25)",
+                                  borderRadius: "6px",
+                                  padding: "6px 10px",
+                                  marginBottom: 8,
+                                  color: "var(--red)",
+                                  fontSize: "0.78rem",
+                                  fontWeight: 600,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6
+                                }}>
+                                  <span>⚠️</span> Over Capacity! Limit: {maxOccupancy}, Assigned: {occupants.length}
+                                </div>
+                              )}
+
+                              {/* Room Location & Beds Tag */}
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                                <span style={{
+                                  fontSize: "0.7rem",
+                                  fontWeight: 600,
+                                  color: "var(--forest-mid)",
+                                  background: "rgba(30,77,43,0.06)",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px"
+                                }}>
+                                  📍 {roomObj.location || "Single Level"}
+                                </span>
+                                
+                                {Object.entries(roomObj.beds || {}).some(([_, qty]) => qty > 0) && (
+                                  <span style={{
+                                    fontSize: "0.7rem",
+                                    color: "var(--text-secondary)",
+                                    background: "#f1f3f5",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 3
+                                  }}>
+                                    <span>🛏️</span>
+                                    <span>
+                                      {Object.entries(roomObj.beds)
+                                        .filter(([_, qty]) => qty > 0)
+                                        .map(([type, qty]) => `${qty}x ${type.charAt(0).toUpperCase() + type.slice(1)}`)
+                                        .join(", ")}
+                                    </span>
+                                  </span>
+                                )}
                               </div>
 
                               <div className="occupants-list">
@@ -1006,7 +1196,7 @@ export default function CabinsPage() {
                                   {occupants.length === 0 && (
                                     <button 
                                       style={{ border: "none", background: "none", color: "var(--muted)", cursor: "pointer", fontSize: "0.75rem" }}
-                                      onClick={() => handleDeleteRoom(cabin.name, room)}
+                                      onClick={() => handleDeleteRoom(cabin.name, roomName)}
                                     >
                                       🗑️ Delete Room
                                     </button>
@@ -1015,7 +1205,7 @@ export default function CabinsPage() {
                                     <CabinRoomSelector 
                                       camperIds={occupants.map(o => o.id)} 
                                       currentCabin={cabin.name} 
-                                      currentRoom={room} 
+                                      currentRoom={roomName} 
                                     />
                                   </div>
                                 </div>
@@ -1032,6 +1222,363 @@ export default function CabinsPage() {
           </div>
         )}
       </div>
+
+      {/* Room Configuration Modal */}
+      {editingRoom && (
+        <div className="modal-backdrop" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          backdropFilter: "blur(4px)"
+        }}>
+          <div className="card" style={{
+            width: "100%",
+            maxWidth: 450,
+            padding: 24,
+            background: "#fff",
+            borderRadius: "12px",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "var(--forest-dark)" }}>
+              🛏️ Configure {editingRoom.cabinName} — {editingRoom.room.name}
+            </h3>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Max Occupancy */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)" }}>Maximum Occupancy</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-input"
+                  value={editingRoom.room.max_occupancy}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setEditingRoom(prev => ({
+                      ...prev,
+                      room: { ...prev.room, max_occupancy: val }
+                    }));
+                  }}
+                />
+              </div>
+
+              {/* Room Location */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)" }}>Room Location</label>
+                <select
+                  className="form-select"
+                  value={editingRoom.room.location || "Single Level"}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setEditingRoom(prev => ({
+                      ...prev,
+                      room: { ...prev.room, location: val }
+                    }));
+                  }}
+                >
+                  <option value="Single Level">Single Level</option>
+                  <option value="Upstairs">Upstairs</option>
+                  <option value="Downstairs">Downstairs</option>
+                </select>
+              </div>
+
+              {/* Beds */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", borderBottom: "1px solid var(--border)", paddingBottom: 6, color: "var(--text-primary)" }}>Beds Configuration</label>
+                
+                {[
+                  { key: "king", label: "👑 King Bed" },
+                  { key: "queen", label: "🛏️ Queen Bed" },
+                  { key: "full", label: "🛏️ Full Bed" },
+                  { key: "twin", label: "🛏️ Twin Bed" },
+                  { key: "bunk", label: "🪜 Bunk Bed" }
+                ].map(bed => (
+                  <div key={bed.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>{bed.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: "2px 8px", minWidth: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}
+                        onClick={() => {
+                          const current = editingRoom.room.beds[bed.key] || 0;
+                          const val = Math.max(0, current - 1);
+                          setEditingRoom(prev => ({
+                            ...prev,
+                            room: {
+                              ...prev.room,
+                              beds: { ...prev.room.beds, [bed.key]: val }
+                            }
+                          }));
+                        }}
+                      >
+                        -
+                      </button>
+                      <span style={{ minWidth: 20, textAlign: "center", fontWeight: 600, fontSize: "0.9rem" }}>
+                        {editingRoom.room.beds[bed.key] || 0}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: "2px 8px", minWidth: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}
+                        onClick={() => {
+                          const current = editingRoom.room.beds[bed.key] || 0;
+                          const val = current + 1;
+                          setEditingRoom(prev => ({
+                            ...prev,
+                            room: {
+                              ...prev.room,
+                              beds: { ...prev.room.beds, [bed.key]: val }
+                            }
+                          }));
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditingRoom(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const finalRoom = {
+                    ...editingRoom.room,
+                    max_occupancy: Math.max(1, parseInt(editingRoom.room.max_occupancy) || 1)
+                  };
+                  const updated = cabinsConfig.map(cab => {
+                    if (cab.name.toLowerCase() === editingRoom.cabinName.toLowerCase()) {
+                      return {
+                        ...cab,
+                        rooms: cab.rooms.map(rm => {
+                          const rmName = typeof rm === "string" ? rm : rm.name;
+                          if (rmName.toLowerCase() === finalRoom.name.toLowerCase()) {
+                            return finalRoom;
+                          }
+                          return rm;
+                        })
+                      };
+                    }
+                    return cab;
+                  });
+                  saveConfig(updated);
+                  setEditingRoom(null);
+                  flash("success", `Configured ${editingRoom.cabinName} — ${finalRoom.name} successfully.`);
+                }}
+              >
+                Save Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Room Modal */}
+      {addingRoomToCabin && (
+        <div className="modal-backdrop" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          backdropFilter: "blur(4px)"
+        }}>
+          <div className="card" style={{
+            width: "100%",
+            maxWidth: 450,
+            padding: 24,
+            background: "#fff",
+            borderRadius: "12px",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "var(--forest-dark)" }}>
+              ➕ Add New Room to {addingRoomToCabin}
+            </h3>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Room Name */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)" }}>Room Number or Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Room 101"
+                  value={newRoomForm.name}
+                  onChange={e => setNewRoomForm(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              {/* Max Occupancy */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)" }}>Maximum Occupancy</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-input"
+                  value={newRoomForm.max_occupancy}
+                  onChange={e => setNewRoomForm(prev => ({ ...prev, max_occupancy: e.target.value }))}
+                />
+              </div>
+
+              {/* Room Location */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)" }}>Room Location</label>
+                <select
+                  className="form-select"
+                  value={newRoomForm.location || "Single Level"}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setNewRoomForm(prev => ({
+                      ...prev,
+                      location: val
+                    }));
+                  }}
+                >
+                  <option value="Single Level">Single Level</option>
+                  <option value="Upstairs">Upstairs</option>
+                  <option value="Downstairs">Downstairs</option>
+                </select>
+              </div>
+
+              {/* Beds */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <label style={{ fontWeight: 600, fontSize: "0.85rem", borderBottom: "1px solid var(--border)", paddingBottom: 6, color: "var(--text-primary)" }}>Beds Configuration</label>
+                
+                {[
+                  { key: "king", label: "👑 King Bed" },
+                  { key: "queen", label: "🛏️ Queen Bed" },
+                  { key: "full", label: "🛏️ Full Bed" },
+                  { key: "twin", label: "🛏️ Twin Bed" },
+                  { key: "bunk", label: "🪜 Bunk Bed" }
+                ].map(bed => (
+                  <div key={bed.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>{bed.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: "2px 8px", minWidth: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}
+                        onClick={() => {
+                          const current = newRoomForm.beds[bed.key] || 0;
+                          const val = Math.max(0, current - 1);
+                          setNewRoomForm(prev => ({
+                            ...prev,
+                            beds: { ...prev.beds, [bed.key]: val }
+                          }));
+                        }}
+                      >
+                        -
+                      </button>
+                      <span style={{ minWidth: 20, textAlign: "center", fontWeight: 600, fontSize: "0.9rem" }}>
+                        {newRoomForm.beds[bed.key] || 0}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: "2px 8px", minWidth: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}
+                        onClick={() => {
+                          const current = newRoomForm.beds[bed.key] || 0;
+                          const val = current + 1;
+                          setNewRoomForm(prev => ({
+                            ...prev,
+                            beds: { ...prev.beds, [bed.key]: val }
+                          }));
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setAddingRoomToCabin(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const nameTrimmed = newRoomForm.name.trim();
+                  if (!nameTrimmed) {
+                    alert("Room number or name is required.");
+                    return;
+                  }
+                  
+                  // Check duplicate
+                  let hasDuplicate = false;
+                  const newConfig = cabinsConfig.map(c => {
+                    if (c.name.toLowerCase() === addingRoomToCabin.toLowerCase()) {
+                      const roomNames = c.rooms.map(r => typeof r === "string" ? r.toLowerCase() : r.name.toLowerCase());
+                      if (roomNames.includes(nameTrimmed.toLowerCase())) {
+                        hasDuplicate = true;
+                        return c;
+                      }
+                      const finalRoom = {
+                        name: nameTrimmed,
+                        max_occupancy: Math.max(1, parseInt(newRoomForm.max_occupancy) || 1),
+                        location: newRoomForm.location || "Single Level",
+                        beds: {
+                          king: parseInt(newRoomForm.beds.king) || 0,
+                          queen: parseInt(newRoomForm.beds.queen) || 0,
+                          full: parseInt(newRoomForm.beds.full) || 0,
+                          twin: parseInt(newRoomForm.beds.twin) || 0,
+                          bunk: parseInt(newRoomForm.beds.bunk) || 0
+                        }
+                      };
+                      const updatedRooms = [...c.rooms, finalRoom].sort((a, b) => 
+                        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+                      );
+                      return { ...c, rooms: updatedRooms };
+                    }
+                    return c;
+                  });
+
+                  if (hasDuplicate) {
+                    alert("Room name already exists inside this cabin.");
+                    return;
+                  }
+
+                  saveConfig(newConfig);
+                  setAddingRoomToCabin(null);
+                  flash("success", `Added "${nameTrimmed}" to ${addingRoomToCabin}.`);
+                }}
+              >
+                Add Room
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

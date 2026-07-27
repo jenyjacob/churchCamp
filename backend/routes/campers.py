@@ -756,3 +756,137 @@ def upload_teams():
         "updated": updated_count,
         "unmatched": unmatched
     }), 200
+
+
+@campers_bp.route("/upload-cabins", methods=["POST"])
+@jwt_required()
+@require_page_permission("cabins", "edit")
+def upload_cabins_config():
+    claims = get_jwt()
+    if claims.get("role") != "owner":
+        return jsonify({"error": "Only owners are allowed to import cabins Excel sheets."}), 403
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if not file or not file.filename.lower().endswith(".xlsx"):
+        return jsonify({"error": "Please upload a valid Excel (.xlsx) file"}), 400
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(file, data_only=True)
+        sheet = wb.active
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows or len(rows) < 2:
+            return jsonify({"error": "Excel sheet contains no data rows"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse Excel file: {str(e)}"}), 400
+
+    header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
+    
+    cabin_idx = -1
+    room_idx = -1
+    occupancy_idx = -1
+    location_idx = -1
+    king_idx = -1
+    queen_idx = -1
+    full_idx = -1
+    twin_idx = -1
+    bunk_idx = -1
+
+    for i, col in enumerate(header):
+        if "cabin" in col:
+            cabin_idx = i
+        elif "room" in col:
+            room_idx = i
+        elif "occupancy" in col or "capacity" in col or "max" in col:
+            occupancy_idx = i
+        elif "location" in col or "floor" in col or "level" in col or "upstairs" in col or "downstairs" in col:
+            location_idx = i
+        elif "king" in col:
+            king_idx = i
+        elif "queen" in col:
+            queen_idx = i
+        elif "full" in col:
+            full_idx = i
+        elif "twin" in col:
+            twin_idx = i
+        elif "bunk" in col:
+            bunk_idx = i
+
+    if cabin_idx == -1: cabin_idx = 0
+    if room_idx == -1: room_idx = 1 if len(header) > 1 else 0
+
+    cabins_dict = {}
+
+    for row in rows[1:]:
+        if not row or len(row) <= cabin_idx or row[cabin_idx] is None:
+            continue
+
+        cabin_name = str(row[cabin_idx]).strip()
+        room_name = str(row[room_idx]).strip() if len(row) > room_idx and row[room_idx] is not None else "General"
+        
+        if not cabin_name or cabin_name.lower() == "cabin":
+            continue
+
+        max_occupancy = 4
+        if occupancy_idx != -1 and len(row) > occupancy_idx and row[occupancy_idx] is not None:
+            try:
+                max_occupancy = int(row[occupancy_idx])
+            except ValueError:
+                pass
+
+        location = "Single Level"
+        if location_idx != -1 and len(row) > location_idx and row[location_idx] is not None:
+            val = str(row[location_idx]).strip().lower()
+            if "up" in val:
+                location = "Upstairs"
+            elif "down" in val:
+                location = "Downstairs"
+            else:
+                location = "Single Level"
+
+        beds = { "king": 0, "queen": 0, "full": 0, "twin": 0, "bunk": 0 }
+        
+        def parse_bed_qty(idx):
+            if idx != -1 and len(row) > idx and row[idx] is not None:
+                try:
+                    return int(row[idx])
+                except ValueError:
+                    pass
+            return 0
+
+        beds["king"] = parse_bed_qty(king_idx)
+        beds["queen"] = parse_bed_qty(queen_idx)
+        beds["full"] = parse_bed_qty(full_idx)
+        beds["twin"] = parse_bed_qty(twin_idx)
+        beds["bunk"] = parse_bed_qty(bunk_idx)
+
+        if cabin_name not in cabins_dict:
+            cabins_dict[cabin_name] = {}
+
+        cabins_dict[cabin_name][room_name] = {
+            "name": room_name,
+            "max_occupancy": max_occupancy,
+            "location": location,
+            "beds": beds
+        }
+
+    config_list = []
+    for cabin_name, rooms_map in cabins_dict.items():
+        sorted_rooms = sorted(
+            rooms_map.values(),
+            key=lambda r: r["name"]
+        )
+        config_list.append({
+            "name": cabin_name,
+            "rooms": sorted_rooms
+        })
+
+    config_list.sort(key=lambda c: c["name"])
+
+    return jsonify({
+        "message": f"Successfully parsed {len(config_list)} cabins configuration",
+        "config": config_list
+    }), 200

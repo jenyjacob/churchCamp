@@ -10,6 +10,43 @@ const EMPTY_CAMPER = {
   kayaking: 0, boat_tour: 0
 };
 
+const getRoomLocationLabel = (cabinGroupString) => {
+  if (!cabinGroupString) return "";
+  let cabin = "";
+  let room = "General";
+  const parts = cabinGroupString.split(" | ");
+  if (parts.length === 2) {
+    cabin = parts[0].trim();
+    room = parts[1].trim();
+  } else {
+    cabin = cabinGroupString.trim();
+  }
+
+  const saved = localStorage.getItem("gca_cabins_config");
+  if (saved) {
+    try {
+      const cabinsList = JSON.parse(saved);
+      const matchedCabin = cabinsList.find(c => c.name.toLowerCase() === cabin.toLowerCase());
+      if (matchedCabin && matchedCabin.rooms) {
+        const matchedRoom = matchedCabin.rooms.find(r => {
+          const name = typeof r === "string" ? r : r.name;
+          return name.toLowerCase() === room.toLowerCase();
+        });
+        if (matchedRoom && typeof matchedRoom !== "string") {
+          return matchedRoom.location || "Single Level";
+        }
+      }
+    } catch (e) {}
+  }
+  return "";
+};
+
+const formatCabinDetails = (cabinGroup, defaultLabel = "⛺ Unassigned") => {
+  if (!cabinGroup) return defaultLabel;
+  const loc = getRoomLocationLabel(cabinGroup);
+  return `⛺ Cabin: ${cabinGroup}${loc ? ` (${loc})` : ""}`;
+};
+
 function CamperModal({ camper, onClose, onSave, teamNames }) {
   const { hasPermission } = useAuth();
   const canEditTeams = hasPermission("teams", "edit");
@@ -498,7 +535,7 @@ export default function CampersPage() {
 
                           <div className="family-member-footer" style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8, marginTop: 4 }}>
                             <div style={{ fontSize: "0.75rem", display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }} className="text-muted">
-                              {c.cabin_group ? `⛺ Cabin: ${c.cabin_group}` : "⛺ Unassigned Cabin"}
+                              {formatCabinDetails(c.cabin_group, "⛺ Unassigned Cabin")}
                             </div>
                             {canEdit && (
                               <div className="family-member-actions">
@@ -570,7 +607,7 @@ export default function CampersPage() {
                               </span>
                             ) : c.guardian_name ? `👤 ${c.guardian_name}` : ""}
                             <span style={{ color: "#cbd5e1" }}>•</span>
-                            <span>{c.cabin_group ? `⛺ Cabin: ${c.cabin_group}` : "⛺ Unassigned"}</span>
+                            <span>{formatCabinDetails(c.cabin_group)}</span>
                           </div>
                           {canEdit && (
                             <div className="family-member-actions">
