@@ -17,6 +17,7 @@ class User(db.Model):
     locked_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    profile_picture = db.Column(db.Text(4294967295), nullable=True)
 
     # Relationship to audit logs
     audit_logs = db.relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", lazy=True)
@@ -38,5 +39,6 @@ class User(db.Model):
             "must_change_password": self.must_change_password,
             "failed_login_attempts": self.failed_login_attempts,
             "locked_until": self.locked_until.isoformat() if self.locked_until else None,
+            "profile_picture": self.profile_picture,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

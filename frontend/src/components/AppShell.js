@@ -135,6 +135,31 @@ export default function AppShell() {
     }
   };
 
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image size should be less than 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result;
+      try {
+        const res = await api.post("/api/users/profile/picture", { profile_picture: base64String });
+        setUser(prev => ({
+          ...prev,
+          profile_picture: res.data.profile_picture
+        }));
+      } catch (err) {
+        alert(err.response?.data?.error || "Failed to upload profile picture.");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Passkeys States
   const [isPasskeysOpen, setIsPasskeysOpen] = useState(false);
   const [passkeys, setPasskeys] = useState([]);
@@ -296,7 +321,20 @@ export default function AppShell() {
 
         <div className="sidebar-footer">
           <div className="user-badge">
-            <div className="avatar">{initials}</div>
+            <label htmlFor="avatar-upload" className="avatar" title="Click to upload profile picture">
+              {user?.profile_picture ? (
+                <img src={user.profile_picture} alt={user.full_name || user.username} />
+              ) : (
+                initials
+              )}
+            </label>
+            <input
+              type="file"
+              id="avatar-upload"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              style={{ display: "none" }}
+            />
             <div className="info">
               <div className="name">{user?.full_name || user?.username}</div>
               <div className="role-tag">{user?.role}</div>

@@ -141,7 +141,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .user-badge .avatar {
-  width: 30px; height: 30px;
+  width: 34px; height: 34px;
   background: var(--gold);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -149,6 +149,30 @@ button { cursor: pointer; font-family: inherit; }
   font-weight: 700;
   color: var(--white);
   flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+
+.user-badge .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.user-badge .avatar:hover::after {
+  content: "📷";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #fff;
+  border-radius: 50%;
 }
 
 .user-badge .info { overflow: hidden; }

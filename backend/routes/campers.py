@@ -783,17 +783,30 @@ def upload_cabins_config():
     except Exception as e:
         return jsonify({"error": f"Failed to parse Excel file: {str(e)}"}), 400
 
-    header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
+    # Dynamically find the header row containing "cabin" and "room" (case-insensitive)
+    header_row_idx = 0
+    for idx, r in enumerate(rows):
+        row_str = " ".join([str(cell).lower() for cell in r if cell is not None])
+        if "cabin" in row_str and "room" in row_str:
+            header_row_idx = idx
+            break
+
+    header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[header_row_idx]]
     
     cabin_idx = -1
     room_idx = -1
     occupancy_idx = -1
     location_idx = -1
+    handicap_idx = -1
+    
     king_idx = -1
     queen_idx = -1
     full_idx = -1
     twin_idx = -1
     bunk_idx = -1
+    
+    generic_bed_indices = []
+    is_generic_beds = False
 
     for i, col in enumerate(header):
         if "cabin" in col:
@@ -804,23 +817,25 @@ def upload_cabins_config():
             occupancy_idx = i
         elif "location" in col or "floor" in col or "level" in col or "upstairs" in col or "downstairs" in col:
             location_idx = i
-        elif "king" in col:
-            king_idx = i
-        elif "queen" in col:
-            queen_idx = i
-        elif "full" in col:
-            full_idx = i
-        elif "twin" in col:
-            twin_idx = i
-        elif "bunk" in col:
-            bunk_idx = i
+        elif "handicap" in col or "access" in col:
+            handicap_idx = i
+        elif "bed" in col:
+            # Check if size is specified in column header
+            if "king" in col: king_idx = i
+            elif "queen" in col: queen_idx = i
+            elif "full" in col: full_idx = i
+            elif "twin" in col: twin_idx = i
+            elif "bunk" in col: bunk_idx = i
+            else:
+                generic_bed_indices.append(i)
+                is_generic_beds = True
 
     if cabin_idx == -1: cabin_idx = 0
     if room_idx == -1: room_idx = 1 if len(header) > 1 else 0
 
     cabins_dict = {}
 
-    for row in rows[1:]:
+    for row in rows[header_row_idx + 1:]:
         if not row or len(row) <= cabin_idx or row[cabin_idx] is None:
             continue
 
@@ -847,21 +862,37 @@ def upload_cabins_config():
             else:
                 location = "Single Level"
 
+        handicap_accessible = False
+        if handicap_idx != -1 and len(row) > handicap_idx and row[handicap_idx] is not None:
+            val = str(row[handicap_idx]).strip().lower()
+            if val in ["yes", "true", "1", "y", "t", "accessible"]:
+                handicap_accessible = True
+
         beds = { "king": 0, "queen": 0, "full": 0, "twin": 0, "bunk": 0 }
         
-        def parse_bed_qty(idx):
-            if idx != -1 and len(row) > idx and row[idx] is not None:
-                try:
-                    return int(row[idx])
-                except ValueError:
-                    pass
-            return 0
+        if is_generic_beds:
+            for idx in generic_bed_indices:
+                if idx < len(row) and row[idx] is not None:
+                    val = str(row[idx]).strip().lower()
+                    if "king" in val: beds["king"] += 1
+                    elif "queen" in val: beds["queen"] += 1
+                    elif "full" in val: beds["full"] += 1
+                    elif "twin" in val: beds["twin"] += 1
+                    elif "bunk" in val: beds["bunk"] += 1
+        else:
+            def parse_bed_qty(idx):
+                if idx != -1 and len(row) > idx and row[idx] is not None:
+                    try:
+                        return int(row[idx])
+                    except ValueError:
+                        pass
+                return 0
 
-        beds["king"] = parse_bed_qty(king_idx)
-        beds["queen"] = parse_bed_qty(queen_idx)
-        beds["full"] = parse_bed_qty(full_idx)
-        beds["twin"] = parse_bed_qty(twin_idx)
-        beds["bunk"] = parse_bed_qty(bunk_idx)
+            beds["king"] = parse_bed_qty(king_idx)
+            beds["queen"] = parse_bed_qty(queen_idx)
+            beds["full"] = parse_bed_qty(full_idx)
+            beds["twin"] = parse_bed_qty(twin_idx)
+            beds["bunk"] = parse_bed_qty(bunk_idx)
 
         if cabin_name not in cabins_dict:
             cabins_dict[cabin_name] = {}
@@ -870,6 +901,7 @@ def upload_cabins_config():
             "name": room_name,
             "max_occupancy": max_occupancy,
             "location": location,
+            "handicap_accessible": handicap_accessible,
             "beds": beds
         }
 

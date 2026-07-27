@@ -153,6 +153,31 @@ def create_app():
             except Exception as migration_ex:
                 db.session.rollback()
 
+        # Self-healing database migration: add/modify profile_picture column to users table
+        try:
+            db.session.execute(text("SELECT profile_picture FROM users LIMIT 1"))
+            # Column exists: modify its type to LONGTEXT in MySQL (failing silently on SQLite)
+            try:
+                db.session.execute(text("ALTER TABLE users MODIFY COLUMN profile_picture LONGTEXT DEFAULT NULL"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        except Exception:
+            db.session.rollback()
+            try:
+                # Column is missing: create it as LONGTEXT (standard MySQL) or fall back to TEXT if needed
+                try:
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN profile_picture LONGTEXT DEFAULT NULL"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                    db.session.execute(text("ALTER TABLE users ADD COLUMN profile_picture TEXT DEFAULT NULL"))
+                    db.session.commit()
+                print("Database migrated: added profile_picture column to users table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration skipped/failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 

@@ -19,6 +19,7 @@ const normalizeRoom = (r) => {
       name: r,
       max_occupancy: 4,
       location: "Single Level",
+      handicap_accessible: false,
       beds: { king: 0, queen: 0, full: 0, twin: 0, bunk: 0 }
     };
   }
@@ -26,6 +27,7 @@ const normalizeRoom = (r) => {
     name: r.name || "",
     max_occupancy: r.max_occupancy !== undefined ? parseInt(r.max_occupancy) : 4,
     location: r.location || "Single Level",
+    handicap_accessible: r.handicap_accessible || false,
     beds: {
       king: r.beds?.king !== undefined ? parseInt(r.beds.king) : 0,
       queen: r.beds?.queen !== undefined ? parseInt(r.beds.queen) : 0,
@@ -53,6 +55,7 @@ export default function CabinsPage() {
     name: "",
     max_occupancy: 4,
     location: "Single Level",
+    handicap_accessible: false,
     beds: { king: 0, queen: 0, full: 0, twin: 0, bunk: 0 }
   });
 
@@ -409,6 +412,7 @@ export default function CabinsPage() {
       name: "",
       max_occupancy: 4,
       location: "Single Level",
+      handicap_accessible: false,
       beds: { king: 0, queen: 0, full: 0, twin: 0, bunk: 0 }
     });
     setAddingRoomToCabin(cabinName);
@@ -1137,6 +1141,22 @@ export default function CabinsPage() {
                                   📍 {roomObj.location || "Single Level"}
                                 </span>
                                 
+                                {roomObj.handicap_accessible && (
+                                  <span style={{
+                                    fontSize: "0.7rem",
+                                    fontWeight: 700,
+                                    color: "#0f52ba",
+                                    background: "rgba(15,82,186,0.08)",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 3
+                                  }} title="Handicap Accessible">
+                                    ♿ Accessible
+                                  </span>
+                                )}
+                                
                                 {Object.entries(roomObj.beds || {}).some(([_, qty]) => qty > 0) && (
                                   <span style={{
                                     fontSize: "0.7rem",
@@ -1287,6 +1307,26 @@ export default function CabinsPage() {
                   <option value="Upstairs">Upstairs</option>
                   <option value="Downstairs">Downstairs</option>
                 </select>
+              </div>
+
+              {/* Handicap Accessible */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0" }}>
+                <input
+                  type="checkbox"
+                  id="edit-handicap-accessible"
+                  checked={editingRoom.room.handicap_accessible || false}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    setEditingRoom(prev => ({
+                      ...prev,
+                      room: { ...prev.room, handicap_accessible: val }
+                    }));
+                  }}
+                  style={{ width: 18, height: 18, cursor: "pointer" }}
+                />
+                <label htmlFor="edit-handicap-accessible" style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                  ♿ Handicap Accessible
+                </label>
               </div>
 
               {/* Beds */}
@@ -1463,6 +1503,26 @@ export default function CabinsPage() {
                 </select>
               </div>
 
+              {/* Handicap Accessible */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0" }}>
+                <input
+                  type="checkbox"
+                  id="add-handicap-accessible"
+                  checked={newRoomForm.handicap_accessible || false}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    setNewRoomForm(prev => ({
+                      ...prev,
+                      handicap_accessible: val
+                    }));
+                  }}
+                  style={{ width: 18, height: 18, cursor: "pointer" }}
+                />
+                <label htmlFor="add-handicap-accessible" style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-primary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                  ♿ Handicap Accessible
+                </label>
+              </div>
+
               {/* Beds */}
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <label style={{ fontWeight: 600, fontSize: "0.85rem", borderBottom: "1px solid var(--border)", paddingBottom: 6, color: "var(--text-primary)" }}>Beds Configuration</label>
@@ -1547,6 +1607,7 @@ export default function CabinsPage() {
                         name: nameTrimmed,
                         max_occupancy: Math.max(1, parseInt(newRoomForm.max_occupancy) || 1),
                         location: newRoomForm.location || "Single Level",
+                        handicap_accessible: newRoomForm.handicap_accessible || false,
                         beds: {
                           king: parseInt(newRoomForm.beds.king) || 0,
                           queen: parseInt(newRoomForm.beds.queen) || 0,

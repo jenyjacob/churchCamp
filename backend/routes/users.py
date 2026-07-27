@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from models import User, AuditLog
 from db import db
 from utils.permissions import require_page_permission
@@ -141,6 +141,39 @@ def delete_own_account():
     from utils.logging import log_action
     log_action("DELETE_SELF", f"User deleted their own account (ID: {user_id})")
     return jsonify({"message": "Your account has been deleted successfully"}), 200
+
+
+@users_bp.route("/profile/picture", methods=["POST"])
+@jwt_required()
+def update_profile_picture():
+    current_identity = get_jwt_identity()
+    user = User.query.get(int(current_identity))
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json()
+    if not data or "profile_picture" not in data:
+        return jsonify({"error": "Missing profile_picture data"}), 400
+
+    profile_picture = data.get("profile_picture")
+    if profile_picture:
+        if not profile_picture.startswith("data:image/"):
+            return jsonify({"error": "Invalid image format. Must be a base64 Data URL."}), 400
+        if "image/svg+xml" in profile_picture:
+            return jsonify({"error": "SVG format is not allowed for security reasons."}), 400
+        if len(profile_picture) > 3 * 1024 * 1024:
+            return jsonify({"error": "Image payload is too large. Maximum size allowed is 2MB."}), 400
+
+    user.profile_picture = profile_picture
+    db.session.commit()
+
+    from utils.logging import log_action
+    log_action("UPDATE_PROFILE_PICTURE", "User updated their profile picture", user.id, user.username)
+
+    return jsonify({
+        "message": "Profile picture updated successfully",
+        "profile_picture": user.profile_picture
+    }), 200
 
 def require_owner():
     claims = get_jwt()
