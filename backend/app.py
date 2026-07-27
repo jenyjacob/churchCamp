@@ -178,6 +178,15 @@ def create_app():
                 db.session.rollback()
                 print(f"Database migration skipped/failed: {str(migration_ex)}")
 
+        # Self-healing database migration: modify value column in settings table to LONGTEXT
+        try:
+            db.session.execute(text("ALTER TABLE settings MODIFY COLUMN value LONGTEXT NOT NULL"))
+            db.session.commit()
+            print("Database migrated: altered value column to LONGTEXT in settings table.")
+        except Exception as migration_ex:
+            db.session.rollback()
+            print(f"Database migration for settings value skipped/failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 

@@ -138,7 +138,16 @@ export default function CabinsPage() {
     api.get("/api/settings/")
       .then(res => {
         const dbConfigStr = res.data.settings?.cabins_config;
-        if (dbConfigStr) {
+        const localSaved = localStorage.getItem("gca_cabins_config");
+        
+        let localParsed = [];
+        if (localSaved) {
+          try {
+            localParsed = JSON.parse(localSaved);
+          } catch (e) {}
+        }
+
+        if (dbConfigStr && dbConfigStr !== "[]") {
           try {
             const parsed = JSON.parse(dbConfigStr);
             const normalized = parsed.map(c => ({
@@ -150,6 +159,10 @@ export default function CabinsPage() {
           } catch (e) {
             console.error("Failed to parse cabins config from DB settings:", e);
           }
+        } else if (localParsed && localParsed.length > 0) {
+          // DB has no config but local has it -> upload local to DB!
+          api.post("/api/settings/", { cabins_config: JSON.stringify(localParsed) })
+            .catch(err => console.error("Failed to sync local cabins config to DB:", err));
         }
       })
       .catch(err => console.error("Failed to load cabins config from DB settings:", err));
