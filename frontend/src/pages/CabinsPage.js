@@ -130,7 +130,30 @@ export default function CabinsPage() {
   const saveConfig = (newConfig) => {
     setCabinsConfig(newConfig);
     localStorage.setItem("gca_cabins_config", JSON.stringify(newConfig));
+    api.post("/api/settings/", { cabins_config: JSON.stringify(newConfig) })
+      .catch(err => console.error("Failed to save cabins config to database settings:", err));
   };
+
+  useEffect(() => {
+    api.get("/api/settings/")
+      .then(res => {
+        const dbConfigStr = res.data.settings?.cabins_config;
+        if (dbConfigStr) {
+          try {
+            const parsed = JSON.parse(dbConfigStr);
+            const normalized = parsed.map(c => ({
+              ...c,
+              rooms: (c.rooms || []).map(normalizeRoom)
+            }));
+            setCabinsConfig(normalized);
+            localStorage.setItem("gca_cabins_config", JSON.stringify(normalized));
+          } catch (e) {
+            console.error("Failed to parse cabins config from DB settings:", e);
+          }
+        }
+      })
+      .catch(err => console.error("Failed to load cabins config from DB settings:", err));
+  }, []);
 
   // Fetch campers and merge any active cabin/room mappings dynamically
   const fetchCampers = useCallback(() => {

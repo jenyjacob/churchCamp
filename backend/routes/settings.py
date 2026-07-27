@@ -26,7 +26,8 @@ DEFAULT_SETTINGS = {
     "camp_poc_name": "Pastor John Doe",
     "camp_poc_email": "john.doe@gca.org",
     "camp_poc_phone": "+1 (555) 019-2834",
-    "google_places_api_key": ""
+    "google_places_api_key": "",
+    "cabins_config": "[]"
 }
 
 @settings_bp.route("/public", methods=["GET"])

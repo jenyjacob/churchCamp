@@ -293,7 +293,12 @@ export default function CampersPage() {
   useEffect(() => { 
     fetchCampers(); 
     api.get("/api/settings/").then(r => {
-      if (r.data.settings) setSettings(r.data.settings);
+      if (r.data.settings) {
+        setSettings(r.data.settings);
+        if (r.data.settings.cabins_config) {
+          localStorage.setItem("gca_cabins_config", r.data.settings.cabins_config);
+        }
+      }
     }).catch(() => {});
   }, [fetchCampers]);
 
@@ -302,6 +307,9 @@ export default function CampersPage() {
       .then(res => {
         if (res.data.settings) {
           setSettings(res.data.settings);
+          if (res.data.settings.cabins_config) {
+            localStorage.setItem("gca_cabins_config", res.data.settings.cabins_config);
+          }
         }
       })
       .catch(() => {});
