@@ -61,8 +61,17 @@ export default function AppShell() {
       setForcePwdError("Passwords do not match.");
       return;
     }
-    if (forceNewPassword.length < 4) {
-      setForcePwdError("Password must be at least 4 characters long.");
+    const validatePassword = (pwd) => {
+      if (pwd.length < 8) return "Password must be at least 8 characters long.";
+      if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+      if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+      if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+      if (!/[@$!%*?&#^\-+=_]/.test(pwd)) return "Password must contain at least one special character (@$!%*?&#^-+=_).";
+      return null;
+    };
+    const errStr = validatePassword(forceNewPassword);
+    if (errStr) {
+      setForcePwdError(errStr);
       return;
     }
     setForcePwdSaving(true);
@@ -96,8 +105,17 @@ export default function AppShell() {
       setPasswordError("New passwords do not match.");
       return;
     }
-    if (newPassword.length < 4) {
-      setPasswordError("Password must be at least 4 characters long.");
+    const validatePassword = (pwd) => {
+      if (pwd.length < 8) return "Password must be at least 8 characters long.";
+      if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+      if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+      if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+      if (!/[@$!%*?&#^\-+=_]/.test(pwd)) return "Password must contain at least one special character (@$!%*?&#^-+=_).";
+      return null;
+    };
+    const errStr = validatePassword(newPassword);
+    if (errStr) {
+      setPasswordError(errStr);
       return;
     }
 
@@ -412,6 +430,9 @@ export default function AppShell() {
                   onChange={e => setNewPassword(e.target.value)} 
                   required 
                 />
+                <span style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: 4, display: "block" }}>
+                  Password must be at least 8 characters and contain an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&#^-+=_).
+                </span>
               </div>
 
               <div className="form-group" style={{ marginBottom: 20 }}>
@@ -575,9 +596,12 @@ export default function AppShell() {
                   className="form-input" 
                   value={forceNewPassword}
                   onChange={e => setForceNewPassword(e.target.value)}
-                  placeholder="At least 4 characters"
+                  placeholder="Enter a strong password"
                   required
                 />
+                <span style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: 4, display: "block" }}>
+                  Password must be at least 8 characters and contain an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&#^-+=_).
+                </span>
               </div>
 
               <div className="form-group" style={{ marginBottom: 20 }}>

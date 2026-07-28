@@ -98,6 +98,11 @@ def change_password():
     if not user.check_password(data["current_password"]):
         return jsonify({"error": "Invalid current password"}), 400
 
+    from utils.password import validate_password_strength
+    pwd_err = validate_password_strength(data["new_password"])
+    if pwd_err:
+        return jsonify({"error": pwd_err}), 400
+
     if user.check_password(data["new_password"]):
         return jsonify({"error": "Your new password cannot be the same as your previous password"}), 400
 
@@ -122,8 +127,10 @@ def force_change_password():
 
     data = request.get_json()
     new_pwd = data.get("new_password")
-    if not new_pwd or len(new_pwd) < 4:
-        return jsonify({"error": "New password must be at least 4 characters long"}), 400
+    from utils.password import validate_password_strength
+    pwd_err = validate_password_strength(new_pwd)
+    if pwd_err:
+        return jsonify({"error": pwd_err}), 400
 
     if user.check_password(new_pwd):
         return jsonify({"error": "Your new password cannot be the same as your previous password"}), 400

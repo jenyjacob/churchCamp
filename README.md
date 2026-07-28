@@ -18,10 +18,16 @@ A full-stack web application for registering campers and managing daily check-in
 ## Features
 
 - **JWT Authentication** — Secure login with bcrypt password hashing
+- **Passkeys / WebAuthn Biometric Login** — Fast, secure login using Touch ID, Face ID, Windows Hello, or security keys
 - **Role-Based Access** — Admin (full CRUD) vs Staff (view + check-in only)
 - **Live Dashboard** — Real-time stats: registered, checked in, paid
 - **Camper Management** — Register, search, filter, edit campers with medical/guardian info
 - **Check-In / Check-Out** — Debounced live search, duplicate prevention, notes per visit
+- **Cabin & Room Assignments** — Assign cabins/rooms with bed capacities and **♿ Handicap Accessible** badges
+- **Smart Excel Parser** — Import cabin/room configurations from Excel sheets
+- **Strict Passwords** — Strong verification (8+ characters, uppercase, lowercase, numbers, special characters)
+- **Admin Password Resets** — One-click temporary password generation and forced change on next login
+- **Profile Pictures** — Support for uploading base64 profile pictures globally
 - **Staff Management** — Admin creates/edits/deactivates staff accounts
 - **CI/CD Pipeline** — Auto-test and deploy on every push via GitHub Actions
 - **Free Hosting** — AWS EC2 t2.micro + CloudFront = $0/month for 12 months
@@ -35,7 +41,7 @@ A full-stack web application for registering campers and managing daily check-in
 | Frontend   | React 18 + React Router v6   | User interface & navigation |
 | Backend    | Python 3.11 + Flask 3        | REST API & business logic   |
 | Database   | MySQL 8.0 + SQLAlchemy ORM   | Data persistence            |
-| Auth       | JWT + bcrypt                 | Secure login & roles        |
+| Auth       | JWT + WebAuthn (Passkeys)    | Secure login & roles        |
 | Web Server | Nginx + Gunicorn             | Production serving          |
 | CI/CD      | GitHub Actions (free)        | Auto test & deploy on push  |
 | Hosting    | AWS EC2 t2.micro Free Tier   | $0/month for 12 months      |
@@ -68,23 +74,28 @@ The browser connects through CloudFront (HTTPS CDN) which routes traffic to an E
 
 All protected endpoints require: `Authorization: Bearer <token>`
 
-### Auth
+### Auth & Passkeys
 
-| Method | Endpoint         | Auth | Description          |
-|--------|------------------|------|----------------------|
-| POST   | `/api/auth/login` | None | Login, returns JWT  |
-| GET    | `/api/auth/me`   | JWT  | Current user info    |
+| Method | Endpoint                     | Auth | Description                           |
+|--------|------------------------------|------|---------------------------------------|
+| POST   | `/api/auth/login`            | None | Login, returns JWT                    |
+| GET    | `/api/auth/me`               | JWT  | Current user info                     |
+| GET    | `/api/auth/webauthn/register/options` | JWT | Get credential registration options   |
+| POST   | `/api/auth/webauthn/register/verify`  | JWT | Verify and save passkey credential    |
+| GET    | `/api/auth/webauthn/login/options`    | None | Get credentials challenge for login   |
+| POST   | `/api/auth/webauthn/login/verify`     | None | Verify assertion and issue access JWT |
 
-### Campers
+### Campers & Cabins
 
-| Method | Endpoint              | Auth  | Description                      |
-|--------|-----------------------|-------|----------------------------------|
-| GET    | `/api/campers/`       | JWT   | List (search, filter, paginate)  |
-| GET    | `/api/campers/:id`    | JWT   | Single camper                    |
-| POST   | `/api/campers/`       | Admin | Register camper                  |
-| PUT    | `/api/campers/:id`    | Admin | Update camper                    |
-| DELETE | `/api/campers/:id`    | Admin | Delete camper                    |
-| GET    | `/api/campers/stats`  | JWT   | Dashboard stats                  |
+| Method | Endpoint                        | Auth  | Description                         |
+|--------|---------------------------------|-------|-------------------------------------|
+| GET    | `/api/campers/`                 | JWT   | List (search, filter, paginate)     |
+| GET    | `/api/campers/:id`              | JWT   | Single camper                       |
+| POST   | `/api/campers/`                 | Admin | Register camper                     |
+| PUT    | `/api/campers/:id`              | Admin | Update camper                       |
+| DELETE | `/api/campers/:id`              | Admin | Delete camper                       |
+| GET    | `/api/campers/stats`            | JWT   | Dashboard stats                     |
+| POST   | `/api/campers/upload-cabins`    | Admin | Parse and upload cabins Excel sheet |
 
 ### Check-In
 
@@ -96,12 +107,14 @@ All protected endpoints require: `Authorization: Bearer <token>`
 
 ### Users (Admin Only)
 
-| Method | Endpoint          | Auth  | Description              |
-|--------|-------------------|-------|--------------------------|
-| GET    | `/api/users/`     | Admin | List staff               |
-| POST   | `/api/users/`     | Admin | Create user              |
-| PUT    | `/api/users/:id`  | Admin | Update / reset password  |
-| DELETE | `/api/users/:id`  | Admin | Delete user              |
+| Method | Endpoint                             | Auth  | Description                             |
+|--------|--------------------------------------|-------|-----------------------------------------|
+| GET    | `/api/users/`                        | Admin | List staff                              |
+| POST   | `/api/users/`                        | Admin | Create user                             |
+| PUT    | `/api/users/:id`                     | Admin | Update user details                     |
+| DELETE | `/api/users/:id`                     | Admin | Delete user (auto-reassign checkins)   |
+| POST   | `/api/users/:id/reset-password`      | Admin | Admin-assisted one-click password reset |
+| POST   | `/api/users/profile/picture`         | JWT   | Upload/update user profile photo        |
 
 ---
 
@@ -112,7 +125,7 @@ All protected endpoints require: `Authorization: Bearer <token>`
 - [ ] Use strong `SECRET_KEY` (different from JWT key, 48+ chars)
 - [ ] Use strong MySQL passwords
 - [ ] Remove port 5000 from EC2 security group after setup
-- [ ] Serve over HTTPS via CloudFront
+- [ ] Serve over HTTPS via CloudFront (Required for Passkeys/WebAuthn)
 - [ ] Enable automatic Ubuntu security updates
 - [ ] SSH port 22 restricted to your IP only
 

@@ -33,8 +33,25 @@ function UserModal({ user, currentUser, onClose, onSave }) {
       .catch(() => {});
   }, []);
 
+  const validatePassword = (pwd) => {
+    if (!pwd) return null;
+    if (pwd.length < 8) return "Password must be at least 8 characters long.";
+    if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+    if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+    if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+    if (!/[@$!%*?&#^\-+=_]/.test(pwd)) return "Password must contain at least one special character (@$!%*?&#^-+=_).";
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.password) {
+      const errStr = validatePassword(form.password);
+      if (errStr) {
+        setError(errStr);
+        return;
+      }
+    }
     setSaving(true);
     setError("");
     try {
@@ -70,6 +87,9 @@ function UserModal({ user, currentUser, onClose, onSave }) {
           <div className="form-group">
             <label className="form-label">{user?.id ? "New Password (leave blank to keep)" : "Password *"}</label>
             <input className="form-input" type="password" value={form.password} onChange={e => set("password", e.target.value)} required={!user?.id} />
+            <span style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: 4, display: "block" }}>
+              Password must be at least 8 characters and contain an uppercase letter, a lowercase letter, a number, and a special character (@$!%*?&#^-+=_).
+            </span>
           </div>
           <div className="form-group">
             <label className="form-label">Full Name</label>
@@ -135,6 +155,7 @@ export default function UsersPage() {
   const [modal, setModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState("");
+  const [tempPasswordModal, setTempPasswordModal] = useState(null);
 
   const fetchUsers = useCallback(() => {
     setLoading(true);
@@ -171,6 +192,20 @@ export default function UsersPage() {
       fetchUsers();
     } catch {
       setError("Failed to unlock user account.");
+    }
+  };
+
+  const handleResetPassword = async (u) => {
+    if (!window.confirm(`Are you sure you want to reset the password for "${u.username}"?`)) return;
+    try {
+      const res = await api.post(`/api/users/${u.id}/reset-password`);
+      setTempPasswordModal({
+        username: u.username,
+        temp_password: res.data.temp_password
+      });
+      fetchUsers();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to reset password.");
     }
   };
 
@@ -261,6 +296,15 @@ export default function UsersPage() {
                         )}
                         <button 
                           className="btn btn-ghost btn-sm" 
+                          onClick={() => handleResetPassword(u)}
+                          disabled={u.role === "owner" && currentUser?.role !== "owner"}
+                          style={{ color: "var(--red)" }}
+                          title="Generate temporary password and force change on next login"
+                        >
+                          🔄 Reset Pwd
+                        </button>
+                        <button 
+                          className="btn btn-ghost btn-sm" 
                           onClick={() => setModal(u)}
                           disabled={u.role === "owner" && currentUser?.role !== "owner"}
                         >
@@ -300,6 +344,49 @@ export default function UsersPage() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setDeleteTarget(null)}>Cancel</button>
               <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tempPasswordModal && (
+        <div className="modal-overlay" onClick={() => setTempPasswordModal(null)}>
+          <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🔑 Password Reset Succeeded</h2>
+              <button className="modal-close" onClick={() => setTempPasswordModal(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: "0 20px 20px" }}>
+              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: 16 }}>
+                A new temporary password has been successfully generated for <strong>{tempPasswordModal.username}</strong>. They will be forced to change it on next login.
+              </p>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Temporary Password</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input 
+                    className="form-input" 
+                    readOnly 
+                    value={tempPasswordModal.temp_password} 
+                    style={{ fontSize: "1.1rem", fontFamily: "monospace", fontWeight: 700, backgroundColor: "#f9fafb", textAlign: "center" }}
+                  />
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tempPasswordModal.temp_password);
+                      alert("Temporary password copied to clipboard!");
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn btn-secondary" onClick={() => setTempPasswordModal(null)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

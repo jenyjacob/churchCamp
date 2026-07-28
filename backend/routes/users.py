@@ -37,6 +37,11 @@ def create_user():
     if not data.get("username") or not data.get("password"):
         return jsonify({"error": "Username and password are required"}), 400
 
+    from utils.password import validate_password_strength
+    pwd_err = validate_password_strength(data["password"])
+    if pwd_err:
+        return jsonify({"error": pwd_err}), 400
+
     if User.query.filter_by(username=data["username"]).first():
         return jsonify({"error": "Username already exists"}), 409
 
@@ -94,6 +99,10 @@ def update_user(user_id):
             setattr(user, field, val)
 
     if "password" in data and data["password"]:
+        from utils.password import validate_password_strength
+        pwd_err = validate_password_strength(data["password"])
+        if pwd_err:
+            return jsonify({"error": pwd_err}), 400
         if user.check_password(data["password"]):
             return jsonify({"error": "New password cannot be the same as the user's previous password"}), 400
         user.set_password(data["password"])
@@ -120,6 +129,22 @@ def delete_user(user_id):
         return jsonify({"error": "Admin cannot delete owner profiles"}), 403
 
     username = user.username
+    
+    # Re-assign check-in/out signatures to the deleting admin/owner
+    from models.checkin import CheckIn
+    from models.audit_log import AuditLog
+    from models.user_passkey import UserPasskey
+    
+    operator_id = int(get_jwt_identity())
+    CheckIn.query.filter_by(checked_in_by=user_id).update({"checked_in_by": operator_id})
+    CheckIn.query.filter_by(checked_out_by=user_id).update({"checked_out_by": operator_id})
+    
+    # Nullify audit log user references to preserve history
+    AuditLog.query.filter_by(user_id=user_id).update({"user_id": None})
+    
+    # Cascade delete authentication passkeys
+    UserPasskey.query.filter_by(user_id=user_id).delete()
+
     db.session.delete(user)
     db.session.commit()
     from utils.logging import log_action
@@ -173,6 +198,37 @@ def update_profile_picture():
     return jsonify({
         "message": "Profile picture updated successfully",
         "profile_picture": user.profile_picture
+    }), 200
+
+
+@users_bp.route("/<int:user_id>/reset-password", methods=["POST"])
+@jwt_required()
+@require_page_permission("users", "edit")
+def admin_reset_password(user_id):
+    claims = get_jwt()
+    if claims.get("role") not in ["owner", "admin"]:
+        return jsonify({"error": "Admin access required"}), 403
+
+    user = User.query.get_or_404(user_id)
+    if user.role == "owner" and claims.get("role") != "owner":
+        return jsonify({"error": "Only the owner can reset another owner's password"}), 403
+
+    import secrets
+    # Generate temporary password:
+    temp_password = "Temp@" + secrets.token_hex(3).capitalize() + "1!"
+    
+    user.set_password(temp_password)
+    user.must_change_password = True
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.session.commit()
+
+    from utils.logging import log_action
+    log_action("RESET_USER_PASSWORD", f"Reset password for user '{user.username}' (ID: {user.id})")
+
+    return jsonify({
+        "message": f"Password reset successfully for {user.username}.",
+        "temp_password": temp_password
     }), 200
 
 def require_owner():
