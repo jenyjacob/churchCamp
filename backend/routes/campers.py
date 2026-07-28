@@ -32,7 +32,7 @@ def check_permission(role, page_key, required_level="read"):
 def get_campers():
     claims = get_jwt()
     role = claims.get("role", "user")
-    if not check_permission(role, "campers", "read") and not check_permission(role, "teams", "read"):
+    if not check_permission(role, "campers", "read") and not check_permission(role, "teams", "read") and not check_permission(role, "apparel", "read"):
         return jsonify({"error": "Access denied"}), 403
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
@@ -306,14 +306,24 @@ def public_signup():
 
 @campers_bp.route("/<int:camper_id>", methods=["PUT"])
 @jwt_required()
-@require_page_permission("campers", "edit")
 def update_camper(camper_id):
     claims = get_jwt()
-    role = claims.get("role")
+    role = claims.get("role", "user")
+
+    has_campers_edit = check_permission(role, "campers", "edit")
+    has_apparel_edit = check_permission(role, "apparel", "edit")
+
+    if not has_campers_edit and not has_apparel_edit:
+        return jsonify({"error": "Access denied"}), 403
 
     camper = Camper.query.get_or_404(camper_id)
-    data = request.get_json()
+    data = request.get_json() or {}
     data = {k: (None if v == "" else v) for k, v in data.items()}
+
+    # Limit updates to only t-shirt size fields if they lack full campers edit permission
+    if not has_campers_edit and has_apparel_edit:
+        allowed_keys = {"tshirt_size", "indian_size"}
+        data = {k: v for k, v in data.items() if k in allowed_keys}
 
     # Camp Director can only modify outdoor activities
     if role == "director":
