@@ -30,15 +30,33 @@ DEFAULT_SETTINGS = {
     "cabins_config": "[]"
 }
 
+PUBLIC_SETTINGS_KEYS = {
+    "signup_title",
+    "signup_dates",
+    "signup_location",
+    "camp_description",
+    "camp_poc_name",
+    "camp_poc_email",
+    "camp_poc_phone",
+    "registration_closed",
+    "registration_status"
+}
+
 @settings_bp.route("/public", methods=["GET"])
 def get_public_settings():
-    settings_dict = dict(DEFAULT_SETTINGS)
+    # Only return keys in the explicit public settings allow-list
+    settings_dict = {}
+    for key in PUBLIC_SETTINGS_KEYS:
+        if key in DEFAULT_SETTINGS:
+            settings_dict[key] = DEFAULT_SETTINGS[key]
+        
     try:
-        db_settings = Setting.query.all()
+        db_settings = Setting.query.filter(Setting.key.in_(list(PUBLIC_SETTINGS_KEYS))).all()
         for s in db_settings:
             settings_dict[s.key] = s.value
     except Exception:
         pass
+        
     return jsonify({
         "settings": settings_dict
     }), 200
@@ -56,6 +74,19 @@ def get_settings():
     except Exception as e:
         # Fallback if table doesn't exist yet
         pass
+
+    # Restrict google_places_api_key to admin and owner roles only
+    claims = get_jwt()
+    current_role = claims.get("role", "user")
+    
+    user_id = get_jwt_identity()
+    if user_id:
+        user = User.query.get(int(user_id))
+        if user and user.role:
+            current_role = user.role
+
+    if current_role not in ["owner", "admin"]:
+        settings_dict.pop("google_places_api_key", None)
 
     return jsonify({
         "settings": settings_dict

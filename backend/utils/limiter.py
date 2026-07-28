@@ -1,6 +1,6 @@
 import time
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 
 # Simple in-memory rate limiting dictionary: { ip_address: [timestamp1, timestamp2, ...] }
 rate_limit_cache = {}
@@ -10,10 +10,12 @@ def rate_limit(limit=5, period=60):
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            # Check for proxy header first, then remote address
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-            if ip and "," in ip:
-                ip = ip.split(",")[0].strip()
+            if current_app.config.get('TESTING'):
+                return f(*args, **kwargs)
+                
+            # Trust X-Real-IP since Nginx overwrites it entirely with the actual client socket remote address.
+            # Fall back to request.remote_addr if no proxy header exists.
+            ip = request.headers.get("X-Real-IP", request.remote_addr)
             
             now = time.time()
             

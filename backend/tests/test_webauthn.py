@@ -6,18 +6,32 @@ from models import WebauthnChallenge, User
 
 @pytest.fixture
 def app():
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['WEBAUTHN_RP_ID'] = 'localhost'
-    app.config['WEBAUTHN_RP_NAME'] = 'GCA Camp Manager'
-    app.config['WEBAUTHN_RP_ORIGIN'] = 'http://localhost:3000'
+    import os
+    db_file = "test_churchcamp.db"
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except Exception:
+            pass
+            
+    os.environ["SEED_ADMIN_PASSWORD"] = "Admin@1234!"
+    app = create_app({
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
+        "TESTING": True,
+        "WEBAUTHN_RP_ID": "localhost",
+        "WEBAUTHN_RP_NAME": "GCA Camp Manager",
+        "WEBAUTHN_RP_ORIGIN": "http://localhost:3000"
+    })
 
     with app.app_context():
         _db.create_all()
-        from utils.seed import seed_admin
-        seed_admin()
         yield app
+
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except Exception:
+            pass
 
 @pytest.fixture
 def client(app): 

@@ -18,7 +18,7 @@ from routes.permissions import permissions_bp
 from routes.finance import finance_bp
 from routes.settings import settings_bp
 
-def create_app():
+def create_app(config_override=None):
     # Enforce environment checks in production mode
     is_prod = os.environ.get("FLASK_ENV") == "production"
     if is_prod:
@@ -34,6 +34,8 @@ def create_app():
 
     app = Flask(__name__)
     app.config.from_object(Config)
+    if config_override:
+        app.config.update(config_override)
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB maximum request payload limit
 
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})

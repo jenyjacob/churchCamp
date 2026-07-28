@@ -124,6 +124,13 @@ def create_camper():
     if not data.get("first_name") or not data.get("last_name"):
         return jsonify({"error": "First and last name are required"}), 400
 
+    import re
+    first_name = re.sub(r'<[^>]*>', '', str(data["first_name"])).strip()[:100]
+    last_name = re.sub(r'<[^>]*>', '', str(data["last_name"])).strip()[:100]
+
+    if not first_name or not last_name:
+        return jsonify({"error": "Invalid attendee name provided"}), 400
+
     family_group = data.get("family_group")
     waiver_status = data.get("waiver_submitted", False)
     if family_group and not waiver_status:
@@ -146,8 +153,8 @@ def create_camper():
             pass
 
     camper = Camper(
-        first_name=data["first_name"],
-        last_name=data["last_name"],
+        first_name=first_name,
+        last_name=last_name,
         date_of_birth=data.get("date_of_birth"),
         age=data.get("age"),
         gender=data.get("gender"),
@@ -239,6 +246,14 @@ def public_signup():
 
         if not first_name or not last_name:
             return jsonify({"error": "First and last name are required for all attendees"}), 400
+
+        # Strip html tags and truncate name strings to prevent XSS and DB truncation errors
+        import re
+        first_name = re.sub(r'<[^>]*>', '', str(first_name)).strip()[:100]
+        last_name = re.sub(r'<[^>]*>', '', str(last_name)).strip()[:100]
+
+        if not first_name or not last_name:
+            return jsonify({"error": "Invalid attendee name provided"}), 400
 
         parsed_age = None
         if age is not None and str(age).strip() != "":
@@ -333,6 +348,9 @@ def update_camper(camper_id):
                 if field == "team_name" and not has_teams_edit:
                     continue
                 val = data[field]
+                if field in ["first_name", "last_name"] and val is not None:
+                    import re
+                    val = re.sub(r'<[^>]*>', '', str(val)).strip()[:100]
                 if field in ["kayaking", "boat_tour"]:
                     try:
                         val = int(val) if val is not None else 0

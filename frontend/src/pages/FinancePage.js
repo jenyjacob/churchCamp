@@ -479,6 +479,16 @@ export default function FinancePage() {
       </div>
     `;
 
+    const escapeHtml = (str) => {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
     const totalReg = families.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
     const totalAct = families.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
     const totalExp = families.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
@@ -486,13 +496,13 @@ export default function FinancePage() {
 
     const feesRows = families.map(f => `
       <tr>
-        <td>Family #${f.family_group} (${f.display_name})</td>
+        <td>Family #${escapeHtml(f.family_group)} (${escapeHtml(f.display_name)})</td>
         <td>${f.eligible_count}</td>
         <td>$${(f.calculated_fee || 0).toFixed(2)}</td>
         <td>$${(f.activity_fee || 0).toFixed(2)}</td>
         <td>$${(f.total_expected_fee || 0).toFixed(2)}</td>
         <td>$${(f.amount_paid || 0).toFixed(2)}</td>
-        <td>${f.status.toUpperCase()}</td>
+        <td>${escapeHtml(f.status.toUpperCase())}</td>
       </tr>
     `).join("") + `
       <tr style="font-weight: bold; background-color: #eee;">
@@ -508,9 +518,9 @@ export default function FinancePage() {
 
     const expensesRows = expenses.map(e => `
       <tr>
-        <td>${e.date}</td>
-        <td>${e.category}</td>
-        <td>${e.description}</td>
+        <td>${escapeHtml(e.date)}</td>
+        <td>${escapeHtml(e.category)}</td>
+        <td>${escapeHtml(e.description)}</td>
         <td>$${(e.amount || 0).toFixed(2)}</td>
       </tr>
     `).join("");

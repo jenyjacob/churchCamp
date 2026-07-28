@@ -3,15 +3,29 @@ from app import create_app
 from db import db as _db
 @pytest.fixture
 def app():
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    import os
+    db_file = "test_churchcamp.db"
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except Exception:
+            pass
+            
+    os.environ["SEED_ADMIN_PASSWORD"] = "Admin@1234!"
+    app = create_app({
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
+        "TESTING": True
+    })
 
     with app.app_context():
         _db.create_all()
-        from utils.seed import seed_admin
-        seed_admin()
         yield app
+
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+        except Exception:
+            pass
 
 @pytest.fixture
 def client(app): 

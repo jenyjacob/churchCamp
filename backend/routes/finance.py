@@ -515,6 +515,13 @@ def create_expense():
     if not desc or not cat or amt is None or not date_str:
         return jsonify({"error": "description, category, amount, and date are required"}), 400
 
+    import re
+    desc = re.sub(r'<[^>]*>', '', str(desc)).strip()[:255]
+    cat = re.sub(r'<[^>]*>', '', str(cat)).strip()[:100]
+
+    if not desc or not cat:
+        return jsonify({"error": "Invalid description or category provided"}), 400
+
     try:
         amount = float(amt)
         date_val = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -543,9 +550,13 @@ def update_expense(expense_id):
     data = request.get_json()
 
     if "description" in data:
-        expense.description = data["description"].strip()
+        import re
+        desc_sanitized = re.sub(r'<[^>]*>', '', str(data["description"])).strip()[:255]
+        expense.description = desc_sanitized
     if "category" in data:
-        expense.category = data["category"].strip()
+        import re
+        cat_sanitized = re.sub(r'<[^>]*>', '', str(data["category"])).strip()[:100]
+        expense.category = cat_sanitized
     if "amount" in data:
         try:
             expense.amount = float(data["amount"])

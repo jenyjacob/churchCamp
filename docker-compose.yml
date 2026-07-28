@@ -21,7 +21,7 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: mysql+pymysql://campuser:camppass@db:3307/churchcamp
+      DATABASE_URL: mysql+pymysql://campuser:camppass@db:3306/churchcamp
       JWT_SECRET_KEY: dev-secret-change-in-prod
       SECRET_KEY: flask-dev-secret
       CORS_ORIGINS: http://localhost:3000,http://localhost:80
