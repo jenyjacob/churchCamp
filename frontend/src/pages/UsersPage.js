@@ -196,7 +196,7 @@ export default function UsersPage() {
   };
 
   const handleResetPassword = async (u) => {
-    if (!window.confirm(`Are you sure you want to reset the password for "${u.username}"?`)) return;
+    if (!await window.confirm(`Are you sure you want to reset the password for "${u.username}"?`)) return;
     try {
       const res = await api.post(`/api/users/${u.id}/reset-password`);
       setTempPasswordModal({
@@ -372,9 +372,9 @@ export default function UsersPage() {
                   />
                   <button 
                     className="btn btn-primary"
-                    onClick={() => {
+                    onClick={async () => {
                       navigator.clipboard.writeText(tempPasswordModal.temp_password);
-                      alert("Temporary password copied to clipboard!");
+                      await alert("Temporary password copied to clipboard!");
                     }}
                   >
                     Copy

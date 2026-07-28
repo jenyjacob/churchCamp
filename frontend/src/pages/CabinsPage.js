@@ -321,7 +321,7 @@ export default function CabinsPage() {
     
     if (camperIds.length === 0) return;
     
-    if (!window.confirm(`Are you sure you want to unassign all ${camperIds.length} campers from ${cabinName} - ${roomName}?`)) {
+    if (!await window.confirm(`Are you sure you want to unassign all ${camperIds.length} campers from ${cabinName} - ${roomName}?`)) {
       return;
     }
     
@@ -364,14 +364,14 @@ export default function CabinsPage() {
   };
 
   // Delete a cabin (only if all rooms inside are empty)
-  const handleDeleteCabin = (cabinName) => {
+  const handleDeleteCabin = async (cabinName) => {
     const cabinCampers = campers.filter(c => {
       const { cabin } = parseCabinGroup(c.cabin_group);
       return cabin.toLowerCase() === cabinName.toLowerCase();
     });
 
     if (cabinCampers.length > 0) {
-      alert("Cannot delete cabin. Make sure all rooms inside this cabin are empty first!");
+      await alert("Cannot delete cabin. Make sure all rooms inside this cabin are empty first!");
       return;
     }
 
@@ -382,14 +382,14 @@ export default function CabinsPage() {
 
   const handleImportExcel = async (e) => {
     if (!isOwner) {
-      alert("Only owners are allowed to import cabins Excel sheets.");
+      await alert("Only owners are allowed to import cabins Excel sheets.");
       e.target.value = null;
       return;
     }
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!window.confirm("Importing an Excel sheet will overwrite any duplicate cabins/rooms. Do you want to proceed?")) {
+    if (!await window.confirm("Importing an Excel sheet will overwrite any duplicate cabins/rooms. Do you want to proceed?")) {
       e.target.value = null;
       return;
     }
@@ -436,7 +436,7 @@ export default function CabinsPage() {
       saveConfig(merged);
       flash("success", `Successfully imported cabins from Excel!`);
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to process Excel sheet.");
+      await alert(err.response?.data?.error || "Failed to process Excel sheet.");
     } finally {
       e.target.value = null;
     }
@@ -455,14 +455,14 @@ export default function CabinsPage() {
   };
 
   // Delete room from cabin (only if empty)
-  const handleDeleteRoom = (cabinName, roomName) => {
+  const handleDeleteRoom = async (cabinName, roomName) => {
     const roomCampers = campers.filter(c => {
       const { cabin, room } = parseCabinGroup(c.cabin_group);
       return cabin.toLowerCase() === cabinName.toLowerCase() && room.toLowerCase() === roomName.toLowerCase();
     });
 
     if (roomCampers.length > 0) {
-      alert("Cannot delete room while it has campers assigned to it.");
+      await alert("Cannot delete room while it has campers assigned to it.");
       return;
     }
 
@@ -596,24 +596,22 @@ export default function CabinsPage() {
     return (
       <select 
         className="form-select selector-box"
-        value={currentCabin && currentRoom ? `${currentCabin} | ${currentRoom}` : ""}
+        value=""
         onChange={(e) => {
           const val = e.target.value;
-          if (!val) {
-            if (camperIds.length === 1) assignCabin(camperIds[0], "", "");
-            else assignFamily(camperIds, "", "");
-          } else {
+          if (val) {
             const [cab, rm] = val.split(" | ");
             if (camperIds.length === 1) assignCabin(camperIds[0], cab, rm);
             else assignFamily(camperIds, cab, rm);
           }
         }}
       >
-        <option value="">Move to...</option>
+        <option value="" disabled>Move occupants to...</option>
         {cabinsConfig.map(cb => (
           <optgroup key={cb.name} label={cb.name}>
             {cb.rooms.map(rm => {
               const rmName = typeof rm === "string" ? rm : rm.name;
+              if (cb.name === currentCabin && rmName === currentRoom) return null;
               return (
                 <option key={`${cb.name} | ${rmName}`} value={`${cb.name} | ${rmName}`}>
                   {cb.name} — {rmName}
@@ -863,9 +861,13 @@ export default function CabinsPage() {
       <div className="top-bar">
         <div>
           <h1 style={{ margin: 0 }}>Cabin Room Assigner</h1>
-          <span className="text-muted" style={{ fontSize: "0.85rem" }}>
-            {campers.length} registered camper{campers.length !== 1 ? "s" : ""}
-          </span>
+          <div className="text-muted" style={{ fontSize: "0.85rem", display: "flex", gap: 12, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+            <span>👤 <strong>{campers.length}</strong> registered</span>
+            <span style={{ color: "#ccc" }}>|</span>
+            <span style={{ color: "#16a34a" }}>🏠 <strong>{campers.filter(c => c.cabin_group).length}</strong> assigned</span>
+            <span style={{ color: "#ccc" }}>|</span>
+            <span style={{ color: "#d97706" }}>⚠️ <strong>{campers.filter(c => !c.cabin_group).length}</strong> unassigned</span>
+          </div>
         </div>
         
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -1623,10 +1625,10 @@ export default function CabinsPage() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => {
+                onClick={async () => {
                   const nameTrimmed = newRoomForm.name.trim();
                   if (!nameTrimmed) {
-                    alert("Room number or name is required.");
+                    await alert("Room number or name is required.");
                     return;
                   }
                   
@@ -1661,7 +1663,7 @@ export default function CabinsPage() {
                   });
 
                   if (hasDuplicate) {
-                    alert("Room name already exists inside this cabin.");
+                    await alert("Room name already exists inside this cabin.");
                     return;
                   }
 

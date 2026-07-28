@@ -141,15 +141,15 @@ export default function AppShell() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("WARNING: Are you sure you want to permanently delete your account? This action is irreversible and all your data will be permanently removed from the system.")) {
+    if (!await window.confirm("WARNING: Are you sure you want to permanently delete your account? This action is irreversible and all your data will be permanently removed from the system.")) {
       return;
     }
     try {
       await api.delete("/api/users/delete-me");
-      alert("Your account has been deleted successfully.");
+      await alert("Your account has been deleted successfully.");
       logout();
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to delete account.");
+      await alert(err.response?.data?.error || "Failed to delete account.");
     }
   };
 
@@ -158,7 +158,7 @@ export default function AppShell() {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image size should be less than 2MB.");
+      await alert("Image size should be less than 2MB.");
       return;
     }
 
@@ -172,7 +172,7 @@ export default function AppShell() {
           profile_picture: res.data.profile_picture
         }));
       } catch (err) {
-        alert(err.response?.data?.error || "Failed to upload profile picture.");
+        await alert(err.response?.data?.error || "Failed to upload profile picture.");
       }
     };
     reader.readAsDataURL(file);
@@ -261,7 +261,7 @@ export default function AppShell() {
   };
 
   const handleDeletePasskey = async (passkeyId) => {
-    if (!window.confirm("Are you sure you want to delete this passkey?")) return;
+    if (!await window.confirm("Are you sure you want to delete this passkey?")) return;
     setPasskeyError("");
     setPasskeySuccess("");
     try {

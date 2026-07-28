@@ -157,7 +157,7 @@ export default function SchedulePage() {
     });
     
     if (isConflict) {
-      alert(`⚠️ Time Conflict Alert\n\nThe selected time slot (${startTime} - ${endTime}) overlaps with an existing event on ${activeEvent.day}. Please select a different time range.`);
+      await alert(`⚠️ Time Conflict Alert\n\nThe selected time slot (${startTime} - ${endTime}) overlaps with an existing event on ${activeEvent.day}. Please select a different time range.`);
       return;
     }
 
@@ -180,7 +180,7 @@ export default function SchedulePage() {
     } catch (err) {
       const errorMsg = err.response?.data?.error || "Failed to save event.";
       if (err.response?.status === 409) {
-        alert(`⚠️ Time Conflict Alert\n\n${errorMsg}`);
+        await alert(`⚠️ Time Conflict Alert\n\n${errorMsg}`);
       } else {
         flash("error", errorMsg);
       }

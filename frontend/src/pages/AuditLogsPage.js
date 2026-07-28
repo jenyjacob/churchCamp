@@ -29,7 +29,7 @@ export default function AuditLogsPage() {
   const [availableOperators, setAvailableOperators] = useState([]);
 
   const handleClearLogs = async () => {
-    if (!window.confirm("Are you sure you want to permanently delete all system activity logs? This action cannot be undone.")) {
+    if (!await window.confirm("Are you sure you want to permanently delete all system activity logs? This action cannot be undone.")) {
       return;
     }
     setClearing(true);

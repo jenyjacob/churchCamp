@@ -305,7 +305,7 @@ export default function FinancePage() {
   };
 
   const handleDeleteReceipt = async (expenseId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this receipt?")) return;
+    if (!await window.confirm("Are you sure you want to permanently delete this receipt?")) return;
     try {
       setSuccess("");
       setError("");
@@ -319,7 +319,7 @@ export default function FinancePage() {
   };
 
   const handleDeleteExpense = async (expenseId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this expense?")) return;
+    if (!await window.confirm("Are you sure you want to permanently delete this expense?")) return;
     try {
       await api.delete(`/api/finance/expenses/${expenseId}`);
       flashSuccess("Expense deleted successfully!");
@@ -451,10 +451,10 @@ export default function FinancePage() {
     }
   };
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = async () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert("Please allow popups to print/export PDF.");
+      await alert("Please allow popups to print/export PDF.");
       return;
     }
     

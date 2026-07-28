@@ -102,11 +102,11 @@ export default function TShirtsPage() {
   const handleDeleteUsSize = async (sizeName) => {
     const claimedCount = usSizeCounts[sizeName] || 0;
     if (claimedCount > 0) {
-      alert(`Cannot delete US size "${sizeName}" because it is currently assigned to ${claimedCount} camper(s).`);
+      await alert(`Cannot delete US size "${sizeName}" because it is currently assigned to ${claimedCount} camper(s).`);
       return;
     }
 
-    if (window.confirm(`Are you sure you want to delete unused US size "${sizeName}"?`)) {
+    if (await window.confirm(`Are you sure you want to delete unused US size "${sizeName}"?`)) {
       const updatedDeleted = Array.from(new Set([...deletedUsSizes, sizeName]));
       const updatedCustom = customUsSizes.filter(s => s !== sizeName);
 
@@ -167,11 +167,11 @@ export default function TShirtsPage() {
   const handleDeleteIndianSize = async (sizeName) => {
     const claimedCount = indianSizeCounts[sizeName] || 0;
     if (claimedCount > 0) {
-      alert(`Cannot delete size "${sizeName}" because it is currently assigned to ${claimedCount} camper(s).`);
+      await alert(`Cannot delete size "${sizeName}" because it is currently assigned to ${claimedCount} camper(s).`);
       return;
     }
 
-    if (window.confirm(`Are you sure you want to delete unused size "${sizeName}"?`)) {
+    if (await window.confirm(`Are you sure you want to delete unused size "${sizeName}"?`)) {
       const updatedDeleted = Array.from(new Set([...deletedIndianSizes, sizeName]));
       const updatedCustom = customIndianSizes.filter(s => s !== sizeName);
 
