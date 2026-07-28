@@ -80,9 +80,11 @@ export default function FinancePage() {
   const [familySearch, setFamilySearch] = useState("");
   const [familyFilter, setFamilyFilter] = useState("all"); // all, unpaid, partial, paid
   const [expandedFamilies, setExpandedFamilies] = useState({});
-  const [reminderTemplate, setReminderTemplate] = useState(
-    "Hi {first_name}, this is a reminder from GCA Church Camp that your camp fee balance is ${balance}. Please arrange payment at your earliest convenience. Thank you!"
-  );
+  const [reminderMode, setReminderMode] = useState("balance"); // balance, activity
+  const [reminderTemplates, setReminderTemplates] = useState({
+    balance: "Hi {first_name}, this is a reminder from GCA Church Camp that your camp fee balance is ${balance}. Please arrange payment at your earliest convenience. Thank you!",
+    activity: "Hi {first_name}, a reminder from GCA Church Camp that outdoor activity fees (kayaking/boat tour, etc.) come to ${activity_fee} for your family and are included in your total camp fees. Thank you!"
+  });
   const [reminderFilter, setReminderFilter] = useState("due"); // due, all
   const [markingReminder, setMarkingReminder] = useState(null); // family_group currently being marked
 
@@ -195,11 +197,14 @@ export default function FinancePage() {
 
   const buildReminderMessage = (family) => {
     const balance = ((family.total_expected_fee || 0) - (family.amount_paid || 0)).toFixed(2);
-    return reminderTemplate
+    const activityFee = (family.activity_fee || 0).toFixed(2);
+    const template = reminderTemplates[reminderMode];
+    return template
       .replaceAll("{first_name}", family.head_first_name || "there")
       .replaceAll("{name}", family.head_full_name || family.display_name || "there")
       .replaceAll("{family}", family.family_group)
-      .replaceAll("{balance}", balance);
+      .replaceAll("{balance}", balance)
+      .replaceAll("{activity_fee}", activityFee);
   };
 
   // Normalize a stored phone number into digits-only, assuming US numbers by
@@ -1258,13 +1263,46 @@ export default function FinancePage() {
             messaging app to actually deliver it.
           </div>
 
+          <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+            <button
+              onClick={() => { setReminderMode("balance"); setReminderFilter("due"); }}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                background: reminderMode === "balance" ? "var(--forest)" : "#fff",
+                color: reminderMode === "balance" ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 700
+              }}
+            >
+              💰 Fee Balance Reminder
+            </button>
+            <button
+              onClick={() => { setReminderMode("activity"); setReminderFilter("all"); }}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                background: reminderMode === "activity" ? "#3498db" : "#fff",
+                color: reminderMode === "activity" ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 700
+              }}
+            >
+              🚣 Outdoor Activity Fee Notice
+            </button>
+          </div>
+
           <div style={{ marginBottom: "20px" }}>
             <label style={{ fontWeight: 600, fontSize: "0.875rem", display: "block", marginBottom: 6 }}>
-              Message template
+              Message template — {reminderMode === "balance" ? "Fee Balance Reminder" : "Outdoor Activity Fee Notice"}
             </label>
             <textarea
-              value={reminderTemplate}
-              onChange={(e) => setReminderTemplate(e.target.value)}
+              value={reminderTemplates[reminderMode]}
+              onChange={(e) => setReminderTemplates(prev => ({ ...prev, [reminderMode]: e.target.value }))}
               rows={3}
               style={{
                 width: "100%",
@@ -1277,7 +1315,7 @@ export default function FinancePage() {
               }}
             />
             <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
-              Placeholders: <code>{"{first_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>
+              Placeholders: <code>{"{first_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>
             </div>
           </div>
 
