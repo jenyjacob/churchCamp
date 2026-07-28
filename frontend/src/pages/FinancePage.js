@@ -195,7 +195,8 @@ export default function FinancePage() {
         description: expense.description,
         category: expense.category,
         amount: expense.amount,
-        date: expense.date
+        date: expense.date,
+        refund_for_expense_id: expense.refund_for_expense_id || ""
       });
     } else {
       setActiveExpense(null);
@@ -203,7 +204,8 @@ export default function FinancePage() {
         description: "",
         category: "Catering",
         amount: "",
-        date: new Date().toISOString().split("T")[0]
+        date: new Date().toISOString().split("T")[0],
+        refund_for_expense_id: ""
       });
     }
     setIsExpenseModalOpen(true);
@@ -219,14 +221,23 @@ export default function FinancePage() {
 
     try {
       let savedExpenseId = null;
+      const amtFloat = parseFloat(expenseForm.amount);
+      const payload = {
+        description: expenseForm.description,
+        category: expenseForm.category,
+        amount: amtFloat,
+        date: expenseForm.date,
+        refund_for_expense_id: amtFloat < 0 && expenseForm.refund_for_expense_id ? parseInt(expenseForm.refund_for_expense_id) : null
+      };
+
       if (activeExpense) {
         // Update
-        await api.put(`/api/finance/expenses/${activeExpense.id}`, expenseForm);
+        await api.put(`/api/finance/expenses/${activeExpense.id}`, payload);
         savedExpenseId = activeExpense.id;
         flashSuccess("Expense updated successfully!");
       } else {
         // Create
-        const res = await api.post("/api/finance/expenses", expenseForm);
+        const res = await api.post("/api/finance/expenses", payload);
         savedExpenseId = res.data.expense.id;
         flashSuccess("Expense added successfully!");
       }
@@ -470,7 +481,9 @@ export default function FinancePage() {
         </div>
         <div class="metric-card">
           <div class="metric-label">Total Expenses</div>
-          <div class="metric-value">$${(stats.total_expenses || 0).toFixed(2)}</div>
+          <div class="metric-value" style="color: ${stats.total_expenses < 0 ? '#27ae60' : '#2c3e50'}">
+            ${stats.total_expenses < 0 ? `-$${Math.abs(stats.total_expenses).toFixed(2)}` : `$${(stats.total_expenses || 0).toFixed(2)}`}
+          </div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Net Balance</div>
@@ -521,7 +534,7 @@ export default function FinancePage() {
         <td>${escapeHtml(e.date)}</td>
         <td>${escapeHtml(e.category)}</td>
         <td>${escapeHtml(e.description)}</td>
-        <td>$${(e.amount || 0).toFixed(2)}</td>
+        <td>${e.amount < 0 ? `-$${Math.abs(e.amount).toFixed(2)}` : `$${(e.amount || 0).toFixed(2)}`}</td>
       </tr>
     `).join("");
 
@@ -816,9 +829,21 @@ export default function FinancePage() {
             <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#d97706" }}>${(stats.total_discounts || 0).toFixed(2)}</span>
             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Total discounts granted</span>
           </div>
-          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--danger)" }}>
+          <div className="card" style={{ 
+            padding: 16, 
+            display: "flex", 
+            flexDirection: "column", 
+            borderLeft: `4px solid ${stats.total_expenses < 0 ? "var(--forest)" : "var(--danger)"}` 
+          }}>
             <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Total Expenses</span>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "var(--danger)" }}>${(stats.total_expenses || 0).toFixed(2)}</span>
+            <span style={{ 
+              fontSize: "1.5rem", 
+              fontWeight: 700, 
+              margin: "8px 0", 
+              color: stats.total_expenses < 0 ? "var(--forest)" : "var(--danger)" 
+            }}>
+              {stats.total_expenses < 0 ? `-$${Math.abs(stats.total_expenses).toFixed(2)}` : `$${(stats.total_expenses || 0).toFixed(2)}`}
+            </span>
             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Outflow items registered</span>
           </div>
           <div className="card" style={{ 
@@ -1198,7 +1223,12 @@ export default function FinancePage() {
                           {e.category}
                         </span>
                       </td>
-                      <td style={{ color: "var(--danger)", fontWeight: 600 }}>-${(e.amount || 0).toFixed(2)}</td>
+                      <td style={{ 
+                        color: e.amount < 0 ? "var(--forest)" : "var(--danger)", 
+                        fontWeight: 600 
+                      }}>
+                        {e.amount < 0 ? `-$${Math.abs(e.amount).toFixed(2)}` : `$${(e.amount || 0).toFixed(2)}`}
+                      </td>
                       <td>{e.date}</td>
                       <td style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
                         {e.receipt_filename && (user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
@@ -1277,7 +1307,6 @@ export default function FinancePage() {
                 <input 
                   type="number" 
                   step="0.01"
-                  min="0.01"
                   className="form-input" 
                   value={expenseForm.amount}
                   onChange={e => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))}
@@ -1285,6 +1314,26 @@ export default function FinancePage() {
                   required
                 />
               </div>
+              {parseFloat(expenseForm.amount) < 0 && (
+                <div className="form-group" style={{ marginBottom: 12 }}>
+                  <label className="form-label">Refund for Expense *</label>
+                  <select 
+                    className="form-input" 
+                    value={expenseForm.refund_for_expense_id}
+                    onChange={e => setExpenseForm(prev => ({ ...prev, refund_for_expense_id: e.target.value }))}
+                    required
+                  >
+                    <option value="">-- Select Original Expense --</option>
+                    {expenses
+                      .filter(exp => exp.amount > 0)
+                      .map(exp => (
+                        <option key={exp.id} value={exp.id}>
+                          ID {exp.id}: {exp.description} (${exp.amount.toFixed(2)}) - {exp.date}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
               <div className="form-group" style={{ marginBottom: 16 }}>
                 <label className="form-label">Date *</label>
                 <input 
@@ -1582,7 +1631,13 @@ export default function FinancePage() {
                         <div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                             <span style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--forest)" }}>{e.description}</span>
-                            <span style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--danger)" }}>-${(e.amount || 0).toFixed(2)}</span>
+                            <span style={{ 
+                               fontWeight: 700, 
+                               fontSize: "1.05rem", 
+                               color: (e.amount || 0) < 0 ? "var(--forest)" : "var(--danger)" 
+                             }}>
+                               {(e.amount || 0) < 0 ? `-$${Math.abs(e.amount).toFixed(2)}` : `$${(e.amount || 0).toFixed(2)}`}
+                             </span>
                           </div>
                           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, fontSize: "0.8rem", color: "var(--muted)" }}>
                             <span>{e.date}</span>

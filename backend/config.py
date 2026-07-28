@@ -2,6 +2,20 @@ import os
 import secrets
 from datetime import timedelta
 
+# Enforce environment checks in production mode
+is_prod = os.environ.get("FLASK_ENV") == "production"
+
+if is_prod:
+    jwt_key = os.environ.get("JWT_SECRET_KEY")
+    if not jwt_key:
+        raise ValueError("CRITICAL ERROR: JWT_SECRET_KEY environment variable is not set in production!")
+    flask_secret = os.environ.get("SECRET_KEY")
+    if not flask_secret:
+        raise ValueError("CRITICAL ERROR: SECRET_KEY environment variable is not set in production!")
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url or "sqlite" in db_url:
+        raise ValueError("CRITICAL ERROR: DATABASE_URL is not set or uses SQLite in production!")
+
 class Config:
     # Database connection string from environment
     SQLALCHEMY_DATABASE_URI = os.environ.get(

@@ -528,11 +528,39 @@ def create_expense():
     except ValueError as e:
         return jsonify({"error": f"Invalid date or amount formatting: {str(e)}"}), 400
 
+    refund_id = data.get("refund_for_expense_id")
+    if amount < 0:
+        if not refund_id:
+            return jsonify({"error": "refund_for_expense_id is required for negative expense amounts (refunds)"}), 400
+        try:
+            refund_id = int(refund_id)
+        except ValueError:
+            return jsonify({"error": "refund_for_expense_id must be a valid integer"}), 400
+            
+        target_expense = Expense.query.get(refund_id)
+        if not target_expense:
+            return jsonify({"error": f"Original expense ID {refund_id} not found"}), 400
+            
+        # Sum of existing refunds for this expense
+        existing_refunds_sum = db.session.query(db.func.sum(Expense.amount)).filter(
+            Expense.refund_for_expense_id == refund_id
+        ).scalar() or 0.0
+        
+        total_refunded = abs(existing_refunds_sum) + abs(amount)
+        if total_refunded > target_expense.amount:
+            remaining_refundable = max(0.0, target_expense.amount - abs(existing_refunds_sum))
+            return jsonify({
+                "error": f"Total cumulative refunds (${total_refunded:.2f}) cannot exceed original expense amount (${target_expense.amount:.2f}). Remaining refundable: ${remaining_refundable:.2f}"
+            }), 400
+    else:
+        refund_id = None
+
     expense = Expense(
         description=desc.strip(),
         category=cat.strip(),
         amount=amount,
-        date=date_val
+        date=date_val,
+        refund_for_expense_id=refund_id
     )
     db.session.add(expense)
     db.session.commit()
@@ -557,9 +585,40 @@ def update_expense(expense_id):
         import re
         cat_sanitized = re.sub(r'<[^>]*>', '', str(data["category"])).strip()[:100]
         expense.category = cat_sanitized
-    if "amount" in data:
+    if "amount" in data or "refund_for_expense_id" in data:
         try:
-            expense.amount = float(data["amount"])
+            new_amount = float(data["amount"]) if "amount" in data else expense.amount
+            new_refund_id = data.get("refund_for_expense_id") if "refund_for_expense_id" in data else expense.refund_for_expense_id
+            
+            if new_amount < 0:
+                if not new_refund_id:
+                    return jsonify({"error": "refund_for_expense_id is required for negative expense amounts (refunds)"}), 400
+                try:
+                    new_refund_id = int(new_refund_id)
+                except ValueError:
+                    return jsonify({"error": "refund_for_expense_id must be a valid integer"}), 400
+                    
+                target_expense = Expense.query.get(new_refund_id)
+                if not target_expense:
+                     return jsonify({"error": f"Original expense ID {new_refund_id} not found"}), 400
+                     
+                # Sum of other refunds for this expense (excluding current record)
+                existing_refunds_sum = db.session.query(db.func.sum(Expense.amount)).filter(
+                    Expense.refund_for_expense_id == new_refund_id,
+                    Expense.id != expense.id
+                ).scalar() or 0.0
+                
+                total_refunded = abs(existing_refunds_sum) + abs(new_amount)
+                if total_refunded > target_expense.amount:
+                    remaining_refundable = max(0.0, target_expense.amount - abs(existing_refunds_sum))
+                    return jsonify({
+                        "error": f"Total cumulative refunds (${total_refunded:.2f}) cannot exceed original expense amount (${target_expense.amount:.2f}). Remaining refundable: ${remaining_refundable:.2f}"
+                    }), 400
+            else:
+                new_refund_id = None
+                
+            expense.amount = new_amount
+            expense.refund_for_expense_id = new_refund_id
         except ValueError:
             return jsonify({"error": "amount must be a valid number"}), 400
     if "date" in data:

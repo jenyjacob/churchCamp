@@ -19,19 +19,6 @@ from routes.finance import finance_bp
 from routes.settings import settings_bp
 
 def create_app(config_override=None):
-    # Enforce environment checks in production mode
-    is_prod = os.environ.get("FLASK_ENV") == "production"
-    if is_prod:
-        jwt_key = os.environ.get("JWT_SECRET_KEY")
-        if not jwt_key:
-            raise ValueError("CRITICAL ERROR: JWT_SECRET_KEY environment variable is not set in production!")
-        flask_secret = os.environ.get("SECRET_KEY")
-        if not flask_secret:
-            raise ValueError("CRITICAL ERROR: SECRET_KEY environment variable is not set in production!")
-        db_url = os.environ.get("DATABASE_URL")
-        if not db_url or "sqlite" in db_url:
-            raise ValueError("CRITICAL ERROR: DATABASE_URL is not set or uses SQLite in production!")
-
     app = Flask(__name__)
     app.config.from_object(Config)
     if config_override:
@@ -104,6 +91,19 @@ def create_app(config_override=None):
                 db.session.execute(text("ALTER TABLE family_payments ADD COLUMN discount FLOAT DEFAULT 0.0"))
                 db.session.commit()
                 print("Database migrated: added discount column to family_payments table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration skipped/failed: {str(migration_ex)}")
+
+        # Self-healing database migration: add refund_for_expense_id column to expenses table if missing
+        try:
+            db.session.execute(text("SELECT refund_for_expense_id FROM expenses LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE expenses ADD COLUMN refund_for_expense_id INT DEFAULT NULL"))
+                db.session.commit()
+                print("Database migrated: added refund_for_expense_id column to expenses table.")
             except Exception as migration_ex:
                 db.session.rollback()
                 print(f"Database migration skipped/failed: {str(migration_ex)}")

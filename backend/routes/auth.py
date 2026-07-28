@@ -12,6 +12,7 @@ auth_bp = Blueprint("auth", __name__)
 @rate_limit(10, 60)
 def login():
     from db import db
+    from werkzeug.security import check_password_hash
 
     data = request.get_json()
     if not data or not data.get("username") or not data.get("password"):
@@ -20,14 +21,25 @@ def login():
     username = str(data["username"]).strip()
     user = User.query.filter_by(username=username).first()
 
+    # Generic error message to prevent username enumeration
+    generic_error = "Invalid username or password"
+
     if user:
         # Check if account is locked due to 5+ failed attempts
         if (user.failed_login_attempts or 0) >= 5:
+            # Perform a dummy password check to maintain constant time response and prevent timing attacks
+            check_password_hash("scrypt:32768:8:1$dummy$54e50f999a853039caa363d4ba61b07318de1d8cd3c6f69237db3158d07208a3f1b437c2bd9d68264bf3006bd0b74802f2991ccd0c3929e979c16cfe95fc901a", data["password"])
             from utils.logging import log_action
             log_action("LOGIN_FAILURE", f"Attempted login on locked account: {username}", user.id, user.username)
-            return jsonify({
-                "error": "Account is locked due to 5 consecutive failed password attempts. Contact an Administrator or Owner to unlock your account."
-            }), 429
+            return jsonify({"error": generic_error}), 401
+
+        # Check disabled status
+        if not user.is_active:
+            # Perform a dummy password check to maintain constant time response and prevent timing attacks
+            check_password_hash("scrypt:32768:8:1$dummy$54e50f999a853039caa363d4ba61b07318de1d8cd3c6f69237db3158d07208a3f1b437c2bd9d68264bf3006bd0b74802f2991ccd0c3929e979c16cfe95fc901a", data["password"])
+            from utils.logging import log_action
+            log_action("LOGIN_FAILURE", f"Disabled account login attempt for username: {username}", user.id, user.username)
+            return jsonify({"error": generic_error}), 401
 
         # Verify password
         if not user.check_password(data["password"]):
@@ -37,22 +49,11 @@ def login():
             if user.failed_login_attempts >= 5:
                 from utils.logging import log_action
                 log_action("ACCOUNT_LOCKOUT", f"Account '{username}' locked after 5 failed password attempts", user.id, user.username)
-                return jsonify({
-                    "error": "Account has been locked due to 5 consecutive failed password attempts. Contact an Administrator or Owner to unlock your account."
-                }), 429
             else:
-                attempts_left = 5 - user.failed_login_attempts
                 from utils.logging import log_action
                 log_action("LOGIN_FAILURE", f"Failed login attempt ({user.failed_login_attempts}/5) for username: {username}", user.id, user.username)
-                return jsonify({
-                    "error": f"Invalid username or password. {attempts_left} attempt(s) remaining before account lockout."
-                }), 401
-
-        # Check disabled status
-        if not user.is_active:
-            from utils.logging import log_action
-            log_action("LOGIN_FAILURE", f"Disabled account login attempt for username: {username}", user.id, user.username)
-            return jsonify({"error": "Account is disabled. Contact an administrator."}), 403
+                
+            return jsonify({"error": generic_error}), 401
 
         # Successful Login -> Reset lockout counter
         user.failed_login_attempts = 0
@@ -69,9 +70,11 @@ def login():
             "user": user.to_dict()
         }), 200
     else:
+        # Perform a dummy password check to maintain constant time response and prevent timing attacks
+        check_password_hash("scrypt:32768:8:1$dummy$54e50f999a853039caa363d4ba61b07318de1d8cd3c6f69237db3158d07208a3f1b437c2bd9d68264bf3006bd0b74802f2991ccd0c3929e979c16cfe95fc901a", data["password"])
         from utils.logging import log_action
         log_action("LOGIN_FAILURE", f"Failed login attempt for non-existent username: {username}")
-        return jsonify({"error": "Invalid username or password"}), 401
+        return jsonify({"error": generic_error}), 401
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()

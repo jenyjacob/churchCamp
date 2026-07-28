@@ -11,6 +11,7 @@ class Expense(db.Model):
     date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     receipt_filename = db.Column(db.String(255), nullable=True)
+    refund_for_expense_id = db.Column(db.Integer, db.ForeignKey("expenses.id"), nullable=True)
 
     def to_dict(self):
         return {
@@ -20,5 +21,6 @@ class Expense(db.Model):
             "amount": self.amount,
             "date": self.date.isoformat() if self.date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "receipt_filename": self.receipt_filename
+            "receipt_filename": self.receipt_filename,
+            "refund_for_expense_id": self.refund_for_expense_id
         }
