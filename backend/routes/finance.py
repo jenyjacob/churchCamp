@@ -130,6 +130,7 @@ def get_fees():
             "kayaking": camper.kayaking or 0,
             "boat_tour": camper.boat_tour or 0,
             "notes": camper.notes,
+            "guardian_phone": camper.guardian_phone,
             "custom_activities": custom_acts
         })
 
@@ -206,6 +207,15 @@ def get_fees():
         head_full_name = head_camper["full_name"] if head_camper else ""
         head_camper_id = head_camper["id"] if head_camper else None
 
+        # Resolve a contact phone number: prefer the head of family's guardian phone,
+        # otherwise fall back to the first family member that has one on file.
+        contact_phone = head_camper.get("guardian_phone") if head_camper else None
+        if not contact_phone:
+            for m in family["members"]:
+                if m.get("guardian_phone"):
+                    contact_phone = m["guardian_phone"]
+                    break
+
         # Format display name of the family: Head of Family's Name first, then Family # in brackets
         if fg.startswith("single-"):
             display_name = f"{head_full_name} (Single)"
@@ -233,7 +243,9 @@ def get_fees():
             "total_expected_fee": calculated_fee + activity_fee,
             "amount_paid": amount_paid,
             "status": status,
-            "notes": notes
+            "notes": notes,
+            "contact_phone": contact_phone,
+            "reminder_sent_at": pay_record.reminder_sent_at.isoformat() if (pay_record and pay_record.reminder_sent_at) else None
         })
 
     # Sort results so families needing action or custom groups are grouped nicely
@@ -336,6 +348,28 @@ def update_fee_payment():
 
     from utils.logging import log_action
     log_action("RECORD_FEE_PAYMENT", f"Recorded payment for Family '{fg}': Paid ${amount_paid} (Status: {status}, Discount: {parsed_discount}, Override Fee: {parsed_override_fee})")
+
+    return jsonify({"payment": payment.to_dict()}), 200
+
+@finance_bp.route("/fees/mark-reminder-sent", methods=["POST"])
+@jwt_required()
+@require_page_permission("finance", "edit")
+def mark_reminder_sent():
+    data = request.get_json() or {}
+    fg = data.get("family_group")
+    if not fg:
+        return jsonify({"error": "family_group is required"}), 400
+
+    payment = FamilyPayment.query.get(fg)
+    if not payment:
+        payment = FamilyPayment(family_group=fg, amount_paid=0.0, status="unpaid", discount=0.0)
+        db.session.add(payment)
+
+    payment.reminder_sent_at = datetime.utcnow()
+    db.session.commit()
+
+    from utils.logging import log_action
+    log_action("SEND_FEE_REMINDER", f"Marked fee reminder as sent for Family '{fg}'")
 
     return jsonify({"payment": payment.to_dict()}), 200
 

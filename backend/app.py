@@ -108,6 +108,19 @@ def create_app(config_override=None):
                 db.session.rollback()
                 print(f"Database migration skipped/failed: {str(migration_ex)}")
 
+        # Self-healing database migration: add reminder_sent_at column to family_payments table if missing
+        try:
+            db.session.execute(text("SELECT reminder_sent_at FROM family_payments LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE family_payments ADD COLUMN reminder_sent_at DATETIME DEFAULT NULL"))
+                db.session.commit()
+                print("Database migrated: added reminder_sent_at column to family_payments table.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration skipped/failed: {str(migration_ex)}")
+
         # Self-healing database migration: add must_change_password column to users table if missing
         try:
             db.session.execute(text("SELECT must_change_password FROM users LIMIT 1"))
