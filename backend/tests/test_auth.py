@@ -20,6 +20,8 @@ def app():
     with app.app_context():
         _db.create_all()
         yield app
+        _db.session.remove()
+        _db.drop_all()
 
     if os.path.exists(db_file):
         try:
