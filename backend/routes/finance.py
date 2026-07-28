@@ -540,7 +540,10 @@ def create_expense():
         target_expense = Expense.query.get(refund_id)
         if not target_expense:
             return jsonify({"error": f"Original expense ID {refund_id} not found"}), 400
-            
+
+        if target_expense.amount <= 0 or target_expense.refund_for_expense_id is not None:
+            return jsonify({"error": "Refunds can only be issued against an original (non-refund) expense"}), 400
+
         # Sum of existing refunds for this expense
         existing_refunds_sum = db.session.query(db.func.sum(Expense.amount)).filter(
             Expense.refund_for_expense_id == refund_id
@@ -601,7 +604,13 @@ def update_expense(expense_id):
                 target_expense = Expense.query.get(new_refund_id)
                 if not target_expense:
                      return jsonify({"error": f"Original expense ID {new_refund_id} not found"}), 400
-                     
+
+                if new_refund_id == expense.id:
+                    return jsonify({"error": "An expense cannot be a refund of itself"}), 400
+
+                if target_expense.amount <= 0 or target_expense.refund_for_expense_id is not None:
+                    return jsonify({"error": "Refunds can only be issued against an original (non-refund) expense"}), 400
+
                 # Sum of other refunds for this expense (excluding current record)
                 existing_refunds_sum = db.session.query(db.func.sum(Expense.amount)).filter(
                     Expense.refund_for_expense_id == new_refund_id,
