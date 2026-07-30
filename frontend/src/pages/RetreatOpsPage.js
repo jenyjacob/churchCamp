@@ -5,14 +5,90 @@ import { useAuth } from "../context/AuthContext";
 const STATUS_OPTIONS = ["Not started", "In progress", "Done", "Delayed"];
 const DAY_OPTIONS = ["Friday", "Saturday", "Sunday"];
 
-const statusColor = (status) => {
-  switch (status) {
-    case "Done": return "#1E4D2B";
-    case "In progress": return "#B8860B";
-    case "Delayed": return "#B02A2A";
-    default: return "#888";
-  }
+// 5-minute increments, formatted exactly like the migration script's output
+// (e.g. "02:00 PM") so dropdown values line up with data imported from Excel.
+const formatTime12 = (h, m) => {
+  const period = h < 12 ? "AM" : "PM";
+  let hour12 = h % 12;
+  if (hour12 === 0) hour12 = 12;
+  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
 };
+const TIME_OPTIONS = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 5) {
+    TIME_OPTIONS.push(formatTime12(h, m));
+  }
+}
+// If a stored value doesn't land on a 15-min mark (older/odd data), keep it
+// selectable instead of silently blanking it out.
+const timeOptionsFor = (value) => {
+  if (value && !TIME_OPTIONS.includes(value)) return [value, ...TIME_OPTIONS];
+  return TIME_OPTIONS;
+};
+
+const STATUS_STYLES = {
+  "Not started": { bg: "#F3F4F6", color: "#374151" },
+  "In progress": { bg: "#FEF3C7", color: "#92400E" },
+  "Done":        { bg: "#D1FAE5", color: "#065F46" },
+  "Delayed":     { bg: "#FEE2E2", color: "#991B1B" },
+};
+const statusStyle = (status) => STATUS_STYLES[status] || STATUS_STYLES["Not started"];
+
+const Chip = ({ children }) => (
+  <span style={{
+    display: "inline-flex", alignItems: "center", gap: 4,
+    background: "var(--cream)", border: "1px solid var(--border)",
+    borderRadius: 999, padding: "2px 10px", fontSize: "0.78rem", color: "var(--charcoal)",
+  }}>
+    {children}
+  </span>
+);
+
+const StatusBadge = ({ status, onChange, editable }) => {
+  const { bg, color } = statusStyle(status);
+  if (!editable) {
+    return (
+      <span style={{ background: bg, color, borderRadius: 999, padding: "3px 12px", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>
+        {status}
+      </span>
+    );
+  }
+  return (
+    <select
+      value={status}
+      onChange={e => onChange(e.target.value)}
+      onClick={e => e.stopPropagation()}
+      style={{ background: bg, color, borderRadius: 999, padding: "3px 10px", fontSize: "0.75rem", fontWeight: 700, border: "none", cursor: "pointer" }}
+    >
+      {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+    </select>
+  );
+};
+
+const Field = ({ label, value }) => (
+  <div style={{ minWidth: 0 }}>
+    <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--muted)", fontWeight: 700, marginBottom: 2 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: "0.85rem", overflowWrap: "break-word" }}>{value}</div>
+  </div>
+);
+
+const IconBtn = ({ onClick, danger, title, children }) => (
+  <button
+    onClick={onClick}
+    title={title}
+    style={{
+      border: `1px solid ${danger ? "#B02A2A" : "var(--border)"}`,
+      color: danger ? "#B02A2A" : "var(--charcoal)",
+      background: "var(--white)", borderRadius: 6, width: 30, height: 30,
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      fontSize: "0.85rem", cursor: "pointer", flexShrink: 0,
+    }}
+  >
+    {children}
+  </button>
+);
 
 function Section({ title, children, action }) {
   return (
@@ -386,150 +462,106 @@ export default function RetreatOpsPage() {
                 )}
                 {blocksByDay.map(({ day, items }) => (
                   items.length > 0 && (
-                    <div key={day} style={{ marginBottom: 20 }}>
-                      <h4 style={{ margin: "8px 0", color: "var(--forest)" }}>{day}</h4>
-                      <div className="table-wrap">
-                        <table className="table">
-                          <thead>
-                            <tr>
-                              <th>Time</th>
-                              <th>Block</th>
-                              <th>Location</th>
-                              <th className="hide-on-mobile">Point Person</th>
-                              <th className="hide-on-mobile">Supporting Teams</th>
-                              <th className="hide-on-mobile">Status</th>
-                              {canEdit && <th className="hide-on-mobile"></th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map(b => (
-                              editBlockId === b.id ? (
-                                <tr key={b.id}>
-                                  <td colSpan={canEdit ? 7 : 6}>
-                                    <BlockForm
-                                      block={editBlockDraft}
-                                      setBlock={setEditBlockDraft}
-                                      onSave={() => saveBlock(editBlockDraft)}
-                                      onCancel={() => { setEditBlockId(null); setEditBlockDraft(null); }}
-                                    />
-                                  </td>
-                                </tr>
-                              ) : (
-                                <React.Fragment key={b.id}>
-                                  <tr
-                                    style={{
-                                      cursor: "pointer",
-                                      backgroundColor: expandedBlocks[b.id] ? "rgba(30, 77, 43, 0.04)" : "transparent"
-                                    }}
-                                    onClick={() => toggleBlockExpanded(b.id)}
-                                  >
-                                    <td>{b.start_time}{b.end_time ? ` – ${b.end_time}` : ""}</td>
-                                    <td style={{ fontWeight: 600 }}>
-                                      <span style={{
-                                        marginRight: 8,
-                                        color: "var(--forest)",
-                                        display: "inline-block",
-                                        transition: "transform 0.15s ease",
-                                        transform: expandedBlocks[b.id] ? "rotate(90deg)" : "rotate(0deg)"
-                                      }}>
-                                        ▶
-                                      </span>
-                                      {b.block_title}
-                                    </td>
-                                    <td>{b.location || "—"}</td>
-                                    <td className="hide-on-mobile">{b.point_person || "—"}</td>
-                                    <td className="hide-on-mobile">{b.supporting_teams || "—"}</td>
-                                    <td className="hide-on-mobile" onClick={e => e.stopPropagation()}>
-                                      {canEdit ? (
-                                        <select
-                                          value={b.status}
-                                          onChange={e => quickSetStatus(b, e.target.value)}
-                                          style={{ color: statusColor(b.status), fontWeight: 600, border: "1px solid #ddd", borderRadius: 4, padding: "4px 6px" }}
-                                        >
-                                          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
-                                      ) : (
-                                        <span style={{ color: statusColor(b.status), fontWeight: 600 }}>{b.status}</span>
-                                      )}
-                                    </td>
-                                    {canEdit && (
-                                      <td className="hide-on-mobile" style={{ whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
-                                        <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", marginRight: 6 }} onClick={() => { setEditBlockId(b.id); setEditBlockDraft({ ...b }); }}>Edit</button>
-                                        <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", color: "#B02A2A", borderColor: "#B02A2A" }} onClick={() => deleteBlock(b.id)}>Delete</button>
-                                      </td>
-                                    )}
-                                  </tr>
-                                  {expandedBlocks[b.id] && (
-                                    <tr style={{ backgroundColor: "#faf8f5" }}>
-                                      <td colSpan={canEdit ? 7 : 6} style={{ padding: "16px 24px", borderBottom: "1px solid #eee" }}>
-                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-                                          
-                                          {/* Mobile-only: Contacts detail card */}
-                                          <div className="show-only-on-mobile" style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                            <span style={{ fontWeight: 700, display: "block", color: "var(--forest)", marginBottom: 6 }}>👥 Contacts</span>
-                                            <div style={{ fontSize: "0.85rem", color: "#333", lineHeight: 1.5 }}>
-                                              <div><strong>Point Person:</strong> {b.point_person || "—"}</div>
-                                              <div style={{ marginTop: 4 }}><strong>Supporting Teams:</strong> {b.supporting_teams || "—"}</div>
-                                            </div>
-                                          </div>
-
-                                          {/* Mobile-only: Status & Action Buttons dropdown card */}
-                                          <div className="show-only-on-mobile" style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                            <span style={{ fontWeight: 700, display: "block", color: "var(--forest)", marginBottom: 10 }}>⚡ Status &amp; Actions</span>
-                                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                                              <div>
-                                                <strong style={{ fontSize: "0.85rem", display: "block", marginBottom: 4 }}>Status:</strong>
-                                                <select
-                                                  value={b.status}
-                                                  onChange={e => quickSetStatus(b, e.target.value)}
-                                                  style={{ width: "100%", color: statusColor(b.status), fontWeight: 600, border: "1px solid #ddd", borderRadius: 4, padding: "6px 8px" }}
-                                                >
-                                                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                                                </select>
-                                              </div>
-                                              {canEdit && (
-                                                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                                                  <button className="btn btn-outline" style={{ flex: 1, padding: "8px", fontSize: "0.85rem" }} onClick={() => { setEditBlockId(b.id); setEditBlockDraft({ ...b }); }}>Edit</button>
-                                                  <button className="btn btn-outline" style={{ flex: 1, padding: "8px", fontSize: "0.85rem", color: "#B02A2A", borderColor: "#B02A2A" }} onClick={() => deleteBlock(b.id)}>Delete</button>
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-
-                                          {(b.setup_time || b.setup_notes) && (
-                                            <div style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                              <span style={{ fontWeight: 700, display: "block", color: "var(--forest)", marginBottom: 6 }}>🔧 Setup Details</span>
-                                              {b.setup_time && <div style={{ fontSize: "0.8rem", color: "#666", marginBottom: 4 }}><strong>Done By:</strong> {b.setup_time}</div>}
-                                              {b.setup_notes && <div style={{ fontSize: "0.85rem", color: "#333", lineHeight: 1.4 }}>{b.setup_notes}</div>}
-                                            </div>
-                                          )}
-                                          {b.tech_cues && (
-                                            <div style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                              <span style={{ fontWeight: 700, display: "block", color: "var(--gold)", marginBottom: 6 }}>🎧 Tech &amp; Production Cues</span>
-                                              <div style={{ fontSize: "0.85rem", color: "#333", lineHeight: 1.4 }}>{b.tech_cues}</div>
-                                            </div>
-                                          )}
-                                          {b.kidz_corner_note && (
-                                            <div style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                              <span style={{ fontWeight: 700, display: "block", color: "#7b68ee", marginBottom: 6 }}>👶 Kidz Corner Details</span>
-                                              <div style={{ fontSize: "0.85rem", color: "#333", lineHeight: 1.4 }}>{b.kidz_corner_note}</div>
-                                            </div>
-                                          )}
-                                          {b.contingency && (
-                                            <div style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                              <span style={{ fontWeight: 700, display: "block", color: "var(--danger)", marginBottom: 6 }}>⚠️ Contingency Plan</span>
-                                              <div style={{ fontSize: "0.85rem", color: "#333", lineHeight: 1.4 }}>{b.contingency}</div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </tr>
+                    <div key={day} style={{ marginBottom: 24 }}>
+                      <h4 style={{ margin: "8px 0 10px", color: "var(--forest)" }}>{day}</h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {items.map(b => (
+                          editBlockId === b.id ? (
+                            <div key={b.id} className="card" style={{ padding: 16 }}>
+                              <BlockForm
+                                block={editBlockDraft}
+                                setBlock={setEditBlockDraft}
+                                onSave={() => saveBlock(editBlockDraft)}
+                                onCancel={() => { setEditBlockId(null); setEditBlockDraft(null); }}
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              key={b.id}
+                              className="card"
+                              style={{ padding: "14px 16px", cursor: "pointer" }}
+                              onClick={() => toggleBlockExpanded(b.id)}
+                            >
+                              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+                                <div style={{ minWidth: 92, flexShrink: 0 }}>
+                                  <div style={{ fontWeight: 700, color: "var(--forest)", fontSize: "0.9rem", whiteSpace: "nowrap" }}>
+                                    {b.start_time || "—"}
+                                  </div>
+                                  {b.end_time && (
+                                    <div className="text-muted" style={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                                      – {b.end_time}
+                                    </div>
                                   )}
-                                </React.Fragment>
-                              )
-                            ))}
-                          </tbody>
-                        </table>
+                                </div>
+
+                                <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    <span style={{
+                                      color: "var(--forest)", display: "inline-block", flexShrink: 0,
+                                      transform: expandedBlocks[b.id] ? "rotate(90deg)" : "rotate(0deg)",
+                                      transition: "transform 0.15s ease",
+                                    }}>▶</span>
+                                    <strong style={{ fontSize: "0.98rem" }}>{b.block_title}</strong>
+                                  </div>
+                                  {b.location && (
+                                    <div className="text-muted" style={{ fontSize: "0.82rem", marginTop: 3, marginLeft: 18 }}>
+                                      📍 {b.location}
+                                    </div>
+                                  )}
+                                  {(b.point_person || b.supporting_teams) && (
+                                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, marginLeft: 18 }}>
+                                      {b.point_person && <Chip>👤 {b.point_person}</Chip>}
+                                      {b.supporting_teams && <Chip>🤝 {b.supporting_teams}</Chip>}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: "auto" }}>
+                                  <StatusBadge status={b.status} editable={canEdit} onChange={(status) => quickSetStatus(b, status)} />
+                                  {canEdit && (
+                                    <div style={{ display: "flex", gap: 6 }} onClick={e => e.stopPropagation()}>
+                                      <IconBtn title="Edit" onClick={() => { setEditBlockId(b.id); setEditBlockDraft({ ...b }); }}>✏️</IconBtn>
+                                      <IconBtn title="Delete" danger onClick={() => deleteBlock(b.id)}>🗑️</IconBtn>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {expandedBlocks[b.id] && (b.setup_time || b.setup_notes || b.tech_cues || b.kidz_corner_note || b.contingency) && (
+                                <div
+                                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)" }}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  {(b.setup_time || b.setup_notes) && (
+                                    <div style={{ background: "var(--cream)", padding: 12, borderRadius: 8 }}>
+                                      <span style={{ fontWeight: 700, display: "block", color: "var(--forest)", marginBottom: 6, fontSize: "0.85rem" }}>🔧 Setup Details</span>
+                                      {b.setup_time && <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: 4 }}><strong>Done By:</strong> {b.setup_time}</div>}
+                                      {b.setup_notes && <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>{b.setup_notes}</div>}
+                                    </div>
+                                  )}
+                                  {b.tech_cues && (
+                                    <div style={{ background: "var(--cream)", padding: 12, borderRadius: 8 }}>
+                                      <span style={{ fontWeight: 700, display: "block", color: "var(--gold)", marginBottom: 6, fontSize: "0.85rem" }}>🎧 Tech &amp; Production Cues</span>
+                                      <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>{b.tech_cues}</div>
+                                    </div>
+                                  )}
+                                  {b.kidz_corner_note && (
+                                    <div style={{ background: "var(--cream)", padding: 12, borderRadius: 8 }}>
+                                      <span style={{ fontWeight: 700, display: "block", color: "#7b68ee", marginBottom: 6, fontSize: "0.85rem" }}>👶 Kidz Corner</span>
+                                      <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>{b.kidz_corner_note}</div>
+                                    </div>
+                                  )}
+                                  {b.contingency && (
+                                    <div style={{ background: "var(--cream)", padding: 12, borderRadius: 8 }}>
+                                      <span style={{ fontWeight: 700, display: "block", color: "var(--danger)", marginBottom: 6, fontSize: "0.85rem" }}>⚠️ Contingency</span>
+                                      <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>{b.contingency}</div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        ))}
                       </div>
                     </div>
                   )
@@ -548,45 +580,50 @@ export default function RetreatOpsPage() {
                 )}
               >
                 {newTeam && <TeamForm team={newTeam} setTeam={setNewTeam} onSave={saveNewTeam} onCancel={() => setNewTeam(null)} />}
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Team</th><th>Lead</th><th>Phone</th><th>Members</th><th>Owns These Blocks</th><th>Notes</th>{canEdit && <th></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {teams.map(t => (
-                        editTeamId === t.id ? (
-                          <tr key={t.id}>
-                            <td colSpan={canEdit ? 7 : 6}>
-                              <TeamForm
-                                team={editTeamDraft}
-                                setTeam={setEditTeamDraft}
-                                onSave={() => saveTeam(editTeamDraft)}
-                                onCancel={() => { setEditTeamId(null); setEditTeamDraft(null); }}
-                              />
-                            </td>
-                          </tr>
-                        ) : (
-                          <tr key={t.id}>
-                            <td>{t.name}</td>
-                            <td>{t.lead || "—"}</td>
-                            <td>{t.phone || "—"}</td>
-                            <td>{t.members || "—"}</td>
-                            <td>{t.owns_blocks || "—"}</td>
-                            <td>{t.notes || "—"}</td>
-                            {canEdit && (
-                              <td style={{ whiteSpace: "nowrap" }}>
-                                <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", marginRight: 6 }} onClick={() => { setEditTeamId(t.id); setEditTeamDraft({ ...t }); }}>Edit</button>
-                                <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", color: "#B02A2A", borderColor: "#B02A2A" }} onClick={() => deleteTeam(t.id)}>Delete</button>
-                              </td>
-                            )}
-                          </tr>
-                        )
-                      ))}
-                    </tbody>
-                  </table>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+                  {teams.map(t => (
+                    editTeamId === t.id ? (
+                      <div key={t.id} className="card" style={{ padding: 16, gridColumn: "1 / -1" }}>
+                        <TeamForm
+                          team={editTeamDraft}
+                          setTeam={setEditTeamDraft}
+                          onSave={() => saveTeam(editTeamDraft)}
+                          onCancel={() => { setEditTeamId(null); setEditTeamDraft(null); }}
+                        />
+                      </div>
+                    ) : (
+                      <div key={t.id} className="card" style={{ padding: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                          <div>
+                            <strong style={{ fontSize: "1rem" }}>{t.name}</strong>
+                            {t.lead && <div className="text-muted" style={{ fontSize: "0.82rem", marginTop: 2 }}>Lead: {t.lead}</div>}
+                          </div>
+                          {canEdit && (
+                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                              <IconBtn title="Edit" onClick={() => { setEditTeamId(t.id); setEditTeamDraft({ ...t }); }}>✏️</IconBtn>
+                              <IconBtn title="Delete" danger onClick={() => deleteTeam(t.id)}>🗑️</IconBtn>
+                            </div>
+                          )}
+                        </div>
+                        {t.phone && <div style={{ marginTop: 8 }}><Chip>📞 {t.phone}</Chip></div>}
+                        {t.members && (
+                          <div style={{ marginTop: 10, fontSize: "0.82rem" }}>
+                            <span className="text-muted">Members:</span> {t.members}
+                          </div>
+                        )}
+                        {t.owns_blocks && (
+                          <div style={{ marginTop: 6, fontSize: "0.82rem" }}>
+                            <span className="text-muted">Owns:</span> {t.owns_blocks}
+                          </div>
+                        )}
+                        {t.notes && (
+                          <div style={{ marginTop: 6, fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
+                            {t.notes}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  ))}
                 </div>
                 {teams.length === 0 && !newTeam && <p className="text-muted">No teams yet.</p>}
               </Section>
@@ -602,33 +639,31 @@ export default function RetreatOpsPage() {
                 )}
               >
                 {newTask && <TaskForm task={newTask} setTask={setNewTask} onSave={saveNewTask} onCancel={() => setNewTask(null)} />}
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Done</th><th>Item / Task</th><th>For Block</th><th>Owner</th><th>Deadline</th><th>Qty / Detail</th>{canEdit && <th></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedTasks.map(t => (
-                        <tr key={t.id} style={{ opacity: t.done ? 0.55 : 1 }}>
-                          <td>
-                            <input type="checkbox" checked={t.done} disabled={!canEdit} onChange={() => toggleTaskDone(t)} />
-                          </td>
-                          <td style={{ textDecoration: t.done ? "line-through" : "none" }}>{t.item}</td>
-                          <td>{t.for_block || "—"}</td>
-                          <td>{t.owner || "—"}</td>
-                          <td>{t.deadline || "—"}</td>
-                          <td>{t.qty_detail || "—"}</td>
-                          {canEdit && (
-                            <td>
-                              <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", color: "#B02A2A", borderColor: "#B02A2A" }} onClick={() => deleteTask(t.id)}>Delete</button>
-                            </td>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {sortedTasks.map(t => (
+                    <div key={t.id} className="card" style={{ padding: "12px 16px", opacity: t.done ? 0.6 : 1 }}>
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <input
+                          type="checkbox" checked={t.done} disabled={!canEdit} onChange={() => toggleTaskDone(t)}
+                          style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0 }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, textDecoration: t.done ? "line-through" : "none" }}>{t.item}</div>
+                          {(t.for_block || t.owner || t.deadline || t.qty_detail) && (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginTop: 8 }}>
+                              {t.for_block && <Field label="For block" value={t.for_block} />}
+                              {t.owner && <Field label="Owner" value={t.owner} />}
+                              {t.deadline && <Field label="Deadline" value={t.deadline} />}
+                              {t.qty_detail && <Field label="Qty / detail" value={t.qty_detail} />}
+                            </div>
                           )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </div>
+                        {canEdit && (
+                          <IconBtn title="Delete" danger onClick={() => deleteTask(t.id)}>🗑️</IconBtn>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 {tasks.length === 0 && !newTask && <p className="text-muted">No tasks yet.</p>}
               </Section>
@@ -644,41 +679,36 @@ export default function RetreatOpsPage() {
                 )}
               >
                 {newPlan && <PlanForm plan={newPlan} setPlan={setNewPlan} onSave={saveNewPlan} onCancel={() => setNewPlan(null)} />}
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead>
-                      <tr><th>Scenario</th><th>Trigger</th><th>Action</th><th>Who Decides</th>{canEdit && <th></th>}</tr>
-                    </thead>
-                    <tbody>
-                      {plans.map(p => (
-                        editPlanId === p.id ? (
-                          <tr key={p.id}>
-                            <td colSpan={canEdit ? 5 : 4}>
-                              <PlanForm
-                                plan={editPlanDraft}
-                                setPlan={setEditPlanDraft}
-                                onSave={() => savePlan(editPlanDraft)}
-                                onCancel={() => { setEditPlanId(null); setEditPlanDraft(null); }}
-                              />
-                            </td>
-                          </tr>
-                        ) : (
-                          <tr key={p.id}>
-                            <td style={{ fontWeight: 600 }}>{p.scenario}</td>
-                            <td>{p.trigger || "—"}</td>
-                            <td>{p.action || "—"}</td>
-                            <td>{p.who_decides || "—"}</td>
-                            {canEdit && (
-                              <td style={{ whiteSpace: "nowrap" }}>
-                                <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", marginRight: 6 }} onClick={() => { setEditPlanId(p.id); setEditPlanDraft({ ...p }); }}>Edit</button>
-                                <button className="btn btn-outline" style={{ padding: "4px 10px", fontSize: "0.75rem", color: "#B02A2A", borderColor: "#B02A2A" }} onClick={() => deletePlan(p.id)}>Delete</button>
-                              </td>
-                            )}
-                          </tr>
-                        )
-                      ))}
-                    </tbody>
-                  </table>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {plans.map(p => (
+                    editPlanId === p.id ? (
+                      <div key={p.id} className="card" style={{ padding: 16 }}>
+                        <PlanForm
+                          plan={editPlanDraft}
+                          setPlan={setEditPlanDraft}
+                          onSave={() => savePlan(editPlanDraft)}
+                          onCancel={() => { setEditPlanId(null); setEditPlanDraft(null); }}
+                        />
+                      </div>
+                    ) : (
+                      <div key={p.id} className="card" style={{ padding: 16, borderLeft: "4px solid var(--danger)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+                          <strong style={{ fontSize: "0.98rem" }}>⚠️ {p.scenario}</strong>
+                          {canEdit && (
+                            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                              <IconBtn title="Edit" onClick={() => { setEditPlanId(p.id); setEditPlanDraft({ ...p }); }}>✏️</IconBtn>
+                              <IconBtn title="Delete" danger onClick={() => deletePlan(p.id)}>🗑️</IconBtn>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginTop: 10, fontSize: "0.85rem" }}>
+                          {p.trigger && <div><span className="text-muted">Trigger:</span> {p.trigger}</div>}
+                          {p.action && <div><span className="text-muted">Action:</span> {p.action}</div>}
+                          {p.who_decides && <div><span className="text-muted">Who decides:</span> {p.who_decides}</div>}
+                        </div>
+                      </div>
+                    )
+                  ))}
                 </div>
                 {plans.length === 0 && !newPlan && <p className="text-muted">No scenarios yet.</p>}
               </Section>
@@ -709,11 +739,17 @@ function BlockForm({ block, setBlock, onSave, onCancel }) {
         </div>
         <div style={fieldStyle()}>
           <label className="text-muted" style={{ fontSize: "0.75rem" }}>Start Time</label>
-          <input className="form-input" placeholder="02:00 PM" value={block.start_time || ""} onChange={e => set("start_time", e.target.value)} />
+          <select className="form-select" value={block.start_time || ""} onChange={e => set("start_time", e.target.value)}>
+            <option value="">—</option>
+            {timeOptionsFor(block.start_time).map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         </div>
         <div style={fieldStyle()}>
           <label className="text-muted" style={{ fontSize: "0.75rem" }}>End Time</label>
-          <input className="form-input" placeholder="04:00 PM" value={block.end_time || ""} onChange={e => set("end_time", e.target.value)} />
+          <select className="form-select" value={block.end_time || ""} onChange={e => set("end_time", e.target.value)}>
+            <option value="">—</option>
+            {timeOptionsFor(block.end_time).map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         </div>
         <div style={fieldStyle()}>
           <label className="text-muted" style={{ fontSize: "0.75rem" }}>Block / Event *</label>
@@ -733,7 +769,10 @@ function BlockForm({ block, setBlock, onSave, onCancel }) {
         </div>
         <div style={fieldStyle()}>
           <label className="text-muted" style={{ fontSize: "0.75rem" }}>Setup Done By</label>
-          <input className="form-input" placeholder="01:45 PM" value={block.setup_time || ""} onChange={e => set("setup_time", e.target.value)} />
+          <select className="form-select" value={block.setup_time || ""} onChange={e => set("setup_time", e.target.value)}>
+            <option value="">—</option>
+            {timeOptionsFor(block.setup_time).map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         </div>
         <div style={fieldStyle()}>
           <label className="text-muted" style={{ fontSize: "0.75rem" }}>Status</label>
