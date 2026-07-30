@@ -515,6 +515,99 @@ def get_outdoor_activities():
         "total_boat_tour": total_boat_tour
     }), 200
 
+@campers_bp.route("/export-excel", methods=["GET"])
+@jwt_required()
+def export_campers_excel():
+    claims = get_jwt()
+    role = claims.get("role", "user")
+    if not check_permission(role, "campers", "read") and not check_permission(role, "teams", "read") and not check_permission(role, "apparel", "read"):
+        return jsonify({"error": "Access denied"}), 403
+
+    search = request.args.get("search", "").strip()
+    status = request.args.get("status", "").strip()
+
+    query = Camper.query
+
+    if search:
+        like = f"%{search}%"
+        matched_families = db.session.query(Camper.family_group).filter(
+            db.or_(
+                Camper.first_name.ilike(like),
+                Camper.last_name.ilike(like),
+                Camper.guardian_name.ilike(like),
+                Camper.family_group.ilike(like),
+            )
+        ).filter(Camper.family_group.isnot(None), Camper.family_group != '').distinct().all()
+        
+        family_ids = [f[0] for f in matched_families if f[0]]
+        
+        if family_ids:
+            query = query.filter(
+                db.or_(
+                    Camper.first_name.ilike(like),
+                    Camper.last_name.ilike(like),
+                    Camper.guardian_name.ilike(like),
+                    Camper.family_group.ilike(like),
+                    Camper.family_group.in_(family_ids)
+                )
+            )
+        else:
+            query = query.filter(
+                db.or_(
+                    Camper.first_name.ilike(like),
+                    Camper.last_name.ilike(like),
+                    Camper.guardian_name.ilike(like),
+                    Camper.family_group.ilike(like),
+                )
+            )
+    if status:
+        query = query.filter(Camper.registration_status == status)
+
+    order_by_clause = db.case(
+        (db.or_(Camper.family_group.is_(None), Camper.family_group == ''), 1),
+        else_=0
+    )
+    ordered_query = query.order_by(
+        order_by_clause,
+        Camper.family_group,
+        Camper.last_name,
+        Camper.first_name
+    )
+
+    items = ordered_query.all()
+
+    import openpyxl
+    from io import BytesIO
+    from flask import send_file
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Campers"
+
+    ws.append(["Camper Name"])
+
+    for c in items:
+        ws.append([f"{c.first_name} {c.last_name}"])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 15)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    from utils.logging import log_action
+    log_action("EXPORT_CAMPERS_EXCEL", f"Exported {len(items)} camper names to Excel")
+
+    return send_file(
+        buffer,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="gca_campers_names.xlsx"
+    )
+
 @campers_bp.route("/cabins-pdf", methods=["GET"])
 @jwt_required()
 @require_page_permission("cabins", "edit")

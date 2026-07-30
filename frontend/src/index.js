@@ -16,8 +16,12 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/service-worker.js")
       .then(reg => {
         console.log("[PWA] Service Worker registered successfully scope:", reg.scope);
-        // Force update check on load
-        reg.update();
+        // Force update check on load, catching any network errors to prevent uncaught runtime errors in dev mode
+        if (reg && typeof reg.update === "function") {
+          reg.update().catch(err => {
+            console.warn("[PWA] Service Worker update check failed:", err);
+          });
+        }
       })
       .catch(err => {
         console.error("[PWA] Service Worker registration failed:", err);

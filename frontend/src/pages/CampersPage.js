@@ -251,6 +251,7 @@ export default function CampersPage() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("camperViewMode") || "table");
   const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
   const [revealedPhones, setRevealedPhones] = useState({});
+  const [exporting, setExporting] = useState(false);
 
   const showTeams = settings.teams_published !== "false";
 
@@ -275,6 +276,31 @@ export default function CampersPage() {
 
   const togglePhoneReveal = (key) => {
     setRevealedPhones(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter) params.set("status", statusFilter);
+      
+      const response = await api.get(`/api/campers/export-excel?${params}`, {
+        responseType: "blob"
+      });
+      const blob = new Blob([response.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "gca_campers_names.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setError("Failed to export campers to Excel.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const fetchCampers = useCallback(() => {
@@ -355,11 +381,27 @@ export default function CampersPage() {
     <>
       <div className="top-bar">
         <h1>Campers</h1>
-        {canEdit && (
-          <button className="btn btn-primary" onClick={() => setModal("add")}>
-            ➕ Register Camper
+        <div style={{ display: "flex", gap: 10 }}>
+          <button 
+            type="button" 
+            className="btn btn-outline" 
+            onClick={handleExportExcel} 
+            disabled={exporting}
+          >
+            {exporting ? (
+              <>
+                <span className="spinner" style={{ marginRight: 6 }} /> Exporting...
+              </>
+            ) : (
+              <>📥 Export Excel</>
+            )}
           </button>
-        )}
+          {canEdit && (
+            <button className="btn btn-primary" onClick={() => setModal("add")}>
+              ➕ Register Camper
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="page-body">
