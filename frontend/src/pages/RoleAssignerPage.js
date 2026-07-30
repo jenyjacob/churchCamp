@@ -14,7 +14,8 @@ const PAGES = [
   { key: "receipt_upload", label: "🧾 Upload Receipts" },
   { key: "users", label: "⚙️ Users" },
   { key: "logs", label: "📄 Audit Logs" },
-  { key: "camp_info", label: "ℹ️ Camp Info" }
+  { key: "camp_info", label: "ℹ️ Camp Info" },
+  { key: "retreat_ops", label: "📋 Retreat Operations" }
 ];
 
 const getRoleLabel = (roleKey) => {

@@ -17,6 +17,7 @@ import TShirtsPage from "./pages/TShirtsPage";
 import RoleAssignerPage from "./pages/RoleAssignerPage";
 import CampInfoPage from "./pages/CampInfoPage";
 import TeamsPage from "./pages/TeamsPage";
+import RetreatOpsPage from "./pages/RetreatOpsPage";
 
 
 function RequireAuth({ children }) {
@@ -55,6 +56,7 @@ function AppRoutes() {
         <Route path="checkin" element={<RequirePermission pageKey="checkin"><CheckInPage /></RequirePermission>} />
         <Route path="cabins" element={<RequirePermission pageKey="cabins"><CabinsPage /></RequirePermission>} />
         <Route path="app/schedule" element={<RequirePermission pageKey="schedule"><SchedulePage /></RequirePermission>} />
+        <Route path="retreat-ops" element={<RequirePermission pageKey="retreat_ops"><RetreatOpsPage /></RequirePermission>} />
         <Route path="outdoor" element={<RequirePermission pageKey="outdoor"><OutdoorPage /></RequirePermission>} />
         <Route path="tshirts" element={<RequirePermission pageKey="apparel"><TShirtsPage /></RequirePermission>} />
         <Route path="users" element={<RequirePermission pageKey="users"><UsersPage /></RequirePermission>} />

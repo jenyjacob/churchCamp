@@ -1368,5 +1368,17 @@ tbody tr:hover { background: var(--cream); }
   }
 }
 
+/* ── Mobile Responsive Helpers ── */
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+@media (min-width: 769px) {
+  .show-only-on-mobile {
+    display: none !important;
+  }
+}
+
 
 
