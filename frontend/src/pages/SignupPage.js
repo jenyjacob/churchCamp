@@ -7,6 +7,10 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [familyGroup, setFamilyGroup] = useState("");
+  // Honeypot field: real visitors never see or fill this (hidden via CSS below).
+  // Bots that auto-fill every input on the page will populate it, so we can
+  // silently reject the submission on the backend when it's non-empty.
+  const [website, setWebsite] = useState("");
   const [attendees, setAttendees] = useState([
     { first_name: "", last_name: "", age: "", gender: "", allergies: "", tshirt_size: "", indian_size: "", kayaking: 0, boat_tour: 0, is_child: false }
   ]);
@@ -186,6 +190,7 @@ export default function SignupPage() {
       const payload = {
         email: email.trim() || null,
         phone: phone.trim(),
+        website: website, // honeypot: should always be empty for real users
         attendees: finalAttendeesList.map((a, idx) => {
           // Set kayaking and boat tour count for the first K/B participants
           const isKayaking = idx < kCount ? 1 : 0;
@@ -624,6 +629,20 @@ export default function SignupPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ paddingBottom: 40 }}>
+
+          {/* Honeypot field for spam bots — hidden from real users and screen readers */}
+          <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }} aria-hidden="true">
+            <label htmlFor="website">Website</label>
+            <input
+              type="text"
+              id="website"
+              name="website"
+              value={website}
+              onChange={e => setWebsite(e.target.value)}
+              tabIndex="-1"
+              autoComplete="off"
+            />
+          </div>
           
           {/* Section 1: Contact Information */}
           <div className="form-section-card">

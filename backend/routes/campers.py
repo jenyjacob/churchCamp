@@ -176,6 +176,16 @@ def create_camper():
     log_action("REGISTER_CAMPER", f"Registered camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
     return jsonify({"camper": camper.to_dict()}), 201
 
+MAX_ATTENDEES_PER_SIGNUP = 15
+
+def _strip_html(value, max_len=255):
+    """Strip HTML tags and truncate free-text input before it hits the database."""
+    import re
+    if value is None:
+        return None
+    cleaned = re.sub(r'<[^>]*>', '', str(value)).strip()
+    return cleaned[:max_len] if cleaned else None
+
 @campers_bp.route("/public-signup", methods=["POST"])
 @rate_limit(5, 60)
 def public_signup():
@@ -196,105 +206,126 @@ def public_signup():
     if not data:
         return jsonify({"error": "No registration details provided"}), 400
 
-    phone = data.get("phone")
-    email = data.get("email")
+    # Honeypot anti-spam check: this field is hidden from real users via CSS
+    # and should always arrive empty. Bots that auto-fill every form field
+    # will populate it, so we pretend to succeed without writing anything.
+    if data.get("website"):
+        return jsonify({
+            "message": "Registration successful!",
+            "campers": []
+        }), 201
+
+    phone = _strip_html(data.get("phone"), max_len=30)
+    email = _strip_html(data.get("email"), max_len=255)
     attendees = data.get("attendees", [])
 
     if not phone:
         return jsonify({"error": "Guardian phone number is required"}), 400
 
-    # Auto assign family group starting from 1001
-    all_family_groups = db.session.query(Camper.family_group).filter(Camper.family_group.isnot(None)).distinct().all()
-    max_num = 1000
-    for (fg,) in all_family_groups:
-        if fg and fg.isdigit():
-            max_num = max(max_num, int(fg))
-    family_group = str(max_num + 1)
-
     if not attendees:
         return jsonify({"error": "At least one attendee is required"}), 400
 
-    created_campers = []
-    
-    waiver_status = False
-    existing_family_member = Camper.query.filter_by(family_group=family_group, waiver_submitted=True).first()
-    if existing_family_member:
-        waiver_status = True
+    if not isinstance(attendees, list) or len(attendees) > MAX_ATTENDEES_PER_SIGNUP:
+        return jsonify({"error": f"A single registration can include at most {MAX_ATTENDEES_PER_SIGNUP} attendees. Please contact camp staff for larger groups."}), 400
 
-    for att in attendees:
-        first_name = att.get("first_name")
-        last_name = att.get("last_name")
-        age = att.get("age")
-        gender = att.get("gender")
-        allergies = att.get("allergies")
-        tshirt_size = att.get("tshirt_size")
-        indian_size = att.get("indian_size")
+    # Serialize family-group number assignment to avoid a race condition where two
+    # concurrent signups could compute the same "next" family group number.
+    is_mysql = "mysql" in str(db.engine.url)
+    if is_mysql:
+        db.session.execute(db.text("SELECT GET_LOCK('public_signup_family_group', 10)"))
 
-        kayaking = 0
-        if att.get("kayaking") is not None:
-            try:
-                kayaking = int(att.get("kayaking"))
-            except (ValueError, TypeError):
-                pass
+    try:
+        # Auto assign family group starting from 1001
+        all_family_groups = db.session.query(Camper.family_group).filter(Camper.family_group.isnot(None)).distinct().all()
+        max_num = 1000
+        for (fg,) in all_family_groups:
+            if fg and fg.isdigit():
+                max_num = max(max_num, int(fg))
+        family_group = str(max_num + 1)
 
-        boat_tour = 0
-        if att.get("boat_tour") is not None:
-            try:
-                boat_tour = int(att.get("boat_tour"))
-            except (ValueError, TypeError):
-                pass
+        created_campers = []
 
-        if not first_name or not last_name:
-            return jsonify({"error": "First and last name are required for all attendees"}), 400
+        waiver_status = False
+        existing_family_member = Camper.query.filter_by(family_group=family_group, waiver_submitted=True).first()
+        if existing_family_member:
+            waiver_status = True
 
-        # Strip html tags and truncate name strings to prevent XSS and DB truncation errors
-        import re
-        first_name = re.sub(r'<[^>]*>', '', str(first_name)).strip()[:100]
-        last_name = re.sub(r'<[^>]*>', '', str(last_name)).strip()[:100]
+        for att in attendees:
+            first_name = att.get("first_name")
+            last_name = att.get("last_name")
+            age = att.get("age")
+            gender = att.get("gender")
+            allergies = _strip_html(att.get("allergies"), max_len=500)
+            tshirt_size = _strip_html(att.get("tshirt_size"), max_len=20)
+            indian_size = _strip_html(att.get("indian_size"), max_len=20)
 
-        if not first_name or not last_name:
-            return jsonify({"error": "Invalid attendee name provided"}), 400
+            kayaking = 0
+            if att.get("kayaking") is not None:
+                try:
+                    kayaking = int(att.get("kayaking"))
+                except (ValueError, TypeError):
+                    pass
 
-        parsed_age = None
-        if age is not None and str(age).strip() != "":
-            try:
-                parsed_age = int(age)
-            except ValueError:
-                return jsonify({"error": f"Invalid age for attendee {first_name}"}), 400
+            boat_tour = 0
+            if att.get("boat_tour") is not None:
+                try:
+                    boat_tour = int(att.get("boat_tour"))
+                except (ValueError, TypeError):
+                    pass
 
-            if parsed_age < 18 and (parsed_age is None or parsed_age < 0):
-                return jsonify({"error": f"Valid age is required for child attendee {first_name}"}), 400
+            if not first_name or not last_name:
+                return jsonify({"error": "First and last name are required for all attendees"}), 400
 
-        camper = Camper(
-            first_name=first_name,
-            last_name=last_name,
-            age=parsed_age,
-            gender=gender if gender in ["male", "female"] else None,
-            family_group=str(family_group),
-            guardian_name="Self" if parsed_age is None or parsed_age >= 18 else None,
-            guardian_phone=phone,
-            allergies=allergies,
-            waiver_submitted=waiver_status,
-            registration_status="registered",
-            notes=f"Public Signup. Email: {email or 'N/A'}",
-            kayaking=kayaking,
-            boat_tour=boat_tour
-        )
-        db.session.add(camper)
-        db.session.flush()
+            # Strip html tags and truncate name strings to prevent XSS and DB truncation errors
+            first_name = _strip_html(first_name, max_len=100)
+            last_name = _strip_html(last_name, max_len=100)
 
-        if tshirt_size or indian_size:
-            tshirt = Tshirt(
-                camper_id=camper.id,
-                attendee_name=f"{first_name} {last_name}",
-                tshirt_size=tshirt_size or "Adult M",
-                indian_size=indian_size
+            if not first_name or not last_name:
+                return jsonify({"error": "Invalid attendee name provided"}), 400
+
+            parsed_age = None
+            if age is not None and str(age).strip() != "":
+                try:
+                    parsed_age = int(age)
+                except ValueError:
+                    return jsonify({"error": f"Invalid age for attendee {first_name}"}), 400
+
+                if parsed_age < 18 and (parsed_age is None or parsed_age < 0):
+                    return jsonify({"error": f"Valid age is required for child attendee {first_name}"}), 400
+
+            camper = Camper(
+                first_name=first_name,
+                last_name=last_name,
+                age=parsed_age,
+                gender=gender if gender in ["male", "female"] else None,
+                family_group=str(family_group),
+                guardian_name="Self" if parsed_age is None or parsed_age >= 18 else None,
+                guardian_phone=phone,
+                allergies=allergies,
+                waiver_submitted=waiver_status,
+                registration_status="registered",
+                notes=f"Public Signup. Email: {email or 'N/A'}",
+                kayaking=kayaking,
+                boat_tour=boat_tour
             )
-            db.session.add(tshirt)
+            db.session.add(camper)
+            db.session.flush()
 
-        created_campers.append(camper)
+            if tshirt_size or indian_size:
+                tshirt = Tshirt(
+                    camper_id=camper.id,
+                    attendee_name=f"{first_name} {last_name}",
+                    tshirt_size=tshirt_size or "Adult M",
+                    indian_size=indian_size
+                )
+                db.session.add(tshirt)
 
-    db.session.commit()
+            created_campers.append(camper)
+
+        db.session.commit()
+    finally:
+        if is_mysql:
+            db.session.execute(db.text("SELECT RELEASE_LOCK('public_signup_family_group')"))
 
     from utils.logging import log_action
     log_action("PUBLIC_SIGNUP", f"Public signup for family group {family_group} with {len(created_campers)} attendees")
