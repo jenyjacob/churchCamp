@@ -17,6 +17,7 @@ from routes.schedule import schedule_bp
 from routes.permissions import permissions_bp
 from routes.finance import finance_bp
 from routes.settings import settings_bp
+from routes.retreat_ops import retreat_ops_bp
 
 def create_app(config_override=None):
     app = Flask(__name__)
@@ -64,6 +65,7 @@ def create_app(config_override=None):
     app.register_blueprint(permissions_bp, url_prefix="/api/permissions")
     app.register_blueprint(finance_bp, url_prefix="/api/finance")
     app.register_blueprint(settings_bp, url_prefix="/api/settings")
+    app.register_blueprint(retreat_ops_bp, url_prefix="/api/retreat-ops")
 
     with app.app_context():
         db.create_all()
