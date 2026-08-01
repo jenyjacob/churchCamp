@@ -1556,5 +1556,187 @@
       "is_mock": false,
       "camp_address": "269 Methodist Ln, Pottsboro, TX 75076"
     }
+  },
+  "TBA": {
+    "timestamp": 1785484837.784703,
+    "data": {
+      "hospitals": [
+        {
+          "name": "Texoma Medical Center",
+          "rating": 4.2,
+          "address": "5016 S US 75, Denison, TX",
+          "distance": "8.4 miles",
+          "phone": "+1 (903) 246-6000",
+          "open_now": true
+        },
+        {
+          "name": "Wilson N. Jones Regional Medical Center",
+          "rating": 4.1,
+          "address": "500 N Highland Ave, Sherman, TX",
+          "distance": "12.1 miles",
+          "phone": "+1 (903) 892-6101",
+          "open_now": true
+        },
+        {
+          "name": "Pottsboro Primary Care Clinic",
+          "rating": 4.5,
+          "address": "111 Highway 120, Pottsboro, TX",
+          "distance": "1.2 miles",
+          "phone": "+1 (903) 786-3911",
+          "open_now": true
+        }
+      ],
+      "restaurants": [
+        {
+          "name": "McDonald's",
+          "rating": 3.8,
+          "address": "415 Highport Rd, Pottsboro, TX",
+          "distance": "3.4 miles",
+          "phone": "+1 (903) 786-1212",
+          "open_now": true
+        },
+        {
+          "name": "The Island Bar & Grill",
+          "rating": 4.6,
+          "address": "407 Highport Rd, Pottsboro, TX",
+          "distance": "3.5 miles",
+          "phone": "+1 (903) 786-2187",
+          "open_now": true
+        },
+        {
+          "name": "Napoli's Pizza & Restaurant",
+          "rating": 4.4,
+          "address": "118 FM120, Pottsboro, TX",
+          "distance": "0.9 miles",
+          "phone": "+1 (903) 786-2383",
+          "open_now": true
+        },
+        {
+          "name": "Devolli's Italian Restaurant",
+          "rating": 4.7,
+          "address": "109 FM120, Pottsboro, TX",
+          "distance": "0.8 miles",
+          "phone": "+1 (903) 786-4545",
+          "open_now": false
+        },
+        {
+          "name": "Sonic Drive-In",
+          "rating": 4.1,
+          "address": "120 Highway 120, Pottsboro, TX",
+          "distance": "1.0 miles",
+          "phone": "+1 (903) 786-4040",
+          "open_now": true
+        },
+        {
+          "name": "Subway",
+          "rating": 4.0,
+          "address": "105 FM120, Pottsboro, TX",
+          "distance": "0.7 miles",
+          "phone": "+1 (903) 786-5500",
+          "open_now": true
+        },
+        {
+          "name": "Mommie's Diner",
+          "rating": 4.3,
+          "address": "510 S Pottsboro Rd, Pottsboro, TX",
+          "distance": "1.1 miles",
+          "phone": "+1 (903) 786-6300",
+          "open_now": true
+        }
+      ],
+      "is_mock": true,
+      "camp_address": "TBA"
+    }
+  },
+  "CAMP PROTHRO": {
+    "timestamp": 1785562764.1257184,
+    "data": {
+      "hospitals": [
+        {
+          "name": "Texoma Medical Center",
+          "rating": 4.2,
+          "address": "5016 S US 75, Denison, TX",
+          "distance": "8.4 miles",
+          "phone": "+1 (903) 246-6000",
+          "open_now": true
+        },
+        {
+          "name": "Wilson N. Jones Regional Medical Center",
+          "rating": 4.1,
+          "address": "500 N Highland Ave, Sherman, TX",
+          "distance": "12.1 miles",
+          "phone": "+1 (903) 892-6101",
+          "open_now": true
+        },
+        {
+          "name": "Pottsboro Primary Care Clinic",
+          "rating": 4.5,
+          "address": "111 Highway 120, Pottsboro, TX",
+          "distance": "1.2 miles",
+          "phone": "+1 (903) 786-3911",
+          "open_now": true
+        }
+      ],
+      "restaurants": [
+        {
+          "name": "McDonald's",
+          "rating": 3.8,
+          "address": "415 Highport Rd, Pottsboro, TX",
+          "distance": "3.4 miles",
+          "phone": "+1 (903) 786-1212",
+          "open_now": true
+        },
+        {
+          "name": "The Island Bar & Grill",
+          "rating": 4.6,
+          "address": "407 Highport Rd, Pottsboro, TX",
+          "distance": "3.5 miles",
+          "phone": "+1 (903) 786-2187",
+          "open_now": true
+        },
+        {
+          "name": "Napoli's Pizza & Restaurant",
+          "rating": 4.4,
+          "address": "118 FM120, Pottsboro, TX",
+          "distance": "0.9 miles",
+          "phone": "+1 (903) 786-2383",
+          "open_now": true
+        },
+        {
+          "name": "Devolli's Italian Restaurant",
+          "rating": 4.7,
+          "address": "109 FM120, Pottsboro, TX",
+          "distance": "0.8 miles",
+          "phone": "+1 (903) 786-4545",
+          "open_now": false
+        },
+        {
+          "name": "Sonic Drive-In",
+          "rating": 4.1,
+          "address": "120 Highway 120, Pottsboro, TX",
+          "distance": "1.0 miles",
+          "phone": "+1 (903) 786-4040",
+          "open_now": true
+        },
+        {
+          "name": "Subway",
+          "rating": 4.0,
+          "address": "105 FM120, Pottsboro, TX",
+          "distance": "0.7 miles",
+          "phone": "+1 (903) 786-5500",
+          "open_now": true
+        },
+        {
+          "name": "Mommie's Diner",
+          "rating": 4.3,
+          "address": "510 S Pottsboro Rd, Pottsboro, TX",
+          "distance": "1.1 miles",
+          "phone": "+1 (903) 786-6300",
+          "open_now": true
+        }
+      ],
+      "is_mock": true,
+      "camp_address": "Camp Prothro"
+    }
   }
 }

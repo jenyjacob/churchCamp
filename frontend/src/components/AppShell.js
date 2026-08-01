@@ -27,6 +27,7 @@ const adminItems = [
   { to: "/users",   icon: "⚙️", label: "Users", pageKey: "users" },
   { to: "/logs",    icon: "📄", label: "Audit Logs", pageKey: "logs" },
   { to: "/role-assigner", icon: "🛡️", label: "Role Assigner", pageKey: "role_assigner" },
+  { to: "/registration-config", icon: "📝", label: "Registration Config", pageKey: "registration_config" },
 ];
 
 function NavItem({ to, icon, label, exact }) {

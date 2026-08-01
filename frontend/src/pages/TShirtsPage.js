@@ -23,6 +23,9 @@ export default function TShirtsPage() {
   const [savingMap, setSavingMap] = useState({}); // { camperId: "saving" | "saved" | "error" }
   const [error, setError] = useState("");
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
+  const [years, setYears] = useState([]);
+  const [selectedYear, setSelectedYear] = useState("current");
+  const [settingsYear, setSettingsYear] = useState("2027");
 
   // Inventory & Choice Tabs
   const [sizeSystemTab, setSizeSystemTab] = useState("US"); // "US" | "INDIAN"
@@ -44,6 +47,9 @@ export default function TShirtsPage() {
     api.get("/api/settings/")
       .then(res => {
         const settings = res.data.settings || {};
+        if (settings.current_camp_year) {
+          setSettingsYear(settings.current_camp_year);
+        }
         try {
           if (settings.tshirt_stock_us) {
             setStockUs(JSON.parse(settings.tshirt_stock_us));
@@ -219,13 +225,16 @@ export default function TShirtsPage() {
   const fetchCampers = useCallback(() => {
     setLoading(true);
     // Fetch all campers (non-paginated) to display all families together
-    api.get("/api/campers/?page=1&per_page=-1")
+    api.get(`/api/campers/?page=1&per_page=-1&year=${selectedYear}`)
       .then(r => {
         setCampers(r.data.campers);
+        if (r.data.years) {
+          setYears(r.data.years);
+        }
       })
       .catch(() => setError("Failed to load campers."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedYear]);
 
   useEffect(() => {
     fetchCampers();
@@ -392,6 +401,12 @@ export default function TShirtsPage() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
+          <select className="form-select" style={{ width: 180, marginLeft: 10 }} value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+            <option value="current">Active Year ({settingsYear})</option>
+            {years.map(y => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
         </div>
 
         {/* T-Shirt Inventory & Stock Tracking Widget */}

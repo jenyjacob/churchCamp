@@ -36,23 +36,40 @@ def get_campers():
         return jsonify({"error": "Access denied"}), 403
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
+    year_arg = request.args.get("year", "current").strip()
+    age_filter = request.args.get("age_filter", "").strip().lower()
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
 
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
     query = Camper.query
+
+    if year_arg == "current":
+        query = query.filter(Camper.camp_year == current_year)
+    elif year_arg.isdigit():
+        query = query.filter(Camper.camp_year == int(year_arg))
 
     if search:
         like = f"%{search}%"
         # Find all family groups for campers matching the search criteria
-        matched_families = db.session.query(Camper.family_group).filter(
+        matched_families_query = db.session.query(Camper.family_group).filter(
             db.or_(
                 Camper.first_name.ilike(like),
                 Camper.last_name.ilike(like),
                 Camper.guardian_name.ilike(like),
                 Camper.family_group.ilike(like),
             )
-        ).filter(Camper.family_group.isnot(None), Camper.family_group != '').distinct().all()
-        
+        ).filter(Camper.family_group.isnot(None), Camper.family_group != '')
+
+        if year_arg == "current":
+            matched_families_query = matched_families_query.filter(Camper.camp_year == current_year)
+        elif year_arg.isdigit():
+            matched_families_query = matched_families_query.filter(Camper.camp_year == int(year_arg))
+
+        matched_families = matched_families_query.distinct().all()
         family_ids = [f[0] for f in matched_families if f[0]]
         
         if family_ids:
@@ -77,6 +94,13 @@ def get_campers():
     if status:
         query = query.filter(Camper.registration_status == status)
 
+    if age_filter == "child":
+        query = query.filter(Camper.age < 18)
+    elif age_filter == "adult":
+        query = query.filter((Camper.age >= 18) | (Camper.age.is_(None)))
+    elif age_filter == "senior":
+        query = query.filter(Camper.age >= 65)
+
     order_by_clause = db.case(
         (db.or_(Camper.family_group.is_(None), Camper.family_group == ''), 1),
         else_=0
@@ -88,6 +112,11 @@ def get_campers():
         Camper.first_name
     )
 
+    available_years = [y[0] for y in db.session.query(Camper.camp_year).filter(Camper.camp_year.isnot(None)).distinct().all() if y[0]]
+    if current_year not in available_years:
+        available_years.append(current_year)
+    available_years.sort(reverse=True)
+
     if per_page == -1:
         items = ordered_query.all()
         return jsonify({
@@ -95,6 +124,8 @@ def get_campers():
             "total": len(items),
             "pages": 1,
             "page": 1,
+            "years": available_years,
+            "current_year": current_year
         }), 200
 
     paginated = ordered_query.paginate(
@@ -106,6 +137,8 @@ def get_campers():
         "total": paginated.total,
         "pages": paginated.pages,
         "page": page,
+        "years": available_years,
+        "current_year": current_year
     }), 200
 
 @campers_bp.route("/<int:camper_id>", methods=["GET"])
@@ -138,19 +171,40 @@ def create_camper():
         if existing_family_member:
             waiver_status = True
 
-    kayaking = 0
-    if data.get("kayaking") is not None:
+    activity_1 = 0
+    if data.get("activity_1") is not None:
         try:
-            kayaking = int(data.get("kayaking"))
+            activity_1 = int(data.get("activity_1"))
+        except (ValueError, TypeError):
+            pass
+    elif data.get("kayaking") is not None:
+        try:
+            activity_1 = int(data.get("kayaking"))
         except (ValueError, TypeError):
             pass
 
-    boat_tour = 0
-    if data.get("boat_tour") is not None:
+    activity_2 = 0
+    if data.get("activity_2") is not None:
         try:
-            boat_tour = int(data.get("boat_tour"))
+            activity_2 = int(data.get("activity_2"))
         except (ValueError, TypeError):
             pass
+    elif data.get("boat_tour") is not None:
+        try:
+            activity_2 = int(data.get("boat_tour"))
+        except (ValueError, TypeError):
+            pass
+
+    activity_3 = 0
+    if data.get("activity_3") is not None:
+        try:
+            activity_3 = int(data.get("activity_3"))
+        except (ValueError, TypeError):
+            pass
+
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
     camper = Camper(
         first_name=first_name,
@@ -166,9 +220,11 @@ def create_camper():
         waiver_submitted=waiver_status,
         registration_status=data.get("registration_status", "registered"),
         notes=data.get("notes"),
-        kayaking=kayaking,
-        boat_tour=boat_tour,
+        activity_1=activity_1,
+        activity_2=activity_2,
+        activity_3=activity_3,
         team_name=data.get("team_name"),
+        camp_year=current_year,
     )
     db.session.add(camper)
     db.session.commit()
@@ -235,10 +291,18 @@ def public_signup():
         db.session.execute(db.text("SELECT GET_LOCK('public_signup_family_group', 10)"))
 
     try:
-        # Auto assign family group starting from 1001
-        all_family_groups = db.session.query(Camper.family_group).filter(Camper.family_group.isnot(None)).distinct().all()
-        max_num = 1000
-        for (fg,) in all_family_groups:
+        # Auto assign family group starting from signup_year * 10000 + 1001
+        signup_year_setting = Setting.query.filter_by(key="signup_camp_year").first()
+        signup_year = int(signup_year_setting.value) if (signup_year_setting and signup_year_setting.value.isdigit()) else 2026
+        current_year = signup_year
+
+        prefix = str(current_year)
+        family_group_query = db.session.query(Camper.family_group).filter(
+            Camper.family_group.like(f"{prefix}%")
+        ).distinct().all()
+
+        max_num = current_year * 10000 + 1000
+        for (fg,) in family_group_query:
             if fg and fg.isdigit():
                 max_num = max(max_num, int(fg))
         family_group = str(max_num + 1)
@@ -259,17 +323,34 @@ def public_signup():
             tshirt_size = _strip_html(att.get("tshirt_size"), max_len=20)
             indian_size = _strip_html(att.get("indian_size"), max_len=20)
 
-            kayaking = 0
-            if att.get("kayaking") is not None:
+            activity_1 = 0
+            if att.get("activity_1") is not None:
                 try:
-                    kayaking = int(att.get("kayaking"))
+                    activity_1 = int(att.get("activity_1"))
+                except (ValueError, TypeError):
+                    pass
+            elif att.get("kayaking") is not None:
+                try:
+                    activity_1 = int(att.get("kayaking"))
                 except (ValueError, TypeError):
                     pass
 
-            boat_tour = 0
-            if att.get("boat_tour") is not None:
+            activity_2 = 0
+            if att.get("activity_2") is not None:
                 try:
-                    boat_tour = int(att.get("boat_tour"))
+                    activity_2 = int(att.get("activity_2"))
+                except (ValueError, TypeError):
+                    pass
+            elif att.get("boat_tour") is not None:
+                try:
+                    activity_2 = int(att.get("boat_tour"))
+                except (ValueError, TypeError):
+                    pass
+
+            activity_3 = 0
+            if att.get("activity_3") is not None:
+                try:
+                    activity_3 = int(att.get("activity_3"))
                 except (ValueError, TypeError):
                     pass
 
@@ -305,8 +386,10 @@ def public_signup():
                 waiver_submitted=waiver_status,
                 registration_status="registered",
                 notes=f"Public Signup. Email: {email or 'N/A'}",
-                kayaking=kayaking,
-                boat_tour=boat_tour
+                activity_1=activity_1,
+                activity_2=activity_2,
+                activity_3=activity_3,
+                camp_year=current_year
             )
             db.session.add(camper)
             db.session.flush()
@@ -358,20 +441,21 @@ def update_camper(camper_id):
 
     # Camp Director can only modify outdoor activities
     if role == "director":
-        for field in ["kayaking", "boat_tour"]:
+        for field in ["activity_1", "activity_2", "activity_3", "kayaking", "boat_tour"]:
             if field in data:
+                target_field = "activity_1" if field == "kayaking" else "activity_2" if field == "boat_tour" else field
                 try:
                     val = int(data[field]) if data[field] is not None else 0
                 except (ValueError, TypeError):
                     val = 0
-                setattr(camper, field, val)
+                setattr(camper, target_field, val)
     else:
         fields = [
             "first_name", "last_name", "date_of_birth", "age", "gender", "grade",
             "cabin_group", "session", "family_group", "guardian_name", "guardian_phone", "guardian_email",
             "emergency_contact", "emergency_phone", "allergies", "medical_notes",
             "medications", "registration_status", "payment_status", "notes", "waiver_submitted",
-            "kayaking", "boat_tour", "team_name"
+            "activity_1", "activity_2", "activity_3", "kayaking", "boat_tour", "team_name"
         ]
         
         waiver_changed = "waiver_submitted" in data and data["waiver_submitted"] != camper.waiver_submitted
@@ -392,12 +476,15 @@ def update_camper(camper_id):
                 if field in ["first_name", "last_name"] and val is not None:
                     import re
                     val = re.sub(r'<[^>]*>', '', str(val)).strip()[:100]
-                if field in ["kayaking", "boat_tour"]:
+                if field in ["activity_1", "activity_2", "activity_3", "kayaking", "boat_tour"]:
                     try:
                         val = int(val) if val is not None else 0
                     except (ValueError, TypeError):
                         val = 0
-                setattr(camper, field, val)
+                    target_field = "activity_1" if field == "kayaking" else "activity_2" if field == "boat_tour" else field
+                    setattr(camper, target_field, val)
+                else:
+                    setattr(camper, field, val)
 
         if "tshirt_size" in data or "indian_size" in data:
             tshirt = Tshirt.query.filter_by(camper_id=camper.id).first()
@@ -458,14 +545,19 @@ def delete_camper(camper_id):
 @campers_bp.route("/stats", methods=["GET"])
 @jwt_required()
 def get_stats():
-    total = Camper.query.count()
-    registered = Camper.query.filter_by(registration_status="registered").count()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    total = Camper.query.filter_by(camp_year=current_year).count()
+    registered = Camper.query.filter_by(registration_status="registered", camp_year=current_year).count()
     checked_in = sum(
-        1 for c in Camper.query.all()
+        1 for c in Camper.query.filter_by(camp_year=current_year).all()
         if any(ci.checked_out_at is None for ci in c.checkins)
     )
-    waivers_submitted = Camper.query.filter_by(waiver_submitted=True).count()
+    waivers_submitted = Camper.query.filter_by(waiver_submitted=True, camp_year=current_year).count()
     total_families = db.session.query(Camper.family_group).filter(
+        Camper.camp_year == current_year,
         Camper.family_group.isnot(None),
         Camper.family_group != ""
     ).distinct().count()
@@ -493,26 +585,36 @@ def parse_custom_activities(notes_str):
 @campers_bp.route("/outdoor", methods=["GET"])
 @jwt_required()
 def get_outdoor_activities():
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
     raw_campers = Camper.query.filter(
-        (Camper.kayaking > 0) | 
-        (Camper.boat_tour > 0) |
-        (Camper.notes.like('%<!-- ACTIVITIES_JSON:%'))
+        Camper.camp_year == current_year,
+        ((Camper.activity_1 > 0) | 
+         (Camper.activity_2 > 0) |
+         (Camper.activity_3 > 0) |
+         (Camper.notes.like('%<!-- ACTIVITIES_JSON:%')))
     ).all()
     
     campers = []
     for c in raw_campers:
         custom_acts = parse_custom_activities(c.notes)
-        total_spots = (c.kayaking or 0) + (c.boat_tour or 0) + sum(int(v) for v in custom_acts.values())
+        total_spots = (c.activity_1 or 0) + (c.activity_2 or 0) + (c.activity_3 or 0) + sum(int(v) for v in custom_acts.values())
         if total_spots > 0:
             campers.append(c)
     
-    total_kayaking = sum(c.kayaking for c in campers)
-    total_boat_tour = sum(c.boat_tour for c in campers)
+    total_activity_1 = sum(c.activity_1 for c in campers)
+    total_activity_2 = sum(c.activity_2 for c in campers)
+    total_activity_3 = sum(c.activity_3 for c in campers)
     
     return jsonify({
         "campers": [c.to_dict() for c in campers],
-        "total_kayaking": total_kayaking,
-        "total_boat_tour": total_boat_tour
+        "total_activity_1": total_activity_1,
+        "total_activity_2": total_activity_2,
+        "total_activity_3": total_activity_3,
+        "total_kayaking": total_activity_1,
+        "total_boat_tour": total_activity_2
     }), 200
 
 @campers_bp.route("/export-excel", methods=["GET"])
@@ -525,8 +627,19 @@ def export_campers_excel():
 
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
+    year_arg = request.args.get("year", "current").strip()
+    age_filter = request.args.get("age_filter", "").strip().lower()
+
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
     query = Camper.query
+
+    if year_arg == "current":
+        query = query.filter(Camper.camp_year == current_year)
+    elif year_arg.isdigit():
+        query = query.filter(Camper.camp_year == int(year_arg))
 
     if search:
         like = f"%{search}%"
@@ -562,6 +675,13 @@ def export_campers_excel():
             )
     if status:
         query = query.filter(Camper.registration_status == status)
+
+    if age_filter == "child":
+        query = query.filter(Camper.age < 18)
+    elif age_filter == "adult":
+        query = query.filter((Camper.age >= 18) | (Camper.age.is_(None)))
+    elif age_filter == "senior":
+        query = query.filter(Camper.age >= 65)
 
     order_by_clause = db.case(
         (db.or_(Camper.family_group.is_(None), Camper.family_group == ''), 1),
@@ -621,7 +741,11 @@ def download_cabins_pdf():
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
     # 1. Fetch all registered campers
-    campers = Camper.query.filter_by(registration_status="registered").all()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    campers = Camper.query.filter_by(registration_status="registered", camp_year=current_year).all()
     
     from utils.logging import log_action
     log_action("PRINT_CABINS_REPORT", f"Downloaded/printed camp cabin room assignments report containing {len(campers)} registered campers")
@@ -854,7 +978,11 @@ def upload_teams():
     if team_idx == -1:
         team_idx = 4 if len(header) > 4 else (len(header) - 1)
 
-    campers = Camper.query.all()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    campers = Camper.query.filter_by(camp_year=current_year).all()
     campers_by_name = {f"{c.first_name.strip()} {c.last_name.strip()}".lower(): c for c in campers}
 
     matched_count = 0
