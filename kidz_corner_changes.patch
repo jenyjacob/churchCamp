@@ -1,0 +1,1978 @@
+diff --git a/backend/app.py b/backend/app.py
+index a477c79..58993f1 100644
+--- a/backend/app.py
++++ b/backend/app.py
+@@ -18,6 +18,7 @@ from routes.permissions import permissions_bp
+ from routes.finance import finance_bp
+ from routes.settings import settings_bp
+ from routes.retreat_ops import retreat_ops_bp
++from routes.kidz_corner import kidz_corner_bp
+ 
+ def create_app(config_override=None):
+     app = Flask(__name__)
+@@ -66,6 +67,7 @@ def create_app(config_override=None):
+     app.register_blueprint(finance_bp, url_prefix="/api/finance")
+     app.register_blueprint(settings_bp, url_prefix="/api/settings")
+     app.register_blueprint(retreat_ops_bp, url_prefix="/api/retreat-ops")
++    app.register_blueprint(kidz_corner_bp, url_prefix="/api/kidz-corner")
+ 
+     with app.app_context():
+         db.create_all()
+diff --git a/backend/migrate_kidzcorner.py b/backend/migrate_kidzcorner.py
+new file mode 100644
+index 0000000..fffa788
+--- /dev/null
++++ b/backend/migrate_kidzcorner.py
+@@ -0,0 +1,394 @@
++"""
++Migrate Kidz_Corner_Schedule.xlsx into the Kidz Corner tables (volunteers,
++kids, schedule items, crafts, budget lines, AV links).
++
++Reads sheets UP TO AND INCLUDING "AudioVideo" only:
++  - "People"                -> KidzCornerVolunteer (cols A/B) + KidzCornerKid (cols D/E/F)
++  - "Template of Schedule"   -> KidzCornerScheduleItem (day="Template")
++  - "Budget.Expenses"        -> KidzCornerBudgetItem
++  - "Friday Night"           -> KidzCornerScheduleItem (day="Friday Night") + KidzCornerCraft
++  - "Saturday Morning"       -> KidzCornerScheduleItem (day="Saturday Morning") + KidzCornerCraft
++  - "Saturday Night"         -> KidzCornerScheduleItem (day="Saturday Night")
++  - "Sunday Morning"         -> KidzCornerScheduleItem (day="Sunday Morning") (sheet may be empty)
++  - "AudioVideo"             -> KidzCornerAVLink
++
++Any sheets after "AudioVideo" (Puppet Show sheets, Calendar) are intentionally
++NOT migrated, per request.
++
++Usage (run from the backend/ directory, same folder as app.py):
++    python3 migrate_kidzcorner.py /path/to/Kidz_Corner_Schedule.xlsx
++    python3 migrate_kidzcorner.py /path/to/Kidz_Corner_Schedule.xlsx --clear
++
++--clear wipes any existing Kidz Corner rows before importing (use on a fresh
++import / re-import; without it, running the script twice will duplicate rows).
++
++This uses the Flask app + SQLAlchemy models directly (not the HTTP API), so it
++works against whatever database your .env / config.py already points to
++(SQLite locally, MySQL in production) without needing a running server or a
++login token.
++"""
++
++import sys
++import os
++import argparse
++import datetime
++
++import openpyxl
++
++# --- Load the Flask app & models -------------------------------------------------
++sys.path.insert(0, ".")
++from app import create_app
++from db import db
++from models import (
++    KidzCornerVolunteer,
++    KidzCornerKid,
++    KidzCornerScheduleItem,
++    KidzCornerCraft,
++    KidzCornerBudgetItem,
++    KidzCornerAVLink,
++)
++
++DAY_SHEETS = ["Friday Night", "Saturday Morning", "Saturday Night", "Sunday Morning"]
++REQUIRED_SHEETS = ["People", "Template of Schedule", "Budget.Expenses"] + DAY_SHEETS + ["AudioVideo"]
++
++
++def clean(value):
++    """Strip strings, turn blank/placeholder values into None."""
++    if value is None:
++        return None
++    text = str(value).strip()
++    if text == "" or text == "—":
++        return None
++    return text
++
++
++def clean_int(value):
++    text = clean(value)
++    if text is None:
++        return None
++    try:
++        return int(float(text))
++    except ValueError:
++        return None
++
++
++def clean_float(value):
++    if value is None:
++        return None
++    if isinstance(value, (int, float)):
++        return float(value)
++    text = clean(value)
++    if text is None:
++        return None
++    try:
++        return float(text)
++    except ValueError:
++        return None
++
++
++def fmt_date(value):
++    if value is None:
++        return None
++    if isinstance(value, (datetime.datetime, datetime.date)):
++        return value.strftime("%Y-%m-%d")
++    return clean(value)
++
++
++def after_colon(text):
++    """Given 'Materials: small bags, ribbon' return 'small bags, ribbon'."""
++    idx = text.find(":")
++    if idx == -1:
++        return text.strip()
++    return text[idx + 1:].strip()
++
++
++def skip_to_data(rows, header_markers):
++    """
++    Return the rows following the column-header row (matched by its first
++    cell, case-insensitively, against header_markers). Sheets in this
++    workbook have an inconsistent number of blank rows between the title
++    and the header, so we scan for the header rather than assuming a fixed
++    row index.
++    """
++    for i, row in enumerate(rows):
++        c0 = row[0] if len(row) > 0 else None
++        if c0 and str(c0).strip().lower() in header_markers:
++            return rows[i + 1:]
++    return rows
++
++
++# ---------------------------------------------------------------------------
++# People sheet -> volunteers + kids
++# ---------------------------------------------------------------------------
++
++def parse_people(ws):
++    volunteers = []
++    kids = []
++    rows = list(ws.iter_rows(values_only=True))
++    v_order = 0
++    k_order = 0
++    for row in rows[2:]:  # skip group-header row + column-header row
++        row = list(row) + [None] * (6 - len(row))
++        v_name, v_assignment = row[0], row[1]
++        k_name, k_age, k_allergies = row[3], row[4], row[5]
++
++        if clean(v_name):
++            volunteers.append(KidzCornerVolunteer(
++                name=clean(v_name),
++                assignment=clean(v_assignment),
++                order_index=v_order,
++            ))
++            v_order += 1
++
++        if clean(k_name):
++            kids.append(KidzCornerKid(
++                name=clean(k_name),
++                age=clean_int(k_age),
++                allergies=clean(k_allergies),
++                order_index=k_order,
++            ))
++            k_order += 1
++
++    return volunteers, kids
++
++
++# ---------------------------------------------------------------------------
++# Template of Schedule sheet -> schedule items (day="Template")
++# ---------------------------------------------------------------------------
++
++def parse_template_schedule(ws):
++    items = []
++    rows = list(ws.iter_rows(values_only=True))
++    data_rows = skip_to_data(rows, {"date"})
++    order_index = 0
++    for row in data_rows:
++        row = list(row) + [None] * (6 - len(row))
++        date_val, time_val, activity, vol_needed, items_needed, notes = row[:6]
++        if not clean(activity):
++            continue
++        items.append(KidzCornerScheduleItem(
++            day="Template",
++            date=fmt_date(date_val),
++            time=clean(time_val),
++            activity=clean(activity),
++            volunteers_needed=clean(vol_needed),
++            items_needed=clean(items_needed),
++            notes=clean(notes),
++            order_index=order_index,
++        ))
++        order_index += 1
++    return items
++
++
++# ---------------------------------------------------------------------------
++# Budget.Expenses sheet -> budget line items
++# ---------------------------------------------------------------------------
++
++def parse_budget(ws):
++    items = []
++    rows = list(ws.iter_rows(values_only=True))
++    order_index = 0
++    for row in rows[1:]:  # skip column-header row
++        row = list(row) + [None] * (6 - len(row))
++        month, income_actual, expenses_actual, expenses_projected, related_files, notes = row[:6]
++
++        # Skip the trailing totals row: it has no month and no notes, only sums.
++        if not clean(month) and not clean(notes):
++            continue
++
++        if not any([clean(month), clean_float(income_actual), clean_float(expenses_actual),
++                    clean_float(expenses_projected), clean(related_files), clean(notes)]):
++            continue
++
++        items.append(KidzCornerBudgetItem(
++            month=clean(month),
++            income_actual=clean_float(income_actual),
++            expenses_actual=clean_float(expenses_actual),
++            expenses_projected=clean_float(expenses_projected),
++            related_files=clean(related_files),
++            notes=clean(notes),
++            order_index=order_index,
++        ))
++        order_index += 1
++    return items
++
++
++# ---------------------------------------------------------------------------
++# Day sheets (Friday Night / Saturday Morning / Saturday Night / Sunday Morning)
++# -> schedule items + an optional trailing craft block
++# ---------------------------------------------------------------------------
++
++def parse_day_sheet(ws, day_name):
++    items = []
++    crafts = []
++    rows = list(ws.iter_rows(values_only=True))
++    data_rows = skip_to_data(rows, {"time"})
++
++    order_index = 0
++    craft = None
++
++    for row in data_rows:
++        row = list(row) + [None] * (5 - len(row))
++        c0, c1, c2, c3, c4 = row[:5]
++
++        if not any(clean(c) for c in (c0, c1, c2, c3, c4)):
++            continue  # blank row
++
++        first_text = clean(c0)
++
++        if first_text and first_text.lower().startswith("craft"):
++            if craft is not None:
++                crafts.append(craft)
++            craft = KidzCornerCraft(
++                day=day_name,
++                title=after_colon(first_text) or first_text,
++                order_index=len(crafts),
++            )
++            continue
++
++        if craft is not None and first_text:
++            low = first_text.lower()
++            if low.startswith("materials"):
++                craft.materials = after_colon(first_text)
++            elif low.startswith("how-to") or low.startswith("how to"):
++                craft.how_to = after_colon(first_text)
++            elif low.startswith("ages"):
++                craft.ages = after_colon(first_text)
++            elif low.startswith("things to bring"):
++                craft.things_to_bring = after_colon(first_text)
++            continue
++
++        # A normal schedule data row: Time, Activity, Volunteers Needed, Items Needed, Notes
++        time_val, activity, vol_needed, items_needed, notes = c0, c1, c2, c3, c4
++        if not clean(activity):
++            continue
++
++        items.append(KidzCornerScheduleItem(
++            day=day_name,
++            time=clean(time_val),
++            activity=clean(activity),
++            volunteers_needed=clean(vol_needed),
++            items_needed=clean(items_needed),
++            notes=clean(notes),
++            order_index=order_index,
++        ))
++        order_index += 1
++
++    if craft is not None:
++        crafts.append(craft)
++
++    return items, crafts
++
++
++# ---------------------------------------------------------------------------
++# AudioVideo sheet -> AV links, grouped under whichever header row precedes them
++# ---------------------------------------------------------------------------
++
++def parse_audiovideo(ws):
++    links = []
++    current_category = "Action Song List"
++    order_index = 0
++    for row in ws.iter_rows(values_only=True):
++        row = list(row) + [None] * (2 - len(row))
++        label, url = row[:2]
++        label = clean(label)
++        url = clean(url)
++        if not label:
++            continue
++        if not url:
++            # A row with only a label and no URL is a category header, e.g.
++            # "Action Song List:" or "Dance Party".
++            current_category = label.rstrip(":").strip()
++            continue
++        links.append(KidzCornerAVLink(
++            category=current_category,
++            label=label,
++            url=url,
++            order_index=order_index,
++        ))
++        order_index += 1
++    return links
++
++
++def migrate(xlsx_path, clear=False):
++    # 1. Load the workbook FIRST so a bad file never touches the database.
++    try:
++        wb = openpyxl.load_workbook(xlsx_path, data_only=True)
++    except Exception as e:
++        print(f"Error: could not open '{xlsx_path}': {e}")
++        return
++
++    missing = [s for s in REQUIRED_SHEETS if s not in wb.sheetnames]
++    if missing:
++        print(f"Error: workbook is missing expected sheet(s): {missing}. Aborting.")
++        return
++
++    volunteers, kids = parse_people(wb["People"])
++    template_items = parse_template_schedule(wb["Template of Schedule"])
++    budget_items = parse_budget(wb["Budget.Expenses"])
++
++    schedule_items = list(template_items)
++    crafts = []
++    for day_name in DAY_SHEETS:
++        day_items, day_crafts = parse_day_sheet(wb[day_name], day_name)
++        schedule_items.extend(day_items)
++        crafts.extend(day_crafts)
++
++    av_links = parse_audiovideo(wb["AudioVideo"])
++
++    print(
++        f"Parsed from workbook: {len(volunteers)} volunteers, {len(kids)} kids, "
++        f"{len(schedule_items)} schedule items, {len(crafts)} crafts, "
++        f"{len(budget_items)} budget lines, {len(av_links)} AV links."
++    )
++
++    if not any([volunteers, kids, schedule_items, crafts, budget_items, av_links]):
++        print("Nothing parsed from the workbook — aborting without touching the database.")
++        return
++
++    # 2. Only now touch the database.
++    app = create_app()
++    with app.app_context():
++        db.create_all()
++
++        if clear:
++            deleted = (
++                KidzCornerVolunteer.query.delete(),
++                KidzCornerKid.query.delete(),
++                KidzCornerScheduleItem.query.delete(),
++                KidzCornerCraft.query.delete(),
++                KidzCornerBudgetItem.query.delete(),
++                KidzCornerAVLink.query.delete(),
++            )
++            db.session.commit()
++            print(
++                f"Cleared existing rows: {deleted[0]} volunteers, {deleted[1]} kids, "
++                f"{deleted[2]} schedule items, {deleted[3]} crafts, "
++                f"{deleted[4]} budget lines, {deleted[5]} AV links."
++            )
++
++        db.session.add_all(volunteers)
++        db.session.add_all(kids)
++        db.session.add_all(schedule_items)
++        db.session.add_all(crafts)
++        db.session.add_all(budget_items)
++        db.session.add_all(av_links)
++        db.session.commit()
++
++    print("Migration complete.")
++    print(f"  Volunteers:     {len(volunteers)}")
++    print(f"  Kids:           {len(kids)}")
++    print(f"  Schedule items: {len(schedule_items)}")
++    print(f"  Crafts:         {len(crafts)}")
++    print(f"  Budget lines:   {len(budget_items)}")
++    print(f"  AV links:       {len(av_links)}")
++
++
++if __name__ == "__main__":
++    parser = argparse.ArgumentParser(description="Migrate the Kidz Corner Excel workbook into the app's database.")
++    parser.add_argument("xlsx_path", help="Path to Kidz_Corner_Schedule.xlsx")
++    parser.add_argument("--clear", action="store_true",
++                         help="Delete existing Kidz Corner rows before importing (use for a clean re-import).")
++    args = parser.parse_args()
++    xlsx_abspath = os.path.abspath(args.xlsx_path)
++    migrate(xlsx_abspath, clear=args.clear)
+diff --git a/backend/models/__init__.py b/backend/models/__init__.py
+index 2cda868..bc01347 100644
+--- a/backend/models/__init__.py
++++ b/backend/models/__init__.py
+@@ -16,4 +16,12 @@ from .run_of_show import RunOfShowBlock
+ from .roster_team import RosterTeam
+ from .setup_task import SetupTask
+ from .contingency_plan import ContingencyPlan
++from .kidz_corner import (
++    KidzCornerVolunteer,
++    KidzCornerKid,
++    KidzCornerScheduleItem,
++    KidzCornerCraft,
++    KidzCornerBudgetItem,
++    KidzCornerAVLink,
++)
+ 
+diff --git a/backend/models/kidz_corner.py b/backend/models/kidz_corner.py
+new file mode 100644
+index 0000000..3bc4a3e
+--- /dev/null
++++ b/backend/models/kidz_corner.py
+@@ -0,0 +1,164 @@
++from db import db
++from datetime import datetime
++
++
++class KidzCornerVolunteer(db.Model):
++    """Kidz Corner volunteer roster (Lead, Action Song, Puppet, AV setup, etc)."""
++    __tablename__ = "kidz_corner_volunteers"
++
++    id = db.Column(db.Integer, primary_key=True)
++    name = db.Column(db.String(150), nullable=False)
++    assignment = db.Column(db.String(150), nullable=True)
++    order_index = db.Column(db.Integer, nullable=False, default=0)
++
++    created_at = db.Column(db.DateTime, default=datetime.utcnow)
++    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "name": self.name,
++            "assignment": self.assignment,
++            "order_index": self.order_index,
++        }
++
++
++class KidzCornerKid(db.Model):
++    """Kids registered for Kidz Corner (name, age, allergies/notes)."""
++    __tablename__ = "kidz_corner_kids"
++
++    id = db.Column(db.Integer, primary_key=True)
++    name = db.Column(db.String(150), nullable=False)
++    age = db.Column(db.Integer, nullable=True)
++    allergies = db.Column(db.Text, nullable=True)
++    order_index = db.Column(db.Integer, nullable=False, default=0)
++
++    created_at = db.Column(db.DateTime, default=datetime.utcnow)
++    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "name": self.name,
++            "age": self.age,
++            "allergies": self.allergies,
++            "order_index": self.order_index,
++        }
++
++
++class KidzCornerScheduleItem(db.Model):
++    """
++    Kidz Corner run-of-show, one row per activity block.
++
++    `day` groups rows into the session they belong to, e.g. "Template",
++    "Friday Night", "Saturday Morning", "Saturday Night", "Sunday Morning" -
++    matching the tabs/sheets in the original planning workbook.
++    """
++    __tablename__ = "kidz_corner_schedule_items"
++
++    id = db.Column(db.Integer, primary_key=True)
++    day = db.Column(db.String(50), nullable=False)
++    date = db.Column(db.String(50), nullable=True)  # e.g. "2026-08-14", free-text ok
++    time = db.Column(db.String(50), nullable=True)  # e.g. "9:15-9:30 AM"
++    activity = db.Column(db.String(150), nullable=False)
++    volunteers_needed = db.Column(db.String(255), nullable=True)
++    items_needed = db.Column(db.Text, nullable=True)
++    notes = db.Column(db.Text, nullable=True)
++    order_index = db.Column(db.Integer, nullable=False, default=0)
++
++    created_at = db.Column(db.DateTime, default=datetime.utcnow)
++    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "day": self.day,
++            "date": self.date,
++            "time": self.time,
++            "activity": self.activity,
++            "volunteers_needed": self.volunteers_needed,
++            "items_needed": self.items_needed,
++            "notes": self.notes,
++            "order_index": self.order_index,
++        }
++
++
++class KidzCornerCraft(db.Model):
++    """Craft/activity instructions tied to a specific Kidz Corner session."""
++    __tablename__ = "kidz_corner_crafts"
++
++    id = db.Column(db.Integer, primary_key=True)
++    day = db.Column(db.String(50), nullable=False)
++    title = db.Column(db.String(255), nullable=True)
++    materials = db.Column(db.Text, nullable=True)
++    how_to = db.Column(db.Text, nullable=True)
++    ages = db.Column(db.Text, nullable=True)
++    things_to_bring = db.Column(db.Text, nullable=True)
++    order_index = db.Column(db.Integer, nullable=False, default=0)
++
++    created_at = db.Column(db.DateTime, default=datetime.utcnow)
++    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "day": self.day,
++            "title": self.title,
++            "materials": self.materials,
++            "how_to": self.how_to,
++            "ages": self.ages,
++            "things_to_bring": self.things_to_bring,
++            "order_index": self.order_index,
++        }
++
++
++class KidzCornerBudgetItem(db.Model):
++    """Kidz Corner budget/expense line items, mirroring the Budget.Expenses sheet."""
++    __tablename__ = "kidz_corner_budget_items"
++
++    id = db.Column(db.Integer, primary_key=True)
++    month = db.Column(db.String(50), nullable=True)
++    income_actual = db.Column(db.Float, nullable=True)
++    expenses_actual = db.Column(db.Float, nullable=True)
++    expenses_projected = db.Column(db.Float, nullable=True)
++    related_files = db.Column(db.String(255), nullable=True)
++    notes = db.Column(db.Text, nullable=True)
++    order_index = db.Column(db.Integer, nullable=False, default=0)
++
++    created_at = db.Column(db.DateTime, default=datetime.utcnow)
++    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "month": self.month,
++            "income_actual": self.income_actual,
++            "expenses_actual": self.expenses_actual,
++            "expenses_projected": self.expenses_projected,
++            "related_files": self.related_files,
++            "notes": self.notes,
++            "order_index": self.order_index,
++        }
++
++
++class KidzCornerAVLink(db.Model):
++    """Audio/Video reference links (action songs, dance party, background music)."""
++    __tablename__ = "kidz_corner_av_links"
++
++    id = db.Column(db.Integer, primary_key=True)
++    category = db.Column(db.String(100), nullable=False, default="Action Song List")
++    label = db.Column(db.String(255), nullable=False)
++    url = db.Column(db.String(500), nullable=True)
++    order_index = db.Column(db.Integer, nullable=False, default=0)
++
++    created_at = db.Column(db.DateTime, default=datetime.utcnow)
++    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "category": self.category,
++            "label": self.label,
++            "url": self.url,
++            "order_index": self.order_index,
++        }
+diff --git a/backend/routes/kidz_corner.py b/backend/routes/kidz_corner.py
+new file mode 100644
+index 0000000..fc7e249
+--- /dev/null
++++ b/backend/routes/kidz_corner.py
+@@ -0,0 +1,388 @@
++from flask import Blueprint, request, jsonify
++from flask_jwt_extended import jwt_required
++from models import (
++    KidzCornerVolunteer,
++    KidzCornerKid,
++    KidzCornerScheduleItem,
++    KidzCornerCraft,
++    KidzCornerBudgetItem,
++    KidzCornerAVLink,
++)
++from db import db
++from utils.permissions import require_page_permission
++from utils.logging import log_action
++
++kidz_corner_bp = Blueprint("kidz_corner", __name__)
++
++PAGE_KEY = "kidz_corner"
++
++
++# ---------------------------------------------------------------------------
++# Volunteers
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/volunteers", methods=["GET"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "read")
++def list_volunteers():
++    rows = KidzCornerVolunteer.query.order_by(
++        KidzCornerVolunteer.order_index.asc(), KidzCornerVolunteer.id.asc()
++    ).all()
++    return jsonify({"volunteers": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/volunteers", methods=["POST"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def create_volunteer():
++    data = request.get_json() or {}
++    if not data.get("name"):
++        return jsonify({"error": "Name is required"}), 400
++    row = KidzCornerVolunteer(
++        name=data["name"].strip(),
++        assignment=data.get("assignment"),
++        order_index=data.get("order_index", 0),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("CREATE_KIDZ_CORNER_VOLUNTEER", f"Added volunteer '{row.name}'")
++    return jsonify({"volunteer": row.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/volunteers/<int:row_id>", methods=["PUT"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def update_volunteer(row_id):
++    row = KidzCornerVolunteer.query.get_or_404(row_id)
++    data = request.get_json() or {}
++    for field in ["name", "assignment"]:
++        if field in data:
++            setattr(row, field, data[field])
++    if "order_index" in data:
++        row.order_index = data["order_index"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_VOLUNTEER", f"Updated volunteer '{row.name}' (ID: {row.id})")
++    return jsonify({"volunteer": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/volunteers/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def delete_volunteer(row_id):
++    row = KidzCornerVolunteer.query.get_or_404(row_id)
++    name = row.name
++    db.session.delete(row)
++    db.session.commit()
++    log_action("DELETE_KIDZ_CORNER_VOLUNTEER", f"Deleted volunteer '{name}' (ID: {row_id})")
++    return jsonify({"message": "Volunteer deleted"}), 200
++
++
++# ---------------------------------------------------------------------------
++# Kids
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/kids", methods=["GET"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "read")
++def list_kids():
++    rows = KidzCornerKid.query.order_by(
++        KidzCornerKid.order_index.asc(), KidzCornerKid.id.asc()
++    ).all()
++    return jsonify({"kids": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/kids", methods=["POST"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def create_kid():
++    data = request.get_json() or {}
++    if not data.get("name"):
++        return jsonify({"error": "Name is required"}), 400
++    row = KidzCornerKid(
++        name=data["name"].strip(),
++        age=data.get("age"),
++        allergies=data.get("allergies"),
++        order_index=data.get("order_index", 0),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("CREATE_KIDZ_CORNER_KID", f"Added kid '{row.name}'")
++    return jsonify({"kid": row.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/kids/<int:row_id>", methods=["PUT"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def update_kid(row_id):
++    row = KidzCornerKid.query.get_or_404(row_id)
++    data = request.get_json() or {}
++    for field in ["name", "age", "allergies"]:
++        if field in data:
++            setattr(row, field, data[field])
++    if "order_index" in data:
++        row.order_index = data["order_index"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_KID", f"Updated kid '{row.name}' (ID: {row.id})")
++    return jsonify({"kid": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/kids/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def delete_kid(row_id):
++    row = KidzCornerKid.query.get_or_404(row_id)
++    name = row.name
++    db.session.delete(row)
++    db.session.commit()
++    log_action("DELETE_KIDZ_CORNER_KID", f"Deleted kid '{name}' (ID: {row_id})")
++    return jsonify({"message": "Kid deleted"}), 200
++
++
++# ---------------------------------------------------------------------------
++# Schedule items
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/schedule", methods=["GET"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "read")
++def list_schedule():
++    rows = KidzCornerScheduleItem.query.order_by(
++        KidzCornerScheduleItem.day.asc(), KidzCornerScheduleItem.order_index.asc(), KidzCornerScheduleItem.id.asc()
++    ).all()
++    return jsonify({"items": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/schedule", methods=["POST"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def create_schedule_item():
++    data = request.get_json() or {}
++    if not data.get("day") or not data.get("activity"):
++        return jsonify({"error": "Day and activity are required"}), 400
++    row = KidzCornerScheduleItem(
++        day=data["day"].strip(),
++        date=data.get("date"),
++        time=data.get("time"),
++        activity=data["activity"].strip(),
++        volunteers_needed=data.get("volunteers_needed"),
++        items_needed=data.get("items_needed"),
++        notes=data.get("notes"),
++        order_index=data.get("order_index", 0),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("CREATE_KIDZ_CORNER_SCHEDULE_ITEM", f"Added schedule item '{row.activity}' on {row.day}")
++    return jsonify({"item": row.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/schedule/<int:row_id>", methods=["PUT"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def update_schedule_item(row_id):
++    row = KidzCornerScheduleItem.query.get_or_404(row_id)
++    data = request.get_json() or {}
++    for field in ["day", "date", "time", "activity", "volunteers_needed", "items_needed", "notes"]:
++        if field in data:
++            setattr(row, field, data[field])
++    if "order_index" in data:
++        row.order_index = data["order_index"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_SCHEDULE_ITEM", f"Updated schedule item '{row.activity}' (ID: {row.id})")
++    return jsonify({"item": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/schedule/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def delete_schedule_item(row_id):
++    row = KidzCornerScheduleItem.query.get_or_404(row_id)
++    activity = row.activity
++    db.session.delete(row)
++    db.session.commit()
++    log_action("DELETE_KIDZ_CORNER_SCHEDULE_ITEM", f"Deleted schedule item '{activity}' (ID: {row_id})")
++    return jsonify({"message": "Schedule item deleted"}), 200
++
++
++# ---------------------------------------------------------------------------
++# Crafts
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/crafts", methods=["GET"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "read")
++def list_crafts():
++    rows = KidzCornerCraft.query.order_by(
++        KidzCornerCraft.day.asc(), KidzCornerCraft.order_index.asc(), KidzCornerCraft.id.asc()
++    ).all()
++    return jsonify({"crafts": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/crafts", methods=["POST"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def create_craft():
++    data = request.get_json() or {}
++    if not data.get("day"):
++        return jsonify({"error": "Day is required"}), 400
++    row = KidzCornerCraft(
++        day=data["day"].strip(),
++        title=data.get("title"),
++        materials=data.get("materials"),
++        how_to=data.get("how_to"),
++        ages=data.get("ages"),
++        things_to_bring=data.get("things_to_bring"),
++        order_index=data.get("order_index", 0),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("CREATE_KIDZ_CORNER_CRAFT", f"Added craft for {row.day}")
++    return jsonify({"craft": row.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/crafts/<int:row_id>", methods=["PUT"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def update_craft(row_id):
++    row = KidzCornerCraft.query.get_or_404(row_id)
++    data = request.get_json() or {}
++    for field in ["day", "title", "materials", "how_to", "ages", "things_to_bring"]:
++        if field in data:
++            setattr(row, field, data[field])
++    if "order_index" in data:
++        row.order_index = data["order_index"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_CRAFT", f"Updated craft (ID: {row.id})")
++    return jsonify({"craft": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/crafts/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def delete_craft(row_id):
++    row = KidzCornerCraft.query.get_or_404(row_id)
++    db.session.delete(row)
++    db.session.commit()
++    log_action("DELETE_KIDZ_CORNER_CRAFT", f"Deleted craft (ID: {row_id})")
++    return jsonify({"message": "Craft deleted"}), 200
++
++
++# ---------------------------------------------------------------------------
++# Budget
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/budget", methods=["GET"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "read")
++def list_budget():
++    rows = KidzCornerBudgetItem.query.order_by(
++        KidzCornerBudgetItem.order_index.asc(), KidzCornerBudgetItem.id.asc()
++    ).all()
++    return jsonify({"items": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/budget", methods=["POST"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def create_budget_item():
++    data = request.get_json() or {}
++    row = KidzCornerBudgetItem(
++        month=data.get("month"),
++        income_actual=data.get("income_actual"),
++        expenses_actual=data.get("expenses_actual"),
++        expenses_projected=data.get("expenses_projected"),
++        related_files=data.get("related_files"),
++        notes=data.get("notes"),
++        order_index=data.get("order_index", 0),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("CREATE_KIDZ_CORNER_BUDGET_ITEM", f"Added budget line '{row.notes or row.month}'")
++    return jsonify({"item": row.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/budget/<int:row_id>", methods=["PUT"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def update_budget_item(row_id):
++    row = KidzCornerBudgetItem.query.get_or_404(row_id)
++    data = request.get_json() or {}
++    for field in ["month", "income_actual", "expenses_actual", "expenses_projected", "related_files", "notes"]:
++        if field in data:
++            setattr(row, field, data[field])
++    if "order_index" in data:
++        row.order_index = data["order_index"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_BUDGET_ITEM", f"Updated budget line (ID: {row.id})")
++    return jsonify({"item": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/budget/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def delete_budget_item(row_id):
++    row = KidzCornerBudgetItem.query.get_or_404(row_id)
++    db.session.delete(row)
++    db.session.commit()
++    log_action("DELETE_KIDZ_CORNER_BUDGET_ITEM", f"Deleted budget line (ID: {row_id})")
++    return jsonify({"message": "Budget line deleted"}), 200
++
++
++# ---------------------------------------------------------------------------
++# Audio/Video links
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/av-links", methods=["GET"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "read")
++def list_av_links():
++    rows = KidzCornerAVLink.query.order_by(
++        KidzCornerAVLink.order_index.asc(), KidzCornerAVLink.id.asc()
++    ).all()
++    return jsonify({"links": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/av-links", methods=["POST"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def create_av_link():
++    data = request.get_json() or {}
++    if not data.get("label"):
++        return jsonify({"error": "Label is required"}), 400
++    row = KidzCornerAVLink(
++        category=data.get("category", "Action Song List"),
++        label=data["label"].strip(),
++        url=data.get("url"),
++        order_index=data.get("order_index", 0),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("CREATE_KIDZ_CORNER_AV_LINK", f"Added AV link '{row.label}'")
++    return jsonify({"link": row.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/av-links/<int:row_id>", methods=["PUT"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def update_av_link(row_id):
++    row = KidzCornerAVLink.query.get_or_404(row_id)
++    data = request.get_json() or {}
++    for field in ["category", "label", "url"]:
++        if field in data:
++            setattr(row, field, data[field])
++    if "order_index" in data:
++        row.order_index = data["order_index"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_AV_LINK", f"Updated AV link '{row.label}' (ID: {row.id})")
++    return jsonify({"link": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/av-links/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(PAGE_KEY, "edit")
++def delete_av_link(row_id):
++    row = KidzCornerAVLink.query.get_or_404(row_id)
++    label = row.label
++    db.session.delete(row)
++    db.session.commit()
++    log_action("DELETE_KIDZ_CORNER_AV_LINK", f"Deleted AV link '{label}' (ID: {row_id})")
++    return jsonify({"message": "AV link deleted"}), 200
+diff --git a/backend/routes/permissions.py b/backend/routes/permissions.py
+index 6fc2bad..ed11ee7 100644
+--- a/backend/routes/permissions.py
++++ b/backend/routes/permissions.py
+@@ -23,7 +23,8 @@ DEFAULT_PERMISSIONS = {
+         "receipt_upload": "edit",
+         "camp_info": "edit",
+         "retreat_ops": "edit",
+-        "registration_config": "edit"
++        "registration_config": "edit",
++        "kidz_corner": "edit"
+     },
+     "admin": {
+         "dashboard": "read",
+@@ -41,7 +42,8 @@ DEFAULT_PERMISSIONS = {
+         "receipt_upload": "edit",
+         "camp_info": "read",
+         "retreat_ops": "edit",
+-        "registration_config": "edit"
++        "registration_config": "edit",
++        "kidz_corner": "edit"
+     },
+     "director": {
+         "dashboard": "read",
+@@ -59,7 +61,8 @@ DEFAULT_PERMISSIONS = {
+         "receipt_upload": "hide",
+         "camp_info": "read",
+         "retreat_ops": "edit",
+-        "registration_config": "hide"
++        "registration_config": "hide",
++        "kidz_corner": "edit"
+     },
+     "user": {
+         "dashboard": "read",
+@@ -77,7 +80,8 @@ DEFAULT_PERMISSIONS = {
+         "receipt_upload": "hide",
+         "camp_info": "read",
+         "retreat_ops": "hide",
+-        "registration_config": "hide"
++        "registration_config": "hide",
++        "kidz_corner": "read"
+     },
+     "finance": {
+         "dashboard": "read",
+@@ -95,7 +99,8 @@ DEFAULT_PERMISSIONS = {
+         "receipt_upload": "edit",
+         "camp_info": "read",
+         "retreat_ops": "hide",
+-        "registration_config": "hide"
++        "registration_config": "hide",
++        "kidz_corner": "hide"
+     }
+ }
+ 
+diff --git a/frontend/src/App.js b/frontend/src/App.js
+index c6f21ec..986f361 100644
+--- a/frontend/src/App.js
++++ b/frontend/src/App.js
+@@ -19,6 +19,7 @@ import CampInfoPage from "./pages/CampInfoPage";
+ import TeamsPage from "./pages/TeamsPage";
+ import RetreatOpsPage from "./pages/RetreatOpsPage";
+ import RegistrationConfigPage from "./pages/RegistrationConfigPage";
++import KidzCornerPage from "./pages/KidzCornerPage";
+ 
+ 
+ function RequireAuth({ children }) {
+@@ -66,6 +67,7 @@ function AppRoutes() {
+         <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
+         <Route path="camp-info" element={<RequirePermission pageKey="camp_info"><CampInfoPage /></RequirePermission>} />
+         <Route path="registration-config" element={<RequirePermission pageKey="registration_config"><RegistrationConfigPage /></RequirePermission>} />
++        <Route path="kidz-corner" element={<RequirePermission pageKey="kidz_corner"><KidzCornerPage /></RequirePermission>} />
+       </Route>
+       <Route path="*" element={<Navigate to="/" replace />} />
+     </Routes>
+diff --git a/frontend/src/components/AppShell.js b/frontend/src/components/AppShell.js
+index 1d4433f..5b75ccf 100644
+--- a/frontend/src/components/AppShell.js
++++ b/frontend/src/components/AppShell.js
+@@ -17,6 +17,7 @@ const navItems = [
+   { to: "/cabins",  icon: "⛺", label: "Cabins", pageKey: "cabins" },
+   { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
+   { to: "/retreat-ops", icon: "⛺", label: "Retreat Ops", pageKey: "retreat_ops" },
++  { to: "/kidz-corner", icon: "🧸", label: "Kidz Corner", pageKey: "kidz_corner" },
+   { to: "/outdoor", icon: "🛶", label: "Outdoor Activities", pageKey: "outdoor" },
+   { to: "/tshirts", icon: "👕", label: "Apparel", pageKey: "apparel" },
+   { to: "/camp-info", icon: "ℹ️", label: "Camp Info", pageKey: "camp_info" },
+diff --git a/frontend/src/pages/KidzCornerPage.js b/frontend/src/pages/KidzCornerPage.js
+new file mode 100644
+index 0000000..ff64e34
+--- /dev/null
++++ b/frontend/src/pages/KidzCornerPage.js
+@@ -0,0 +1,871 @@
++import React, { useEffect, useState } from "react";
++import api from "../utils/api";
++import { useAuth } from "../context/AuthContext";
++
++const DAY_OPTIONS = [
++  "Template",
++  "Friday Night",
++  "Saturday Morning",
++  "Saturday Night",
++  "Sunday Morning",
++];
++
++function Section({ title, children, action }) {
++  return (
++    <div className="card" style={{ marginBottom: 24 }}>
++      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
++        <h3 style={{ margin: 0 }}>{title}</h3>
++        {action}
++      </div>
++      {children}
++    </div>
++  );
++}
++
++const IconBtn = ({ onClick, danger, title, children }) => (
++  <button
++    onClick={onClick}
++    title={title}
++    style={{
++      border: `1px solid ${danger ? "#B02A2A" : "var(--border)"}`,
++      color: danger ? "#B02A2A" : "var(--charcoal)",
++      background: "var(--white)", borderRadius: 6, width: 30, height: 30,
++      display: "inline-flex", alignItems: "center", justifyContent: "center",
++      fontSize: "0.85rem", cursor: "pointer", flexShrink: 0,
++    }}
++  >
++    {children}
++  </button>
++);
++
++const inputStyle = {
++  width: "100%", padding: "7px 10px", border: "1px solid var(--border)",
++  borderRadius: 6, fontSize: "0.85rem", fontFamily: "inherit",
++};
++
++const Field = ({ label, children }) => (
++  <div style={{ minWidth: 160, flex: "1 1 160px" }}>
++    <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--muted)", fontWeight: 700, marginBottom: 4 }}>
++      {label}
++    </div>
++    {children}
++  </div>
++);
++
++const FormRow = ({ children }) => (
++  <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>{children}</div>
++);
++
++const FormActions = ({ onSave, onCancel }) => (
++  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
++    <button className="btn btn-ghost" style={{ padding: "6px 14px" }} onClick={onCancel}>Cancel</button>
++    <button className="btn btn-primary" style={{ padding: "6px 16px" }} onClick={onSave}>Save</button>
++  </div>
++);
++
++export default function KidzCornerPage() {
++  const { hasPermission } = useAuth();
++  const canEdit = hasPermission("kidz_corner", "edit");
++
++  const [tab, setTab] = useState("people");
++  const [scheduleDay, setScheduleDay] = useState("Template");
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState("");
++  const [flash, setFlash] = useState(null);
++
++  const [volunteers, setVolunteers] = useState([]);
++  const [kids, setKids] = useState([]);
++  const [scheduleItems, setScheduleItems] = useState([]);
++  const [crafts, setCrafts] = useState([]);
++  const [budgetItems, setBudgetItems] = useState([]);
++  const [avLinks, setAvLinks] = useState([]);
++
++  const [newVolunteer, setNewVolunteer] = useState(null);
++  const [editVolunteerId, setEditVolunteerId] = useState(null);
++  const [editVolunteerDraft, setEditVolunteerDraft] = useState(null);
++
++  const [newKid, setNewKid] = useState(null);
++  const [editKidId, setEditKidId] = useState(null);
++  const [editKidDraft, setEditKidDraft] = useState(null);
++
++  const [newScheduleItem, setNewScheduleItem] = useState(null);
++  const [editScheduleId, setEditScheduleId] = useState(null);
++  const [editScheduleDraft, setEditScheduleDraft] = useState(null);
++
++  const [newCraft, setNewCraft] = useState(null);
++  const [editCraftId, setEditCraftId] = useState(null);
++  const [editCraftDraft, setEditCraftDraft] = useState(null);
++
++  const [newBudgetItem, setNewBudgetItem] = useState(null);
++  const [editBudgetId, setEditBudgetId] = useState(null);
++  const [editBudgetDraft, setEditBudgetDraft] = useState(null);
++
++  const [newAvLink, setNewAvLink] = useState(null);
++  const [editAvLinkId, setEditAvLinkId] = useState(null);
++  const [editAvLinkDraft, setEditAvLinkDraft] = useState(null);
++
++  const showFlash = (type, text) => {
++    setFlash({ type, text });
++    setTimeout(() => setFlash(null), 3000);
++  };
++
++  const fetchAll = () => {
++    setLoading(true);
++    setError("");
++    Promise.all([
++      api.get("/api/kidz-corner/volunteers"),
++      api.get("/api/kidz-corner/kids"),
++      api.get("/api/kidz-corner/schedule"),
++      api.get("/api/kidz-corner/crafts"),
++      api.get("/api/kidz-corner/budget"),
++      api.get("/api/kidz-corner/av-links"),
++    ])
++      .then(([a, b, c, d, e, f]) => {
++        setVolunteers(a.data.volunteers || []);
++        setKids(b.data.kids || []);
++        setScheduleItems(c.data.items || []);
++        setCrafts(d.data.crafts || []);
++        setBudgetItems(e.data.items || []);
++        setAvLinks(f.data.links || []);
++      })
++      .catch(() => setError("Failed to load Kidz Corner data."))
++      .finally(() => setLoading(false));
++  };
++
++  useEffect(() => { fetchAll(); }, []);
++
++  // ---- Volunteers ----
++  const blankVolunteer = () => ({ name: "", assignment: "" });
++
++  const saveNewVolunteer = async () => {
++    try {
++      await api.post("/api/kidz-corner/volunteers", newVolunteer);
++      setNewVolunteer(null);
++      showFlash("success", "Volunteer added.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to add volunteer.");
++    }
++  };
++
++  const saveVolunteer = async (v) => {
++    try {
++      await api.put(`/api/kidz-corner/volunteers/${v.id}`, v);
++      setEditVolunteerId(null);
++      setEditVolunteerDraft(null);
++      showFlash("success", "Volunteer updated.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to update volunteer.");
++    }
++  };
++
++  const deleteVolunteer = async (id) => {
++    if (!await window.confirm("Remove this volunteer?")) return;
++    try {
++      await api.delete(`/api/kidz-corner/volunteers/${id}`);
++      showFlash("success", "Volunteer removed.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to remove volunteer.");
++    }
++  };
++
++  // ---- Kids ----
++  const blankKid = () => ({ name: "", age: "", allergies: "" });
++
++  const saveNewKid = async () => {
++    try {
++      await api.post("/api/kidz-corner/kids", newKid);
++      setNewKid(null);
++      showFlash("success", "Kid added.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to add kid.");
++    }
++  };
++
++  const saveKid = async (k) => {
++    try {
++      await api.put(`/api/kidz-corner/kids/${k.id}`, k);
++      setEditKidId(null);
++      setEditKidDraft(null);
++      showFlash("success", "Kid updated.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to update kid.");
++    }
++  };
++
++  const deleteKid = async (id) => {
++    if (!await window.confirm("Remove this kid?")) return;
++    try {
++      await api.delete(`/api/kidz-corner/kids/${id}`);
++      showFlash("success", "Kid removed.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to remove kid.");
++    }
++  };
++
++  // ---- Schedule ----
++  const blankScheduleItem = (day) => ({
++    day: day || scheduleDay, date: "", time: "", activity: "",
++    volunteers_needed: "", items_needed: "", notes: "",
++  });
++
++  const saveNewScheduleItem = async () => {
++    try {
++      await api.post("/api/kidz-corner/schedule", newScheduleItem);
++      setNewScheduleItem(null);
++      showFlash("success", "Schedule item added.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to add schedule item.");
++    }
++  };
++
++  const saveScheduleItem = async (item) => {
++    try {
++      await api.put(`/api/kidz-corner/schedule/${item.id}`, item);
++      setEditScheduleId(null);
++      setEditScheduleDraft(null);
++      showFlash("success", "Schedule item updated.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to update schedule item.");
++    }
++  };
++
++  const deleteScheduleItem = async (id) => {
++    if (!await window.confirm("Delete this schedule item?")) return;
++    try {
++      await api.delete(`/api/kidz-corner/schedule/${id}`);
++      showFlash("success", "Schedule item deleted.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to delete schedule item.");
++    }
++  };
++
++  // ---- Crafts ----
++  const blankCraft = (day) => ({
++    day: day || scheduleDay, title: "", materials: "", how_to: "", ages: "", things_to_bring: "",
++  });
++
++  const saveNewCraft = async () => {
++    try {
++      await api.post("/api/kidz-corner/crafts", newCraft);
++      setNewCraft(null);
++      showFlash("success", "Craft added.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to add craft.");
++    }
++  };
++
++  const saveCraft = async (c) => {
++    try {
++      await api.put(`/api/kidz-corner/crafts/${c.id}`, c);
++      setEditCraftId(null);
++      setEditCraftDraft(null);
++      showFlash("success", "Craft updated.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to update craft.");
++    }
++  };
++
++  const deleteCraft = async (id) => {
++    if (!await window.confirm("Delete this craft?")) return;
++    try {
++      await api.delete(`/api/kidz-corner/crafts/${id}`);
++      showFlash("success", "Craft deleted.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to delete craft.");
++    }
++  };
++
++  // ---- Budget ----
++  const blankBudgetItem = () => ({
++    month: "", income_actual: "", expenses_actual: "", expenses_projected: "", related_files: "", notes: "",
++  });
++
++  const saveNewBudgetItem = async () => {
++    try {
++      await api.post("/api/kidz-corner/budget", newBudgetItem);
++      setNewBudgetItem(null);
++      showFlash("success", "Budget line added.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to add budget line.");
++    }
++  };
++
++  const saveBudgetItem = async (b) => {
++    try {
++      await api.put(`/api/kidz-corner/budget/${b.id}`, b);
++      setEditBudgetId(null);
++      setEditBudgetDraft(null);
++      showFlash("success", "Budget line updated.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to update budget line.");
++    }
++  };
++
++  const deleteBudgetItem = async (id) => {
++    if (!await window.confirm("Delete this budget line?")) return;
++    try {
++      await api.delete(`/api/kidz-corner/budget/${id}`);
++      showFlash("success", "Budget line deleted.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to delete budget line.");
++    }
++  };
++
++  // ---- AV Links ----
++  const blankAvLink = () => ({ category: "Action Song List", label: "", url: "" });
++
++  const saveNewAvLink = async () => {
++    try {
++      await api.post("/api/kidz-corner/av-links", newAvLink);
++      setNewAvLink(null);
++      showFlash("success", "Link added.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to add link.");
++    }
++  };
++
++  const saveAvLink = async (l) => {
++    try {
++      await api.put(`/api/kidz-corner/av-links/${l.id}`, l);
++      setEditAvLinkId(null);
++      setEditAvLinkDraft(null);
++      showFlash("success", "Link updated.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to update link.");
++    }
++  };
++
++  const deleteAvLink = async (id) => {
++    if (!await window.confirm("Delete this link?")) return;
++    try {
++      await api.delete(`/api/kidz-corner/av-links/${id}`);
++      showFlash("success", "Link deleted.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", "Failed to delete link.");
++    }
++  };
++
++  const tabs = [
++    { key: "people", label: "👥 People" },
++    { key: "schedule", label: "🗓️ Schedule" },
++    { key: "budget", label: "💰 Budget" },
++    { key: "av", label: "🎬 Audio/Video" },
++  ];
++
++  const scheduleForDay = scheduleItems
++    .filter(i => i.day === scheduleDay)
++    .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
++  const craftsForDay = crafts.filter(c => c.day === scheduleDay);
++
++  const budgetTotals = budgetItems.reduce(
++    (acc, b) => ({
++      income: acc.income + (parseFloat(b.income_actual) || 0),
++      actual: acc.actual + (parseFloat(b.expenses_actual) || 0),
++      projected: acc.projected + (parseFloat(b.expenses_projected) || 0),
++    }),
++    { income: 0, actual: 0, projected: 0 }
++  );
++
++  const avByCategory = avLinks.reduce((acc, l) => {
++    const cat = l.category || "Other";
++    acc[cat] = acc[cat] || [];
++    acc[cat].push(l);
++    return acc;
++  }, {});
++
++  return (
++    <>
++      <div className="top-bar">
++        <h1>🧸 Kidz Corner</h1>
++        <span className="text-muted">Volunteers, kids, session schedule, budget &amp; audio/video for Kidz Corner</span>
++      </div>
++
++      <div className="page-body">
++        {flash && (
++          <div className={`alert alert-${flash.type === "success" ? "success" : "error"}`} style={{ marginBottom: 20 }}>
++            {flash.text}
++          </div>
++        )}
++        {error && <div className="alert alert-error" style={{ marginBottom: 20 }}>{error}</div>}
++
++        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
++          {tabs.map(t => (
++            <button
++              key={t.key}
++              onClick={() => setTab(t.key)}
++              className={tab === t.key ? "btn btn-primary" : "btn btn-outline"}
++              style={{ padding: "8px 16px", fontSize: "0.85rem", fontWeight: 600 }}
++            >
++              {t.label}
++            </button>
++          ))}
++        </div>
++
++        {loading ? (
++          <p className="text-muted">Loading Kidz Corner data...</p>
++        ) : (
++          <>
++            {/* ---------------- PEOPLE ---------------- */}
++            {tab === "people" && (
++              <>
++                <Section
++                  title="Volunteers"
++                  action={canEdit && (
++                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewVolunteer(blankVolunteer())}>
++                      ➕ Add Volunteer
++                    </button>
++                  )}
++                >
++                  {newVolunteer && (
++                    <div className="card" style={{ padding: 16, marginBottom: 12 }}>
++                      <FormRow>
++                        <Field label="Name"><input style={inputStyle} value={newVolunteer.name} onChange={e => setNewVolunteer({ ...newVolunteer, name: e.target.value })} /></Field>
++                        <Field label="Assignment"><input style={inputStyle} value={newVolunteer.assignment} onChange={e => setNewVolunteer({ ...newVolunteer, assignment: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormActions onSave={saveNewVolunteer} onCancel={() => setNewVolunteer(null)} />
++                    </div>
++                  )}
++                  <table className="table" style={{ width: "100%" }}>
++                    <thead>
++                      <tr><th>Name</th><th>Assignment</th>{canEdit && <th style={{ width: 90 }}></th>}</tr>
++                    </thead>
++                    <tbody>
++                      {volunteers.map(v => (
++                        editVolunteerId === v.id ? (
++                          <tr key={v.id}>
++                            <td><input style={inputStyle} value={editVolunteerDraft.name} onChange={e => setEditVolunteerDraft({ ...editVolunteerDraft, name: e.target.value })} /></td>
++                            <td><input style={inputStyle} value={editVolunteerDraft.assignment || ""} onChange={e => setEditVolunteerDraft({ ...editVolunteerDraft, assignment: e.target.value })} /></td>
++                            <td>
++                              <div style={{ display: "flex", gap: 6 }}>
++                                <IconBtn title="Save" onClick={() => saveVolunteer(editVolunteerDraft)}>✔️</IconBtn>
++                                <IconBtn title="Cancel" onClick={() => { setEditVolunteerId(null); setEditVolunteerDraft(null); }}>✖️</IconBtn>
++                              </div>
++                            </td>
++                          </tr>
++                        ) : (
++                          <tr key={v.id}>
++                            <td>{v.name}</td>
++                            <td>{v.assignment || "—"}</td>
++                            {canEdit && (
++                              <td>
++                                <div style={{ display: "flex", gap: 6 }}>
++                                  <IconBtn title="Edit" onClick={() => { setEditVolunteerId(v.id); setEditVolunteerDraft(v); }}>✏️</IconBtn>
++                                  <IconBtn title="Delete" danger onClick={() => deleteVolunteer(v.id)}>🗑️</IconBtn>
++                                </div>
++                              </td>
++                            )}
++                          </tr>
++                        )
++                      ))}
++                      {volunteers.length === 0 && <tr><td colSpan={3} className="text-muted">No volunteers yet.</td></tr>}
++                    </tbody>
++                  </table>
++                </Section>
++
++                <Section
++                  title="Kids"
++                  action={canEdit && (
++                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewKid(blankKid())}>
++                      ➕ Add Kid
++                    </button>
++                  )}
++                >
++                  {newKid && (
++                    <div className="card" style={{ padding: 16, marginBottom: 12 }}>
++                      <FormRow>
++                        <Field label="Name"><input style={inputStyle} value={newKid.name} onChange={e => setNewKid({ ...newKid, name: e.target.value })} /></Field>
++                        <Field label="Age"><input type="number" style={inputStyle} value={newKid.age} onChange={e => setNewKid({ ...newKid, age: e.target.value })} /></Field>
++                        <Field label="Allergies / Notes"><input style={inputStyle} value={newKid.allergies} onChange={e => setNewKid({ ...newKid, allergies: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormActions onSave={saveNewKid} onCancel={() => setNewKid(null)} />
++                    </div>
++                  )}
++                  <table className="table" style={{ width: "100%" }}>
++                    <thead>
++                      <tr><th>Name</th><th>Age</th><th>Allergies / Notes</th>{canEdit && <th style={{ width: 90 }}></th>}</tr>
++                    </thead>
++                    <tbody>
++                      {kids.map(k => (
++                        editKidId === k.id ? (
++                          <tr key={k.id}>
++                            <td><input style={inputStyle} value={editKidDraft.name} onChange={e => setEditKidDraft({ ...editKidDraft, name: e.target.value })} /></td>
++                            <td><input type="number" style={inputStyle} value={editKidDraft.age || ""} onChange={e => setEditKidDraft({ ...editKidDraft, age: e.target.value })} /></td>
++                            <td><input style={inputStyle} value={editKidDraft.allergies || ""} onChange={e => setEditKidDraft({ ...editKidDraft, allergies: e.target.value })} /></td>
++                            <td>
++                              <div style={{ display: "flex", gap: 6 }}>
++                                <IconBtn title="Save" onClick={() => saveKid(editKidDraft)}>✔️</IconBtn>
++                                <IconBtn title="Cancel" onClick={() => { setEditKidId(null); setEditKidDraft(null); }}>✖️</IconBtn>
++                              </div>
++                            </td>
++                          </tr>
++                        ) : (
++                          <tr key={k.id}>
++                            <td>{k.name}</td>
++                            <td>{k.age ?? "—"}</td>
++                            <td>{k.allergies || "—"}</td>
++                            {canEdit && (
++                              <td>
++                                <div style={{ display: "flex", gap: 6 }}>
++                                  <IconBtn title="Edit" onClick={() => { setEditKidId(k.id); setEditKidDraft(k); }}>✏️</IconBtn>
++                                  <IconBtn title="Delete" danger onClick={() => deleteKid(k.id)}>🗑️</IconBtn>
++                                </div>
++                              </td>
++                            )}
++                          </tr>
++                        )
++                      ))}
++                      {kids.length === 0 && <tr><td colSpan={4} className="text-muted">No kids yet.</td></tr>}
++                    </tbody>
++                  </table>
++                </Section>
++              </>
++            )}
++
++            {/* ---------------- SCHEDULE ---------------- */}
++            {tab === "schedule" && (
++              <>
++                <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
++                  {DAY_OPTIONS.map(day => (
++                    <button
++                      key={day}
++                      onClick={() => setScheduleDay(day)}
++                      className={scheduleDay === day ? "btn btn-primary" : "btn btn-outline"}
++                      style={{ padding: "6px 14px", fontSize: "0.8rem" }}
++                    >
++                      {day}
++                    </button>
++                  ))}
++                </div>
++
++                <Section
++                  title={`${scheduleDay} — Run of Show`}
++                  action={canEdit && (
++                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewScheduleItem(blankScheduleItem(scheduleDay))}>
++                      ➕ Add Item
++                    </button>
++                  )}
++                >
++                  {newScheduleItem && (
++                    <div className="card" style={{ padding: 16, marginBottom: 12 }}>
++                      <FormRow>
++                        <Field label="Day">
++                          <select style={inputStyle} value={newScheduleItem.day} onChange={e => setNewScheduleItem({ ...newScheduleItem, day: e.target.value })}>
++                            {DAY_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
++                          </select>
++                        </Field>
++                        <Field label="Date"><input style={inputStyle} placeholder="e.g. 2026-08-14" value={newScheduleItem.date} onChange={e => setNewScheduleItem({ ...newScheduleItem, date: e.target.value })} /></Field>
++                        <Field label="Time"><input style={inputStyle} placeholder="e.g. 9:15-9:30 AM" value={newScheduleItem.time} onChange={e => setNewScheduleItem({ ...newScheduleItem, time: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormRow>
++                        <Field label="Activity"><input style={inputStyle} value={newScheduleItem.activity} onChange={e => setNewScheduleItem({ ...newScheduleItem, activity: e.target.value })} /></Field>
++                        <Field label="Volunteers Needed"><input style={inputStyle} value={newScheduleItem.volunteers_needed} onChange={e => setNewScheduleItem({ ...newScheduleItem, volunteers_needed: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormRow>
++                        <Field label="Items Needed"><textarea style={{ ...inputStyle, minHeight: 50 }} value={newScheduleItem.items_needed} onChange={e => setNewScheduleItem({ ...newScheduleItem, items_needed: e.target.value })} /></Field>
++                        <Field label="Notes"><textarea style={{ ...inputStyle, minHeight: 50 }} value={newScheduleItem.notes} onChange={e => setNewScheduleItem({ ...newScheduleItem, notes: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormActions onSave={saveNewScheduleItem} onCancel={() => setNewScheduleItem(null)} />
++                    </div>
++                  )}
++
++                  {scheduleForDay.length === 0 && !newScheduleItem && (
++                    <p className="text-muted">No schedule items for {scheduleDay} yet.</p>
++                  )}
++
++                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
++                    {scheduleForDay.map(item => (
++                      editScheduleId === item.id ? (
++                        <div key={item.id} className="card" style={{ padding: 16 }}>
++                          <FormRow>
++                            <Field label="Day">
++                              <select style={inputStyle} value={editScheduleDraft.day} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, day: e.target.value })}>
++                                {DAY_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
++                              </select>
++                            </Field>
++                            <Field label="Date"><input style={inputStyle} value={editScheduleDraft.date || ""} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, date: e.target.value })} /></Field>
++                            <Field label="Time"><input style={inputStyle} value={editScheduleDraft.time || ""} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, time: e.target.value })} /></Field>
++                          </FormRow>
++                          <FormRow>
++                            <Field label="Activity"><input style={inputStyle} value={editScheduleDraft.activity} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, activity: e.target.value })} /></Field>
++                            <Field label="Volunteers Needed"><input style={inputStyle} value={editScheduleDraft.volunteers_needed || ""} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, volunteers_needed: e.target.value })} /></Field>
++                          </FormRow>
++                          <FormRow>
++                            <Field label="Items Needed"><textarea style={{ ...inputStyle, minHeight: 50 }} value={editScheduleDraft.items_needed || ""} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, items_needed: e.target.value })} /></Field>
++                            <Field label="Notes"><textarea style={{ ...inputStyle, minHeight: 50 }} value={editScheduleDraft.notes || ""} onChange={e => setEditScheduleDraft({ ...editScheduleDraft, notes: e.target.value })} /></Field>
++                          </FormRow>
++                          <FormActions onSave={() => saveScheduleItem(editScheduleDraft)} onCancel={() => { setEditScheduleId(null); setEditScheduleDraft(null); }} />
++                        </div>
++                      ) : (
++                        <div key={item.id} className="card" style={{ padding: "14px 16px" }}>
++                          <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
++                            <div style={{ minWidth: 130, flexShrink: 0 }}>
++                              <div style={{ fontWeight: 700, color: "var(--forest)", fontSize: "0.9rem" }}>{item.time || "—"}</div>
++                              {item.date && <div className="text-muted" style={{ fontSize: "0.75rem" }}>{item.date}</div>}
++                            </div>
++                            <div style={{ flex: "1 1 220px", minWidth: 0 }}>
++                              <strong style={{ fontSize: "0.98rem" }}>{item.activity}</strong>
++                              {item.volunteers_needed && <div className="text-muted" style={{ fontSize: "0.82rem", marginTop: 3 }}>👤 {item.volunteers_needed}</div>}
++                              {item.items_needed && <div className="text-muted" style={{ fontSize: "0.82rem", marginTop: 3 }}>🎒 {item.items_needed}</div>}
++                              {item.notes && <div style={{ fontSize: "0.85rem", marginTop: 6 }}>{item.notes}</div>}
++                            </div>
++                            {canEdit && (
++                              <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: "auto" }}>
++                                <IconBtn title="Edit" onClick={() => { setEditScheduleId(item.id); setEditScheduleDraft(item); }}>✏️</IconBtn>
++                                <IconBtn title="Delete" danger onClick={() => deleteScheduleItem(item.id)}>🗑️</IconBtn>
++                              </div>
++                            )}
++                          </div>
++                        </div>
++                      )
++                    ))}
++                  </div>
++                </Section>
++
++                <Section
++                  title={`${scheduleDay} — Craft / Activity`}
++                  action={canEdit && (
++                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewCraft(blankCraft(scheduleDay))}>
++                      ➕ Add Craft
++                    </button>
++                  )}
++                >
++                  {newCraft && (
++                    <div className="card" style={{ padding: 16, marginBottom: 12 }}>
++                      <FormRow>
++                        <Field label="Title"><input style={inputStyle} value={newCraft.title} onChange={e => setNewCraft({ ...newCraft, title: e.target.value })} /></Field>
++                        <Field label="Ages"><input style={inputStyle} value={newCraft.ages} onChange={e => setNewCraft({ ...newCraft, ages: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormRow>
++                        <Field label="Materials"><textarea style={{ ...inputStyle, minHeight: 50 }} value={newCraft.materials} onChange={e => setNewCraft({ ...newCraft, materials: e.target.value })} /></Field>
++                        <Field label="How-To"><textarea style={{ ...inputStyle, minHeight: 50 }} value={newCraft.how_to} onChange={e => setNewCraft({ ...newCraft, how_to: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormRow>
++                        <Field label="Things to Bring"><input style={inputStyle} value={newCraft.things_to_bring} onChange={e => setNewCraft({ ...newCraft, things_to_bring: e.target.value })} /></Field>
++                      </FormRow>
++                      <FormActions onSave={saveNewCraft} onCancel={() => setNewCraft(null)} />
++                    </div>
++                  )}
++
++                  {craftsForDay.length === 0 && !newCraft && (
++                    <p className="text-muted">No craft logged for {scheduleDay} yet.</p>
++                  )}
++
++                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
++                    {craftsForDay.map(c => (
++                      editCraftId === c.id ? (
++                        <div key={c.id} className="card" style={{ padding: 16 }}>
++                          <FormRow>
++                            <Field label="Title"><input style={inputStyle} value={editCraftDraft.title || ""} onChange={e => setEditCraftDraft({ ...editCraftDraft, title: e.target.value })} /></Field>
++                            <Field label="Ages"><input style={inputStyle} value={editCraftDraft.ages || ""} onChange={e => setEditCraftDraft({ ...editCraftDraft, ages: e.target.value })} /></Field>
++                          </FormRow>
++                          <FormRow>
++                            <Field label="Materials"><textarea style={{ ...inputStyle, minHeight: 50 }} value={editCraftDraft.materials || ""} onChange={e => setEditCraftDraft({ ...editCraftDraft, materials: e.target.value })} /></Field>
++                            <Field label="How-To"><textarea style={{ ...inputStyle, minHeight: 50 }} value={editCraftDraft.how_to || ""} onChange={e => setEditCraftDraft({ ...editCraftDraft, how_to: e.target.value })} /></Field>
++                          </FormRow>
++                          <FormRow>
++                            <Field label="Things to Bring"><input style={inputStyle} value={editCraftDraft.things_to_bring || ""} onChange={e => setEditCraftDraft({ ...editCraftDraft, things_to_bring: e.target.value })} /></Field>
++                          </FormRow>
++                          <FormActions onSave={() => saveCraft(editCraftDraft)} onCancel={() => { setEditCraftId(null); setEditCraftDraft(null); }} />
++                        </div>
++                      ) : (
++                        <div key={c.id} className="card" style={{ padding: "14px 16px" }}>
++                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
++                            <div style={{ flex: "1 1 300px" }}>
++                              <strong>{c.title || "Craft"}</strong>{c.ages && <span className="text-muted" style={{ marginLeft: 8, fontSize: "0.8rem" }}>Ages: {c.ages}</span>}
++                              {c.materials && <div style={{ fontSize: "0.85rem", marginTop: 6 }}><b>Materials:</b> {c.materials}</div>}
++                              {c.how_to && <div style={{ fontSize: "0.85rem", marginTop: 6 }}><b>How-to:</b> {c.how_to}</div>}
++                              {c.things_to_bring && <div className="text-muted" style={{ fontSize: "0.82rem", marginTop: 6 }}>🎒 {c.things_to_bring}</div>}
++                            </div>
++                            {canEdit && (
++                              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
++                                <IconBtn title="Edit" onClick={() => { setEditCraftId(c.id); setEditCraftDraft(c); }}>✏️</IconBtn>
++                                <IconBtn title="Delete" danger onClick={() => deleteCraft(c.id)}>🗑️</IconBtn>
++                              </div>
++                            )}
++                          </div>
++                        </div>
++                      )
++                    ))}
++                  </div>
++                </Section>
++              </>
++            )}
++
++            {/* ---------------- BUDGET ---------------- */}
++            {tab === "budget" && (
++              <Section
++                title="Budget & Expenses"
++                action={canEdit && (
++                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBudgetItem(blankBudgetItem())}>
++                    ➕ Add Line
++                  </button>
++                )}
++              >
++                <div style={{ display: "flex", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
++                  <Chip label="Total Income" value={`$${budgetTotals.income.toFixed(2)}`} />
++                  <Chip label="Total Expenses (Actual)" value={`$${budgetTotals.actual.toFixed(2)}`} />
++                  <Chip label="Total Expenses (Projected)" value={`$${budgetTotals.projected.toFixed(2)}`} />
++                </div>
++
++                {newBudgetItem && (
++                  <div className="card" style={{ padding: 16, marginBottom: 12 }}>
++                    <FormRow>
++                      <Field label="Month"><input style={inputStyle} value={newBudgetItem.month} onChange={e => setNewBudgetItem({ ...newBudgetItem, month: e.target.value })} /></Field>
++                      <Field label="Income (actual)"><input type="number" step="0.01" style={inputStyle} value={newBudgetItem.income_actual} onChange={e => setNewBudgetItem({ ...newBudgetItem, income_actual: e.target.value })} /></Field>
++                      <Field label="Expenses (actual)"><input type="number" step="0.01" style={inputStyle} value={newBudgetItem.expenses_actual} onChange={e => setNewBudgetItem({ ...newBudgetItem, expenses_actual: e.target.value })} /></Field>
++                      <Field label="Expenses (projected)"><input type="number" step="0.01" style={inputStyle} value={newBudgetItem.expenses_projected} onChange={e => setNewBudgetItem({ ...newBudgetItem, expenses_projected: e.target.value })} /></Field>
++                    </FormRow>
++                    <FormRow>
++                      <Field label="Related Files"><input style={inputStyle} value={newBudgetItem.related_files} onChange={e => setNewBudgetItem({ ...newBudgetItem, related_files: e.target.value })} /></Field>
++                      <Field label="Notes"><input style={inputStyle} value={newBudgetItem.notes} onChange={e => setNewBudgetItem({ ...newBudgetItem, notes: e.target.value })} /></Field>
++                    </FormRow>
++                    <FormActions onSave={saveNewBudgetItem} onCancel={() => setNewBudgetItem(null)} />
++                  </div>
++                )}
++
++                <table className="table" style={{ width: "100%" }}>
++                  <thead>
++                    <tr>
++                      <th>Month</th><th>Income (actual)</th><th>Expenses (actual)</th><th>Expenses (projected)</th>
++                      <th>Related Files</th><th>Notes</th>{canEdit && <th style={{ width: 90 }}></th>}
++                    </tr>
++                  </thead>
++                  <tbody>
++                    {budgetItems.map(b => (
++                      editBudgetId === b.id ? (
++                        <tr key={b.id}>
++                          <td><input style={inputStyle} value={editBudgetDraft.month || ""} onChange={e => setEditBudgetDraft({ ...editBudgetDraft, month: e.target.value })} /></td>
++                          <td><input type="number" step="0.01" style={inputStyle} value={editBudgetDraft.income_actual ?? ""} onChange={e => setEditBudgetDraft({ ...editBudgetDraft, income_actual: e.target.value })} /></td>
++                          <td><input type="number" step="0.01" style={inputStyle} value={editBudgetDraft.expenses_actual ?? ""} onChange={e => setEditBudgetDraft({ ...editBudgetDraft, expenses_actual: e.target.value })} /></td>
++                          <td><input type="number" step="0.01" style={inputStyle} value={editBudgetDraft.expenses_projected ?? ""} onChange={e => setEditBudgetDraft({ ...editBudgetDraft, expenses_projected: e.target.value })} /></td>
++                          <td><input style={inputStyle} value={editBudgetDraft.related_files || ""} onChange={e => setEditBudgetDraft({ ...editBudgetDraft, related_files: e.target.value })} /></td>
++                          <td><input style={inputStyle} value={editBudgetDraft.notes || ""} onChange={e => setEditBudgetDraft({ ...editBudgetDraft, notes: e.target.value })} /></td>
++                          <td>
++                            <div style={{ display: "flex", gap: 6 }}>
++                              <IconBtn title="Save" onClick={() => saveBudgetItem(editBudgetDraft)}>✔️</IconBtn>
++                              <IconBtn title="Cancel" onClick={() => { setEditBudgetId(null); setEditBudgetDraft(null); }}>✖️</IconBtn>
++                            </div>
++                          </td>
++                        </tr>
++                      ) : (
++                        <tr key={b.id}>
++                          <td>{b.month || "—"}</td>
++                          <td>{b.income_actual != null ? `$${Number(b.income_actual).toFixed(2)}` : "—"}</td>
++                          <td>{b.expenses_actual != null ? `$${Number(b.expenses_actual).toFixed(2)}` : "—"}</td>
++                          <td>{b.expenses_projected != null ? `$${Number(b.expenses_projected).toFixed(2)}` : "—"}</td>
++                          <td>{b.related_files || "—"}</td>
++                          <td>{b.notes || "—"}</td>
++                          {canEdit && (
++                            <td>
++                              <div style={{ display: "flex", gap: 6 }}>
++                                <IconBtn title="Edit" onClick={() => { setEditBudgetId(b.id); setEditBudgetDraft(b); }}>✏️</IconBtn>
++                                <IconBtn title="Delete" danger onClick={() => deleteBudgetItem(b.id)}>🗑️</IconBtn>
++                              </div>
++                            </td>
++                          )}
++                        </tr>
++                      )
++                    ))}
++                    {budgetItems.length === 0 && <tr><td colSpan={7} className="text-muted">No budget lines yet.</td></tr>}
++                  </tbody>
++                </table>
++              </Section>
++            )}
++
++            {/* ---------------- AUDIO/VIDEO ---------------- */}
++            {tab === "av" && (
++              <Section
++                title="Audio / Video Links"
++                action={canEdit && (
++                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewAvLink(blankAvLink())}>
++                    ➕ Add Link
++                  </button>
++                )}
++              >
++                {newAvLink && (
++                  <div className="card" style={{ padding: 16, marginBottom: 12 }}>
++                    <FormRow>
++                      <Field label="Category"><input style={inputStyle} value={newAvLink.category} onChange={e => setNewAvLink({ ...newAvLink, category: e.target.value })} /></Field>
++                      <Field label="Label"><input style={inputStyle} value={newAvLink.label} onChange={e => setNewAvLink({ ...newAvLink, label: e.target.value })} /></Field>
++                      <Field label="URL"><input style={inputStyle} value={newAvLink.url} onChange={e => setNewAvLink({ ...newAvLink, url: e.target.value })} /></Field>
++                    </FormRow>
++                    <FormActions onSave={saveNewAvLink} onCancel={() => setNewAvLink(null)} />
++                  </div>
++                )}
++
++                {Object.keys(avByCategory).length === 0 && !newAvLink && (
++                  <p className="text-muted">No links added yet.</p>
++                )}
++
++                {Object.entries(avByCategory).map(([category, links]) => (
++                  <div key={category} style={{ marginBottom: 20 }}>
++                    <h4 style={{ margin: "8px 0 10px", color: "var(--forest)" }}>{category}</h4>
++                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
++                      {links.map(l => (
++                        editAvLinkId === l.id ? (
++                          <div key={l.id} className="card" style={{ padding: 16 }}>
++                            <FormRow>
++                              <Field label="Category"><input style={inputStyle} value={editAvLinkDraft.category || ""} onChange={e => setEditAvLinkDraft({ ...editAvLinkDraft, category: e.target.value })} /></Field>
++                              <Field label="Label"><input style={inputStyle} value={editAvLinkDraft.label} onChange={e => setEditAvLinkDraft({ ...editAvLinkDraft, label: e.target.value })} /></Field>
++                              <Field label="URL"><input style={inputStyle} value={editAvLinkDraft.url || ""} onChange={e => setEditAvLinkDraft({ ...editAvLinkDraft, url: e.target.value })} /></Field>
++                            </FormRow>
++                            <FormActions onSave={() => saveAvLink(editAvLinkDraft)} onCancel={() => { setEditAvLinkId(null); setEditAvLinkDraft(null); }} />
++                          </div>
++                        ) : (
++                          <div key={l.id} className="card" style={{ padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
++                            <div>
++                              <strong>{l.label}</strong>
++                              {l.url && (
++                                <div style={{ fontSize: "0.82rem", marginTop: 2 }}>
++                                  <a href={l.url} target="_blank" rel="noreferrer">{l.url}</a>
++                                </div>
++                              )}
++                            </div>
++                            {canEdit && (
++                              <div style={{ display: "flex", gap: 6 }}>
++                                <IconBtn title="Edit" onClick={() => { setEditAvLinkId(l.id); setEditAvLinkDraft(l); }}>✏️</IconBtn>
++                                <IconBtn title="Delete" danger onClick={() => deleteAvLink(l.id)}>🗑️</IconBtn>
++                              </div>
++                            )}
++                          </div>
++                        )
++                      ))}
++                    </div>
++                  </div>
++                ))}
++              </Section>
++            )}
++          </>
++        )}
++      </div>
++    </>
++  );
++}
++
++const Chip = ({ label, value }) => (
++  <div style={{
++    background: "var(--cream)", border: "1px solid var(--border)", borderRadius: 10,
++    padding: "10px 16px", minWidth: 160,
++  }}>
++    <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--muted)", fontWeight: 700 }}>{label}</div>
++    <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--forest)" }}>{value}</div>
++  </div>
++);
+diff --git a/frontend/src/pages/RoleAssignerPage.js b/frontend/src/pages/RoleAssignerPage.js
+index 2f3945e..7aaf4a7 100644
+--- a/frontend/src/pages/RoleAssignerPage.js
++++ b/frontend/src/pages/RoleAssignerPage.js
+@@ -16,7 +16,8 @@ const PAGES = [
+   { key: "logs", label: "📄 Audit Logs" },
+   { key: "camp_info", label: "ℹ️ Camp Info" },
+   { key: "retreat_ops", label: "📋 Retreat Operations" },
+-  { key: "registration_config", label: "📝 Registration Config" }
++  { key: "registration_config", label: "📝 Registration Config" },
++  { key: "kidz_corner", label: "🧸 Kidz Corner" }
+ ];
+ 
+ const getRoleLabel = (roleKey) => {

@@ -18,6 +18,7 @@ from routes.permissions import permissions_bp
 from routes.finance import finance_bp
 from routes.settings import settings_bp
 from routes.retreat_ops import retreat_ops_bp
+from routes.kidz_corner import kidz_corner_bp
 
 def create_app(config_override=None):
     app = Flask(__name__)
@@ -66,6 +67,7 @@ def create_app(config_override=None):
     app.register_blueprint(finance_bp, url_prefix="/api/finance")
     app.register_blueprint(settings_bp, url_prefix="/api/settings")
     app.register_blueprint(retreat_ops_bp, url_prefix="/api/retreat-ops")
+    app.register_blueprint(kidz_corner_bp, url_prefix="/api/kidz-corner")
 
     with app.app_context():
         db.create_all()

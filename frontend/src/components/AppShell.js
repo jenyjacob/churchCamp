@@ -17,6 +17,7 @@ const navItems = [
   { to: "/cabins",  icon: "⛺", label: "Cabins", pageKey: "cabins" },
   { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
   { to: "/retreat-ops", icon: "⛺", label: "Retreat Ops", pageKey: "retreat_ops" },
+  { to: "/kidz-corner", icon: "🧸", label: "Kidz Corner", pageKey: "kidz_corner" },
   { to: "/outdoor", icon: "🛶", label: "Outdoor Activities", pageKey: "outdoor" },
   { to: "/tshirts", icon: "👕", label: "Apparel", pageKey: "apparel" },
   { to: "/camp-info", icon: "ℹ️", label: "Camp Info", pageKey: "camp_info" },
