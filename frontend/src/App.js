@@ -18,6 +18,7 @@ import RoleAssignerPage from "./pages/RoleAssignerPage";
 import CampInfoPage from "./pages/CampInfoPage";
 import TeamsPage from "./pages/TeamsPage";
 import RetreatOpsPage from "./pages/RetreatOpsPage";
+import RegistrationConfigPage from "./pages/RegistrationConfigPage";
 
 
 function RequireAuth({ children }) {
@@ -64,6 +65,7 @@ function AppRoutes() {
         <Route path="logs" element={<RequirePermission pageKey="logs"><AuditLogsPage /></RequirePermission>} />
         <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
         <Route path="camp-info" element={<RequirePermission pageKey="camp_info"><CampInfoPage /></RequirePermission>} />
+        <Route path="registration-config" element={<RequirePermission pageKey="registration_config"><RegistrationConfigPage /></RequirePermission>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

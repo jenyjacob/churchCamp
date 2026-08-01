@@ -191,6 +191,50 @@ def create_app(config_override=None):
             db.session.rollback()
             print(f"Database migration for settings value skipped/failed: {str(migration_ex)}")
 
+        # Self-healing database migration: add camp_year column to campers table if missing
+        try:
+            db.session.execute(text("SELECT camp_year FROM campers LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(text("ALTER TABLE campers ADD COLUMN camp_year INT DEFAULT NULL"))
+                db.session.commit()
+                print("Database migrated: added camp_year column to campers table.")
+                # Backfill existing records with 2026
+                db.session.execute(text("UPDATE campers SET camp_year = 2026 WHERE camp_year IS NULL"))
+                db.session.commit()
+                print("Database migrated: backfilled existing campers with camp_year = 2026.")
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration for camp_year failed: {str(migration_ex)}")
+
+        # Self-healing database migration: rename kayaking and boat_tour columns and add activity_3
+        try:
+            db.session.execute(text("SELECT activity_1 FROM campers LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                # Rename kayaking -> activity_1 if it exists
+                try:
+                    db.session.execute(text("SELECT kayaking FROM campers LIMIT 1"))
+                    db.session.execute(text("ALTER TABLE campers RENAME COLUMN kayaking TO activity_1"))
+                    db.session.execute(text("ALTER TABLE campers RENAME COLUMN boat_tour TO activity_2"))
+                    print("Database migrated: renamed kayaking to activity_1 and boat_tour to activity_2.")
+                except Exception:
+                    db.session.rollback()
+                
+                # Check and add activity_3 if missing
+                try:
+                    db.session.execute(text("SELECT activity_3 FROM campers LIMIT 1"))
+                except Exception:
+                    db.session.rollback()
+                    db.session.execute(text("ALTER TABLE campers ADD COLUMN activity_3 INT NOT NULL DEFAULT 0"))
+                    print("Database migrated: added activity_3 column to campers table.")
+                db.session.commit()
+            except Exception as migration_ex:
+                db.session.rollback()
+                print(f"Database migration for activity columns failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 

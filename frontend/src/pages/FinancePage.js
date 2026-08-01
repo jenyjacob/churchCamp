@@ -75,6 +75,10 @@ export default function FinancePage() {
     net_balance: 0
   });
 
+  const [years, setYears] = useState([]);
+  const [selectedYear, setSelectedYear] = useState("current");
+  const [activeCampYear, setActiveCampYear] = useState("2027");
+
   // Families State
   const [families, setFamilies] = useState([]);
   const [familySearch, setFamilySearch] = useState("");
@@ -145,20 +149,27 @@ export default function FinancePage() {
   const fetchFinanceData = async () => {
     setLoading(true);
     try {
+      const params = new URLSearchParams({ year: selectedYear });
       if (!canReadFinance && canUploadReceipts) {
-        const expensesRes = await api.get("/api/finance/expenses");
+        const expensesRes = await api.get(`/api/finance/expenses?${params}`);
         setExpenses(expensesRes.data.expenses);
       } else {
         const [statsRes, feesRes, expensesRes, ratesRes] = await Promise.all([
-          api.get("/api/finance/stats"),
-          api.get("/api/finance/fees"),
-          api.get("/api/finance/expenses"),
+          api.get(`/api/finance/stats?${params}`),
+          api.get(`/api/finance/fees?${params}`),
+          api.get(`/api/finance/expenses?${params}`),
           api.get("/api/finance/rates")
         ]);
         setStats(statsRes.data);
         setFamilies(feesRes.data.families);
         setExpenses(expensesRes.data.expenses);
         setRates(ratesRes.data.rates);
+        if (statsRes.data.years) {
+          setYears(statsRes.data.years);
+        }
+        if (statsRes.data.current_year) {
+          setActiveCampYear(statsRes.data.current_year);
+        }
         if (feesRes.data.activity_names) {
           setActivityNames(feesRes.data.activity_names);
         }
@@ -176,7 +187,7 @@ export default function FinancePage() {
   useEffect(() => {
     fetchFinanceData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedYear]);
 
   // Expand / Collapse Family Detail
   const toggleFamilyExpand = (familyGroup) => {
@@ -292,7 +303,7 @@ export default function FinancePage() {
       setSuccess("");
       setError("");
       
-      const response = await api.get("/api/finance/expenses/receipts-zip", {
+      const response = await api.get(`/api/finance/expenses/receipts-zip?year=${selectedYear}`, {
         responseType: "blob",
       });
       
@@ -739,6 +750,17 @@ export default function FinancePage() {
         }}>
           {(user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
             <>
+              <select 
+                className="form-select" 
+                style={{ width: 180, height: 38, padding: "0 10px", fontSize: "0.85rem", cursor: "pointer" }} 
+                value={selectedYear} 
+                onChange={e => setSelectedYear(e.target.value)}
+              >
+                <option value="current">Active Year ({activeCampYear})</option>
+                {years.map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
               <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handlePrintPDF}>
                 📄 Print Report (PDF)
               </button>

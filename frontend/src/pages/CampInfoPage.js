@@ -18,9 +18,9 @@ export default function CampInfoPage() {
   // Edit Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formFields, setFormFields] = useState({
-    signup_title: "",
+    camp_info_title: "",
     camp_description: "",
-    signup_location: "",
+    camp_info_address: "",
     camp_poc_name: "",
     camp_poc_email: "",
     camp_poc_phone: "",
@@ -35,9 +35,9 @@ export default function CampInfoPage() {
       if (res.data.settings) {
         setSettings(res.data.settings);
         setFormFields({
-          signup_title: res.data.settings.signup_title || "",
+          camp_info_title: res.data.settings.camp_info_title || "",
           camp_description: res.data.settings.camp_description || "",
-          signup_location: res.data.settings.signup_location || "",
+          camp_info_address: res.data.settings.camp_info_address || "",
           camp_poc_name: res.data.settings.camp_poc_name || "",
           camp_poc_email: res.data.settings.camp_poc_email || "",
           camp_poc_phone: res.data.settings.camp_poc_phone || "",
@@ -237,16 +237,18 @@ export default function CampInfoPage() {
               {/* Camp Overview */}
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <h3 style={{ color: "var(--forest-dark)", fontWeight: 700, fontSize: "1.15rem", margin: 0, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
-                  🏫 {settings.signup_title || "Camp Details"}
+                  🏫 {settings.camp_info_title || "Camp Details"}
                 </h3>
                 <p style={{ fontSize: "0.92rem", color: "var(--charcoal)", lineHeight: 1.6, margin: 0 }}>
                   {settings.camp_description || "No description configured."}
                 </p>
-                <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", fontSize: "0.88rem", fontWeight: 600, color: "var(--forest)" }}>
-                  <span>📍 Camp Address:</span>
-                  <span className="badge badge-gray" style={{ fontSize: "0.85rem", padding: "4px 10px" }}>
-                    {settings.signup_location || "Not Set"}
-                  </span>
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.88rem", fontWeight: 600, color: "var(--forest)" }}>
+                    <span>📍 Camp Address:</span>
+                    <span className="badge badge-gray" style={{ fontSize: "0.85rem", padding: "4px 10px" }}>
+                      {settings.camp_info_address || "Not Set"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -449,8 +451,8 @@ export default function CampInfoPage() {
                 <label className="form-label" style={{ fontWeight: 600 }}>Camp Name / Header</label>
                 <input
                   className="form-input"
-                  value={formFields.signup_title}
-                  onChange={e => setFormFields(prev => ({ ...prev, signup_title: e.target.value }))}
+                  value={formFields.camp_info_title}
+                  onChange={e => setFormFields(prev => ({ ...prev, camp_info_title: e.target.value }))}
                   required
                 />
               </div>
@@ -471,8 +473,8 @@ export default function CampInfoPage() {
                 <label className="form-label" style={{ fontWeight: 600 }}>Camp Location Address</label>
                 <input
                   className="form-input"
-                  value={formFields.signup_location}
-                  onChange={e => setFormFields(prev => ({ ...prev, signup_location: e.target.value }))}
+                  value={formFields.camp_info_address}
+                  onChange={e => setFormFields(prev => ({ ...prev, camp_info_address: e.target.value }))}
                   placeholder="e.g. Camp Name, Address, City"
                   required
                 />

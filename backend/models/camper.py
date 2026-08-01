@@ -13,6 +13,7 @@ class Camper(db.Model):
     cabin_group = db.Column(db.String(100), nullable=True)
     family_group = db.Column(db.String(100), nullable=True)
     team_name = db.Column(db.String(100), nullable=True)
+    camp_year = db.Column(db.Integer, nullable=True)
 
     # Guardian info
     guardian_name = db.Column(db.String(150), nullable=True)
@@ -29,10 +30,28 @@ class Camper(db.Model):
         nullable=False
     )
     notes = db.Column(db.Text, nullable=True)
-    kayaking = db.Column(db.Integer, default=0, nullable=False)
-    boat_tour = db.Column(db.Integer, default=0, nullable=False)
+    activity_1 = db.Column(db.Integer, default=0, nullable=False)
+    activity_2 = db.Column(db.Integer, default=0, nullable=False)
+    activity_3 = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Backward compatibility properties
+    @property
+    def kayaking(self):
+        return self.activity_1
+
+    @kayaking.setter
+    def kayaking(self, value):
+        self.activity_1 = value
+
+    @property
+    def boat_tour(self):
+        return self.activity_2
+
+    @boat_tour.setter
+    def boat_tour(self, value):
+        self.activity_2 = value
 
     # Relationship to check-ins
     checkins = db.relationship("CheckIn", backref="camper", lazy=True)
@@ -49,14 +68,18 @@ class Camper(db.Model):
             "gender": self.gender,
             "cabin_group": self.cabin_group,
             "family_group": self.family_group,
+            "camp_year": self.camp_year,
             "guardian_name": self.guardian_name,
             "guardian_phone": self.guardian_phone,
             "allergies": self.allergies,
             "waiver_submitted": self.waiver_submitted,
             "registration_status": self.registration_status,
             "notes": self.notes,
-            "kayaking": self.kayaking,
-            "boat_tour": self.boat_tour,
+            "activity_1": self.activity_1,
+            "activity_2": self.activity_2,
+            "activity_3": self.activity_3,
+            "kayaking": self.activity_1,
+            "boat_tour": self.activity_2,
             "checked_in": any(c.checked_out_at is None for c in self.checkins),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "tshirts": [t.to_dict() for t in self.tshirts],

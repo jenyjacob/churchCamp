@@ -27,7 +27,11 @@ DEFAULT_SETTINGS = {
     "camp_poc_email": "john.doe@gca.org",
     "camp_poc_phone": "+1 (555) 019-2834",
     "google_places_api_key": "",
-    "cabins_config": "[]"
+    "cabins_config": "[]",
+    "current_camp_year": "2026",
+    "signup_camp_year": "2026",
+    "camp_info_title": "Grace Christian Assembly Camp",
+    "camp_info_address": "Camp Prothro"
 }
 
 PUBLIC_SETTINGS_KEYS = {
@@ -39,7 +43,10 @@ PUBLIC_SETTINGS_KEYS = {
     "camp_poc_email",
     "camp_poc_phone",
     "registration_closed",
-    "registration_status"
+    "registration_status",
+    "current_camp_year",
+    "signup_camp_year",
+    "activity_names"
 }
 
 @settings_bp.route("/public", methods=["GET"])
@@ -51,9 +58,23 @@ def get_public_settings():
             settings_dict[key] = DEFAULT_SETTINGS[key]
         
     try:
-        db_settings = Setting.query.filter(Setting.key.in_(list(PUBLIC_SETTINGS_KEYS))).all()
-        for s in db_settings:
-            settings_dict[s.key] = s.value
+        # Fetch all settings from DB first so we can access signup_camp_year
+        db_settings = Setting.query.all()
+        db_map = {s.key: s.value for s in db_settings}
+        
+        # Populate allow-listed keys
+        for key in PUBLIC_SETTINGS_KEYS:
+            if key in db_map:
+                settings_dict[key] = db_map[key]
+                
+        # Resolve year-specific activity_names
+        signup_year = settings_dict.get("signup_camp_year", "2026")
+        year_activity_key = f"activity_names_{signup_year}"
+        if year_activity_key in db_map:
+            settings_dict["activity_names"] = db_map[year_activity_key]
+        elif "activity_names" in db_map:
+            settings_dict["activity_names"] = db_map["activity_names"]
+            
     except Exception:
         pass
         
@@ -69,8 +90,16 @@ def get_settings():
     
     try:
         db_settings = Setting.query.all()
-        for s in db_settings:
-            settings_dict[s.key] = s.value
+        db_map = {s.key: s.value for s in db_settings}
+        for key, val in db_map.items():
+            settings_dict[key] = val
+            
+        # Resolve active year-specific activity_names for dashboard/finance/outdoor pages
+        active_year = settings_dict.get("current_camp_year", "2026")
+        year_activity_key = f"activity_names_{active_year}"
+        if year_activity_key in db_map:
+            settings_dict["activity_names"] = db_map[year_activity_key]
+            
     except Exception as e:
         # Fallback if table doesn't exist yet
         pass

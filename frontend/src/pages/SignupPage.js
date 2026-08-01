@@ -32,11 +32,11 @@ export default function SignupPage() {
 
   const getActivityNamesArray = () => {
     try {
-      let parsed = JSON.parse(settings.activity_names);
-      if (Array.isArray(parsed)) {
-        if (parsed.length < 1 || !parsed[0]) parsed[0] = "KAYAKING";
-        if (parsed.length < 2 || !parsed[1]) parsed[1] = "BOAT TOUR";
-        return parsed;
+      if (settings.activity_names) {
+        let parsed = JSON.parse(settings.activity_names);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(act => act && act.trim() !== "");
+        }
       }
     } catch (e) {}
     return ["KAYAKING", "BOAT TOUR"];
@@ -172,12 +172,13 @@ export default function SignupPage() {
     }
 
     // Activity counts mapping
-    const kCount = (activitiesResponses[0] && activitiesResponses[0].interest === "Yes") ? parseInt(activitiesResponses[0].count) || 1 : 0;
-    const bCount = (activitiesResponses[1] && activitiesResponses[1].interest === "Yes") ? parseInt(activitiesResponses[1].count) || 1 : 0;
+    const act1Count = (activitiesResponses[0] && activitiesResponses[0].interest === "Yes") ? parseInt(activitiesResponses[0].count) || 1 : 0;
+    const act2Count = (activitiesResponses[1] && activitiesResponses[1].interest === "Yes") ? parseInt(activitiesResponses[1].count) || 1 : 0;
+    const act3Count = (activitiesResponses[2] && activitiesResponses[2].interest === "Yes") ? parseInt(activitiesResponses[2].count) || 1 : 0;
 
     const otherActivities = [];
     activitiesArray.forEach((activityName, idx) => {
-      if (idx >= 2) {
+      if (idx >= 3) {
         const resp = activitiesResponses[idx];
         if (resp && resp.interest === "Yes") {
           const countVal = parseInt(resp.count) || 1;
@@ -192,9 +193,10 @@ export default function SignupPage() {
         phone: phone.trim(),
         website: website, // honeypot: should always be empty for real users
         attendees: finalAttendeesList.map((a, idx) => {
-          // Set kayaking and boat tour count for the first K/B participants
-          const isKayaking = idx < kCount ? 1 : 0;
-          const isBoatTour = idx < bCount ? 1 : 0;
+          // Set dynamic activity counts for the first participants
+          const isAct1 = idx < act1Count ? 1 : 0;
+          const isAct2 = idx < act2Count ? 1 : 0;
+          const isAct3 = idx < act3Count ? 1 : 0;
           
           // Save the dietary allergy string to the first attendee in the list
           let allergiesVal = null;
@@ -216,8 +218,11 @@ export default function SignupPage() {
             notes: camperNotes,
             tshirt_size: a.tshirt_size || null,
             indian_size: null,
-            kayaking: isKayaking,
-            boat_tour: isBoatTour
+            activity_1: isAct1,
+            activity_2: isAct2,
+            activity_3: isAct3,
+            kayaking: isAct1,
+            boat_tour: isAct2
           };
         })
       };
@@ -256,10 +261,11 @@ export default function SignupPage() {
                     <span>👤 <strong>{c.full_name}</strong> {c.age ? `(Age: ${c.age})` : ""}</span>
                     <span style={{ color: "var(--gold)", display: "flex", gap: 8, alignItems: "center" }}>
                       <span>👕 {sizeStr}</span>
-                      {(c.kayaking > 0 || c.boat_tour > 0) && (
+                      {((c.activity_1 > 0) || (c.activity_2 > 0) || (c.activity_3 > 0)) && (
                         <span style={{ fontSize: "0.85rem", color: "var(--forest-mid)", background: "#eef2f3", padding: "2px 6px", borderRadius: 4 }}>
-                          {c.kayaking > 0 ? `🛶 ${c.kayaking} ` : ""}
-                          {c.boat_tour > 0 ? `⛵ ${c.boat_tour}` : ""}
+                          {c.activity_1 > 0 ? `🛶 ${activitiesArray[0] || "Option 1"}: ${c.activity_1} ` : ""}
+                          {c.activity_2 > 0 ? `⛵ ${activitiesArray[1] || "Option 2"}: ${c.activity_2} ` : ""}
+                          {c.activity_3 > 0 ? `🧗 ${activitiesArray[2] || "Option 3"}: ${c.activity_3}` : ""}
                         </span>
                       )}
                     </span>
