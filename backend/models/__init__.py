@@ -16,4 +16,12 @@ from .run_of_show import RunOfShowBlock
 from .roster_team import RosterTeam
 from .setup_task import SetupTask
 from .contingency_plan import ContingencyPlan
+from .kidz_corner import (
+    KidzCornerVolunteer,
+    KidzCornerKid,
+    KidzCornerScheduleItem,
+    KidzCornerCraft,
+    KidzCornerBudgetItem,
+    KidzCornerAVLink,
+)
 

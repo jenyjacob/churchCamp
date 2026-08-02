@@ -290,7 +290,13 @@ export default function CampersPage() {
       if (settings && settings.activity_names) {
         let parsed = JSON.parse(settings.activity_names);
         if (Array.isArray(parsed)) {
-          return parsed.filter(act => act && act.trim() !== "");
+          let list = parsed.filter(act => act && act.trim() !== "");
+          if (list.length === 0) {
+            return ["Kayaking", "Boat Tour"];
+          }
+          if (list.length < 1 || !list[0]) list[0] = "Kayaking";
+          if (list.length < 2 || !list[1]) list[1] = "Boat Tour";
+          return list;
         }
       }
     } catch (e) {}

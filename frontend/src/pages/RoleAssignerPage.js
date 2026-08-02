@@ -16,7 +16,8 @@ const PAGES = [
   { key: "logs", label: "📄 Audit Logs" },
   { key: "camp_info", label: "ℹ️ Camp Info" },
   { key: "retreat_ops", label: "📋 Retreat Operations" },
-  { key: "registration_config", label: "📝 Registration Config" }
+  { key: "registration_config", label: "📝 Registration Config" },
+  { key: "kidz_corner", label: "🧸 Kidz Corner" }
 ];
 
 const getRoleLabel = (roleKey) => {
