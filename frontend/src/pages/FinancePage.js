@@ -86,8 +86,24 @@ export default function FinancePage() {
   const [expandedFamilies, setExpandedFamilies] = useState({});
   const [reminderMode, setReminderMode] = useState("balance"); // balance, activity
   const [reminderTemplates, setReminderTemplates] = useState({
-    balance: "Hi {first_name}, this is a reminder from GCA Church Camp that your camp fee balance is ${balance}. Please arrange payment at your earliest convenience. Thank you!",
-    activity: "Hi {first_name}, a reminder from GCA Church Camp that outdoor activity fees (kayaking/boat tour, etc.) come to ${activity_fee} for your family and are included in your total camp fees. Thank you!"
+    balance: `Hi {first_name} {last_name},
+
+This is a friendly reminder from GCA Church Camp regarding your camp fee balance of \${balance}. We'd greatly appreciate it if you could arrange payment at your earliest convenience.
+
+If you've already taken care of this, please disregard this message — and thank you for your prompt attention!
+
+We're so grateful to have you with us this year. If you have any questions, please don't hesitate to reach out.
+
+Warm regards,
+GCA Church Camp Team`,
+    activity: `Hi {first_name} {last_name},
+
+This is a friendly reminder from GCA Church Camp that the outdoor activity fees (kayaking, boat tour, etc.) for your family come to \${activity_fee}.
+
+If you've already taken care of this, please disregard this message — and thank you!
+
+Warm regards,
+GCA Church Camp Team`
   });
   const [reminderFilter, setReminderFilter] = useState("due"); // due, all
   const [markingReminder, setMarkingReminder] = useState(null); // family_group currently being marked
@@ -210,8 +226,10 @@ export default function FinancePage() {
     const balance = ((family.total_expected_fee || 0) - (family.amount_paid || 0)).toFixed(2);
     const activityFee = (family.activity_fee || 0).toFixed(2);
     const template = reminderTemplates[reminderMode];
+
     return template
       .replaceAll("{first_name}", family.head_first_name || "there")
+      .replaceAll("{last_name}", family.head_last_name || "")
       .replaceAll("{name}", family.head_full_name || family.display_name || "there")
       .replaceAll("{family}", family.family_group)
       .replaceAll("{balance}", balance)
@@ -1337,7 +1355,7 @@ export default function FinancePage() {
               }}
             />
             <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
-              Placeholders: <code>{"{first_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>
+              Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>
             </div>
           </div>
 
