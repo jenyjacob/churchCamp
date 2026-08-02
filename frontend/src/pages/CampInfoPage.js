@@ -18,9 +18,9 @@ export default function CampInfoPage() {
   // Edit Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formFields, setFormFields] = useState({
-    signup_title: "",
+    camp_info_title: "",
     camp_description: "",
-    signup_location: "",
+    camp_info_address: "",
     camp_poc_name: "",
     camp_poc_email: "",
     camp_poc_phone: "",
@@ -35,9 +35,9 @@ export default function CampInfoPage() {
       if (res.data.settings) {
         setSettings(res.data.settings);
         setFormFields({
-          signup_title: res.data.settings.signup_title || "",
+          camp_info_title: res.data.settings.camp_info_title || "",
           camp_description: res.data.settings.camp_description || "",
-          signup_location: res.data.settings.signup_location || "",
+          camp_info_address: res.data.settings.camp_info_address || "",
           camp_poc_name: res.data.settings.camp_poc_name || "",
           camp_poc_email: res.data.settings.camp_poc_email || "",
           camp_poc_phone: res.data.settings.camp_poc_phone || "",
@@ -51,12 +51,37 @@ export default function CampInfoPage() {
     }
   };
 
+  const [placesNotice, setPlacesNotice] = useState("");
+  const [refreshCooldown, setRefreshCooldown] = useState(0); // seconds remaining
+
+  useEffect(() => {
+    if (refreshCooldown <= 0) return;
+    const t = setInterval(() => setRefreshCooldown(s => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [refreshCooldown]);
+
   const fetchPlaces = async (forceRefresh = false) => {
     try {
       setPlacesLoading(true);
       const url = forceRefresh ? "/api/settings/places?refresh=true" : "/api/settings/places";
       const res = await api.get(url);
       setPlaces(res.data);
+
+      if (res.data.throttled) {
+        const wait = res.data.retry_after_seconds || 60;
+        setPlacesNotice(`Refreshed too recently — showing cached results. Try again in ~${wait}s.`);
+        setRefreshCooldown(wait);
+      } else if (res.data.refresh_failed) {
+        const reason = res.data.failure_reason ? ` (${res.data.failure_reason})` : "";
+        setPlacesNotice(`Couldn't reach Google Places just now${reason} — showing the last successful results instead.`);
+        setRefreshCooldown(60);
+      } else {
+        setPlacesNotice("");
+        // Only cool down after a real live API call succeeded - a plain
+        // local-directory fallback (no API key configured) is free to
+        // re-run instantly and shouldn't lock the button.
+        if (forceRefresh && !res.data.is_mock) setRefreshCooldown(60);
+      }
     } catch (err) {
       // Ignored - fall back gracefully
     } finally {
@@ -237,16 +262,18 @@ export default function CampInfoPage() {
               {/* Camp Overview */}
               <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <h3 style={{ color: "var(--forest-dark)", fontWeight: 700, fontSize: "1.15rem", margin: 0, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
-                  🏫 {settings.signup_title || "Camp Details"}
+                  🏫 {settings.camp_info_title || "Camp Details"}
                 </h3>
                 <p style={{ fontSize: "0.92rem", color: "var(--charcoal)", lineHeight: 1.6, margin: 0 }}>
                   {settings.camp_description || "No description configured."}
                 </p>
-                <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", fontSize: "0.88rem", fontWeight: 600, color: "var(--forest)" }}>
-                  <span>📍 Camp Address:</span>
-                  <span className="badge badge-gray" style={{ fontSize: "0.85rem", padding: "4px 10px" }}>
-                    {settings.signup_location || "Not Set"}
-                  </span>
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.88rem", fontWeight: 600, color: "var(--forest)" }}>
+                    <span>📍 Camp Address:</span>
+                    <span className="badge badge-gray" style={{ fontSize: "0.85rem", padding: "4px 10px" }}>
+                      {settings.camp_info_address || "Not Set"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -284,6 +311,55 @@ export default function CampInfoPage() {
               </div>
             </div>
 
+            {/* Row 1.5: Map of the camp address itself */}
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 16 }}>
+                <h3 style={{ color: "var(--forest-dark)", fontWeight: 700, fontSize: "1.15rem", margin: 0 }}>
+                  🗺️ Camp Location
+                </h3>
+                {settings.camp_info_address && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(settings.camp_info_address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline"
+                      style={{ padding: "6px 14px", fontSize: "0.8rem", textDecoration: "none" }}
+                    >
+                      🧭 Get Directions
+                    </a>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.camp_info_address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-outline"
+                      style={{ padding: "6px 14px", fontSize: "0.8rem", textDecoration: "none" }}
+                    >
+                      🔗 Open in Google Maps
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {settings.camp_info_address ? (
+                <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+                  <iframe
+                    title="Camp location map"
+                    width="100%"
+                    height="320"
+                    style={{ border: 0, display: "block" }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(settings.camp_info_address)}&output=embed`}
+                  />
+                </div>
+              ) : (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--muted)" }}>
+                  Set a camp address above to show it on the map.
+                </div>
+              )}
+            </div>
+
             {/* Row 2: Google Places nearby search */}
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: 10, marginBottom: 16 }}>
@@ -293,7 +369,7 @@ export default function CampInfoPage() {
                   </h3>
                   <button
                     onClick={() => fetchPlaces(true)}
-                    disabled={placesLoading}
+                    disabled={placesLoading || refreshCooldown > 0}
                     className="btn btn-secondary"
                     style={{
                       padding: "4px 10px",
@@ -304,13 +380,14 @@ export default function CampInfoPage() {
                       background: "none",
                       border: "1px solid var(--border)",
                       color: "var(--forest)",
-                      cursor: "pointer",
+                      cursor: (placesLoading || refreshCooldown > 0) ? "not-allowed" : "pointer",
+                      opacity: refreshCooldown > 0 ? 0.6 : 1,
                       borderRadius: 4,
                       transition: "all 0.2s ease"
                     }}
-                    title="Force refresh live results from Google Places API"
+                    title={refreshCooldown > 0 ? `Wait ${refreshCooldown}s to avoid rate-limiting Google Places` : "Force refresh live results from Google Places API"}
                   >
-                    🔄 {placesLoading ? "Updating..." : "Refresh"}
+                    🔄 {placesLoading ? "Updating..." : refreshCooldown > 0 ? `Refresh (${refreshCooldown}s)` : "Refresh"}
                   </button>
                 </div>
                 {places.is_mock && (
@@ -319,6 +396,16 @@ export default function CampInfoPage() {
                   </span>
                 )}
               </div>
+              {places.camp_address && (
+                <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: -8, marginBottom: 16 }}>
+                  Based on: {places.camp_address}
+                </div>
+              )}
+              {placesNotice && (
+                <div className="alert alert-error" style={{ marginBottom: 16, fontSize: "0.82rem", padding: "8px 12px" }}>
+                  ⏳ {placesNotice}
+                </div>
+              )}
 
               {placesLoading ? (
                 <div style={{ padding: 24, textAlign: "center", color: "var(--muted)" }}>
@@ -449,8 +536,8 @@ export default function CampInfoPage() {
                 <label className="form-label" style={{ fontWeight: 600 }}>Camp Name / Header</label>
                 <input
                   className="form-input"
-                  value={formFields.signup_title}
-                  onChange={e => setFormFields(prev => ({ ...prev, signup_title: e.target.value }))}
+                  value={formFields.camp_info_title}
+                  onChange={e => setFormFields(prev => ({ ...prev, camp_info_title: e.target.value }))}
                   required
                 />
               </div>
@@ -471,8 +558,8 @@ export default function CampInfoPage() {
                 <label className="form-label" style={{ fontWeight: 600 }}>Camp Location Address</label>
                 <input
                   className="form-input"
-                  value={formFields.signup_location}
-                  onChange={e => setFormFields(prev => ({ ...prev, signup_location: e.target.value }))}
+                  value={formFields.camp_info_address}
+                  onChange={e => setFormFields(prev => ({ ...prev, camp_info_address: e.target.value }))}
                   placeholder="e.g. Camp Name, Address, City"
                   required
                 />

@@ -17,6 +17,8 @@ import TShirtsPage from "./pages/TShirtsPage";
 import RoleAssignerPage from "./pages/RoleAssignerPage";
 import CampInfoPage from "./pages/CampInfoPage";
 import TeamsPage from "./pages/TeamsPage";
+import RetreatOpsPage from "./pages/RetreatOpsPage";
+import RegistrationConfigPage from "./pages/RegistrationConfigPage";
 
 
 function RequireAuth({ children }) {
@@ -55,6 +57,7 @@ function AppRoutes() {
         <Route path="checkin" element={<RequirePermission pageKey="checkin"><CheckInPage /></RequirePermission>} />
         <Route path="cabins" element={<RequirePermission pageKey="cabins"><CabinsPage /></RequirePermission>} />
         <Route path="app/schedule" element={<RequirePermission pageKey="schedule"><SchedulePage /></RequirePermission>} />
+        <Route path="retreat-ops" element={<RequirePermission pageKey="retreat_ops"><RetreatOpsPage /></RequirePermission>} />
         <Route path="outdoor" element={<RequirePermission pageKey="outdoor"><OutdoorPage /></RequirePermission>} />
         <Route path="tshirts" element={<RequirePermission pageKey="apparel"><TShirtsPage /></RequirePermission>} />
         <Route path="users" element={<RequirePermission pageKey="users"><UsersPage /></RequirePermission>} />
@@ -62,6 +65,7 @@ function AppRoutes() {
         <Route path="logs" element={<RequirePermission pageKey="logs"><AuditLogsPage /></RequirePermission>} />
         <Route path="role-assigner" element={<RequirePermission pageKey="role_assigner"><RoleAssignerPage /></RequirePermission>} />
         <Route path="camp-info" element={<RequirePermission pageKey="camp_info"><CampInfoPage /></RequirePermission>} />
+        <Route path="registration-config" element={<RequirePermission pageKey="registration_config"><RegistrationConfigPage /></RequirePermission>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

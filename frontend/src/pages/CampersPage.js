@@ -47,7 +47,7 @@ const formatCabinDetails = (cabinGroup, defaultLabel = "⛺ Unassigned") => {
   return `⛺ Cabin: ${cabinGroup}${loc ? ` (${loc})` : ""}`;
 };
 
-function CamperModal({ camper, onClose, onSave, teamNames }) {
+function CamperModal({ camper, onClose, onSave, teamNames, activityNames }) {
   const { hasPermission } = useAuth();
   const canEditTeams = hasPermission("teams", "edit");
   const [form, setForm] = useState(camper || EMPTY_CAMPER);
@@ -185,17 +185,31 @@ function CamperModal({ camper, onClose, onSave, teamNames }) {
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Medical</div>
           <div className="form-group"><label className="form-label">Allergies</label><textarea {...inp("allergies")} className="form-textarea" rows={2} /></div>
 
-          <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Outdoor Activities</div>
-          <div className="form-grid" style={{ marginBottom: 12 }}>
-            <div className="form-group">
-              <label className="form-label">Kayaking Spots</label>
-              <input {...inp("kayaking")} type="number" min="0" max="10" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Boat Tour Spots</label>
-              <input {...inp("boat_tour")} type="number" min="0" max="10" />
-            </div>
-          </div>
+          {activityNames && activityNames.length > 0 && (
+            <>
+              <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Outdoor Activities</div>
+              <div className="form-grid" style={{ marginBottom: 12 }}>
+                {activityNames.length >= 1 && (
+                  <div className="form-group">
+                    <label className="form-label">{activityNames[0]} Spots</label>
+                    <input {...inp("activity_1")} type="number" min="0" max="10" />
+                  </div>
+                )}
+                {activityNames.length >= 2 && (
+                  <div className="form-group">
+                    <label className="form-label">{activityNames[1]} Spots</label>
+                    <input {...inp("activity_2")} type="number" min="0" max="10" />
+                  </div>
+                )}
+                {activityNames.length >= 3 && (
+                  <div className="form-group">
+                    <label className="form-label">{activityNames[2]} Spots</label>
+                    <input {...inp("activity_3")} type="number" min="0" max="10" />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600, margin: "16px 0 12px" }}>Status</div>
           <div className="form-grid">
@@ -244,6 +258,7 @@ export default function CampersPage() {
   const [pages, setPages] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [ageFilter, setAgeFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | "add" | camper object
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -251,6 +266,9 @@ export default function CampersPage() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem("camperViewMode") || "table");
   const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
   const [revealedPhones, setRevealedPhones] = useState({});
+  const [exporting, setExporting] = useState(false);
+  const [years, setYears] = useState([]);
+  const [selectedYear, setSelectedYear] = useState("current");
 
   const showTeams = settings.teams_published !== "false";
 
@@ -266,6 +284,20 @@ export default function CampersPage() {
     }
     return clean;
   };
+  
+  const getActivityNamesArray = () => {
+    try {
+      if (settings && settings.activity_names) {
+        let parsed = JSON.parse(settings.activity_names);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(act => act && act.trim() !== "");
+        }
+      }
+    } catch (e) {}
+    return ["Kayaking", "Boat Tour"];
+  };
+
+  const activityNames = getActivityNamesArray();
 
   const handleViewModeChange = (mode) => {
     setViewMode(mode);
@@ -277,6 +309,33 @@ export default function CampersPage() {
     setRevealedPhones(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (statusFilter) params.set("status", statusFilter);
+      if (selectedYear) params.set("year", selectedYear);
+      if (ageFilter) params.set("age_filter", ageFilter);
+      
+      const response = await api.get(`/api/campers/export-excel?${params}`, {
+        responseType: "blob"
+      });
+      const blob = new Blob([response.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "gca_campers_names.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setError("Failed to export campers to Excel.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const fetchCampers = useCallback(() => {
     setLoading(true);
     const perPageVal = viewMode === "family" ? -1 : 20;
@@ -284,11 +343,20 @@ export default function CampersPage() {
     const params = new URLSearchParams({ page: pageVal, per_page: perPageVal });
     if (search) params.set("search", search);
     if (statusFilter) params.set("status", statusFilter);
+    if (selectedYear) params.set("year", selectedYear);
+    if (ageFilter) params.set("age_filter", ageFilter);
     api.get(`/api/campers/?${params}`)
-      .then(r => { setCampers(r.data.campers); setTotal(r.data.total); setPages(r.data.pages); })
+      .then(r => {
+        setCampers(r.data.campers);
+        setTotal(r.data.total);
+        setPages(r.data.pages);
+        if (r.data.years) {
+          setYears(r.data.years);
+        }
+      })
       .catch(() => setError("Failed to load campers."))
       .finally(() => setLoading(false));
-  }, [page, search, statusFilter, viewMode]);
+  }, [page, search, statusFilter, ageFilter, viewMode, selectedYear]);
 
   useEffect(() => { 
     fetchCampers(); 
@@ -355,11 +423,27 @@ export default function CampersPage() {
     <>
       <div className="top-bar">
         <h1>Campers</h1>
-        {canEdit && (
-          <button className="btn btn-primary" onClick={() => setModal("add")}>
-            ➕ Register Camper
+        <div style={{ display: "flex", gap: 10 }}>
+          <button 
+            type="button" 
+            className="btn btn-outline" 
+            onClick={handleExportExcel} 
+            disabled={exporting}
+          >
+            {exporting ? (
+              <>
+                <span className="spinner" style={{ marginRight: 6 }} /> Exporting...
+              </>
+            ) : (
+              <>📥 Export Excel</>
+            )}
           </button>
-        )}
+          {canEdit && (
+            <button className="btn btn-primary" onClick={() => setModal("add")}>
+              ➕ Register Camper
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="page-body">
@@ -375,11 +459,23 @@ export default function CampersPage() {
               onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <select className="form-select" style={{ width: 160 }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
+          <select className="form-select" style={{ width: 140 }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="">All Statuses</option>
             <option value="registered">Registered</option>
             <option value="waitlist">Waitlist</option>
             <option value="cancelled">Cancelled</option>
+          </select>
+          <select className="form-select" style={{ width: 140 }} value={ageFilter} onChange={e => { setAgeFilter(e.target.value); setPage(1); }}>
+            <option value="">All Ages</option>
+            <option value="child">Child (&lt; 18)</option>
+            <option value="adult">Adult (&gt;= 18)</option>
+            <option value="senior">Senior (&gt;= 65)</option>
+          </select>
+          <select className="form-select" style={{ width: 180 }} value={selectedYear} onChange={e => { setSelectedYear(e.target.value); setPage(1); }}>
+            <option value="current">Active Year ({settings.current_camp_year || "2027"})</option>
+            {years.map(y => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
           </select>
           
           {/* View Mode Toggle switcher */}
@@ -651,6 +747,7 @@ export default function CampersPage() {
             team_1: settings.team_1_name || "Team Peter",
             team_2: settings.team_2_name || "Team Paul"
           }}
+          activityNames={activityNames}
         />
       )}
 

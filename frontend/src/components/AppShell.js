@@ -16,6 +16,7 @@ const navItems = [
   { to: "/checkin", icon: "✅", label: "Check-In", pageKey: "checkin" },
   { to: "/cabins",  icon: "⛺", label: "Cabins", pageKey: "cabins" },
   { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
+  { to: "/retreat-ops", icon: "⛺", label: "Retreat Ops", pageKey: "retreat_ops" },
   { to: "/outdoor", icon: "🛶", label: "Outdoor Activities", pageKey: "outdoor" },
   { to: "/tshirts", icon: "👕", label: "Apparel", pageKey: "apparel" },
   { to: "/camp-info", icon: "ℹ️", label: "Camp Info", pageKey: "camp_info" },
@@ -26,6 +27,7 @@ const adminItems = [
   { to: "/users",   icon: "⚙️", label: "Users", pageKey: "users" },
   { to: "/logs",    icon: "📄", label: "Audit Logs", pageKey: "logs" },
   { to: "/role-assigner", icon: "🛡️", label: "Role Assigner", pageKey: "role_assigner" },
+  { to: "/registration-config", icon: "📝", label: "Registration Config", pageKey: "registration_config" },
 ];
 
 function NavItem({ to, icon, label, exact }) {

@@ -12,4 +12,8 @@ from .expense import Expense
 from .family_payment import FamilyPayment
 from .fee_rate import FeeRate
 from .setting import Setting
+from .run_of_show import RunOfShowBlock
+from .roster_team import RosterTeam
+from .setup_task import SetupTask
+from .contingency_plan import ContingencyPlan
 

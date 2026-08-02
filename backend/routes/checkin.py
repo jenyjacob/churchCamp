@@ -71,7 +71,11 @@ def get_checkins():
     per_page = int(request.args.get("per_page", 50))
     active_only = request.args.get("active_only", "false").lower() == "true"
 
-    query = CheckIn.query
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    query = CheckIn.query.join(Camper).filter(Camper.camp_year == current_year)
     if active_only:
         query = query.filter(CheckIn.checked_out_at.is_(None))
 

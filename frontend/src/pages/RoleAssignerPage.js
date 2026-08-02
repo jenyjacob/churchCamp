@@ -14,7 +14,9 @@ const PAGES = [
   { key: "receipt_upload", label: "🧾 Upload Receipts" },
   { key: "users", label: "⚙️ Users" },
   { key: "logs", label: "📄 Audit Logs" },
-  { key: "camp_info", label: "ℹ️ Camp Info" }
+  { key: "camp_info", label: "ℹ️ Camp Info" },
+  { key: "retreat_ops", label: "📋 Retreat Operations" },
+  { key: "registration_config", label: "📝 Registration Config" }
 ];
 
 const getRoleLabel = (roleKey) => {
@@ -51,15 +53,10 @@ export default function RoleAssignerPage() {
   const [isRoleSettingsOpen, setIsRoleSettingsOpen] = useState(true);
 
   // Camp configuration settings
-  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul" });
-  const [activitiesList, setActivitiesList] = useState(["KAYAKING", "BOAT TOUR"]);
-  const [updatingCamp, setUpdatingCamp] = useState(false);
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
   const [updatingTeams, setUpdatingTeams] = useState(false);
-  const [settingsError, setSettingsError] = useState("");
-  const [settingsSuccess, setSettingsSuccess] = useState("");
   const [teamSuccess, setTeamSuccess] = useState("");
   const [teamError, setTeamError] = useState("");
-  const [isCampSettingsOpen, setIsCampSettingsOpen] = useState(true);
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(true);
 
   // Excel Upload State for Teams
@@ -123,12 +120,6 @@ export default function RoleAssignerPage() {
       .then(res => {
         if (res.data.settings) {
           setSettings(res.data.settings);
-          try {
-            const parsed = JSON.parse(res.data.settings.activity_names);
-            if (Array.isArray(parsed)) {
-              setActivitiesList(parsed);
-            }
-          } catch (e) {}
         }
       })
       .catch(() => {});
@@ -140,54 +131,6 @@ export default function RoleAssignerPage() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  const handleActivityChange = (index, val) => {
-    const updated = [...activitiesList];
-    updated[index] = val;
-    setActivitiesList(updated);
-  };
-
-  const addActivity = () => {
-    setActivitiesList([...activitiesList, ""]);
-  };
-
-  const removeActivity = (index) => {
-    setActivitiesList(activitiesList.filter((_, i) => i !== index));
-  };
-
-  const handleSaveCampSettings = (e) => {
-    e.preventDefault();
-    setUpdatingCamp(true);
-    setSettingsError("");
-    setSettingsSuccess("");
-
-    const status = settings.registration_status || "open";
-    const payload = {
-      signup_title: settings.signup_title,
-      signup_dates: settings.signup_dates,
-      signup_location: settings.signup_location,
-      registration_status: status,
-      registration_closed: status === "open" ? "false" : "true",
-      activity_names: JSON.stringify(activitiesList.filter(act => act.trim() !== ""))
-    };
-
-    api.post("/api/settings/", payload)
-      .then(res => {
-        if (res.data.settings) {
-          setSettings(prev => ({ ...prev, ...res.data.settings }));
-          try {
-            const parsed = JSON.parse(res.data.settings.activity_names);
-            if (Array.isArray(parsed)) {
-              setActivitiesList(parsed);
-            }
-          } catch (e) {}
-          setSettingsSuccess("Camp customization settings updated successfully!");
-          setTimeout(() => setSettingsSuccess(""), 4000);
-        }
-      })
-      .catch(() => setSettingsError("Failed to update camp customization settings."))
-      .finally(() => setUpdatingCamp(false));
-  };
 
   const handleSaveTeamSettings = (e) => {
     e.preventDefault();
@@ -355,8 +298,6 @@ export default function RoleAssignerPage() {
       </div>
 
       <div className="page-body" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {settingsSuccess && <div className="alert alert-success">{settingsSuccess}</div>}
-        {settingsError && <div className="alert alert-error">{settingsError}</div>}
         {error && <div className="alert alert-error">{error}</div>}
 
         {/* SECTION 1: Privileges Matrix Table / Mobile List */}
@@ -549,144 +490,6 @@ export default function RoleAssignerPage() {
 
         {/* SECTION 3: Collapsible Configurations */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
-          
-          {/* Card 1: Camp Customization Settings */}
-          <div className="card" style={{ padding: 0, overflow: "visible" }}>
-            <div 
-              onClick={() => setIsCampSettingsOpen(!isCampSettingsOpen)}
-              style={{ 
-                padding: "16px 20px", 
-                cursor: "pointer", 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center", 
-                background: "rgba(180, 151, 90, 0.04)",
-                borderBottom: isCampSettingsOpen ? "1px solid var(--border)" : "none",
-                borderTopLeftRadius: "8px",
-                borderTopRightRadius: "8px",
-                borderBottomLeftRadius: isCampSettingsOpen ? "0px" : "8px",
-                borderBottomRightRadius: isCampSettingsOpen ? "0px" : "8px",
-                userSelect: "none"
-              }}
-            >
-              <h3 style={{ fontSize: "1rem", color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
-                ⚙️ Camp Customization Settings
-              </h3>
-              <span style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>
-                {isCampSettingsOpen ? "▲ Collapse" : "▼ Expand"}
-              </span>
-            </div>
-
-            {isCampSettingsOpen && (
-              <form onSubmit={handleSaveCampSettings} className="config-card-form" style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
-                {/* Group 1: Registration Form Details */}
-                <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
-                  📝 Registration Page Branding & Details
-                </h4>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-                  <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                    <label className="form-label" style={{ fontWeight: 600 }}>Registration Form Heading Title</label>
-                    <input 
-                      className="form-input" 
-                      value={settings.signup_title || ""} 
-                      onChange={e => setSettings(prev => ({ ...prev, signup_title: e.target.value }))}
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600 }}>Camp Dates Description</label>
-                    <input 
-                      className="form-input" 
-                      value={settings.signup_dates || ""} 
-                      onChange={e => setSettings(prev => ({ ...prev, signup_dates: e.target.value }))}
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600 }}>Camp Location Description</label>
-                    <input 
-                      className="form-input" 
-                      value={settings.signup_location || ""} 
-                      onChange={e => setSettings(prev => ({ ...prev, signup_location: e.target.value }))}
-                      required 
-                    />
-                  </div>
-                </div>
-
-                {/* Group 2: Dynamic Activities List */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed var(--border)", paddingBottom: 6, marginTop: 10 }}>
-                  <h5 style={{ fontSize: "0.78rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px", margin: 0, fontWeight: 700 }}>
-                    🛶 Activity Option Labels
-                  </h5>
-                  <button 
-                    type="button" 
-                    onClick={addActivity}
-                    style={{ background: "none", border: "1px solid var(--forest)", borderRadius: 4, color: "var(--forest)", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", padding: "2px 10px" }}
-                  >
-                    + Add Activity
-                  </button>
-                </div>
-                
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-                  {activitiesList.map((activity, idx) => (
-                    <div key={idx} className="form-group" style={{ display: "flex", flexDirection: "column" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <label className="form-label" style={{ fontWeight: 600, margin: 0, fontSize: "0.8rem" }}>Activity #{idx + 1} Name</label>
-                        <button 
-                          type="button" 
-                          onClick={() => removeActivity(idx)}
-                          style={{ background: "none", border: "none", color: "#ef4444", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", padding: 0 }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                      <input 
-                        className="form-input" 
-                        value={activity} 
-                        onChange={e => handleActivityChange(idx, e.target.value)}
-                        placeholder={`e.g. Activity #${idx + 1}`}
-                        required 
-                      />
-                    </div>
-                  ))}
-                  {activitiesList.length === 0 && (
-                    <div style={{ gridColumn: "1 / -1", padding: "16px", background: "#f8fafc", borderRadius: 6, color: "var(--muted)", fontSize: "0.85rem", textAlign: "center" }}>
-                      No activities configured. The activities section will be hidden on the signup page.
-                    </div>
-                  )}
-                </div>
-
-                {/* Group 3: Registration Availability Status */}
-                <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700, marginTop: 10 }}>
-                  🟢 Registration Status
-                </h4>
-                <div className="form-group" style={{ marginBottom: 4 }}>
-                  <label className="form-label" style={{ fontWeight: 600 }}>Camper Registration Form Availability</label>
-                  <select
-                    className="form-input"
-                    style={{ width: "100%", maxWidth: 360, height: 38, cursor: "pointer" }}
-                    value={settings.registration_status || "open"}
-                    onChange={e => setSettings(prev => ({ ...prev, registration_status: e.target.value }))}
-                  >
-                    <option value="open">🟢 Open (Allow campers to sign up)</option>
-                    <option value="not_open">⏳ Not Open Yet (Display 'Registration is not open yet' message)</option>
-                    <option value="closed">🚫 Closed (Display 'Registration is closed' message)</option>
-                  </select>
-                </div>
-
-                <div className="form-actions-row" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    disabled={updatingCamp}
-                    style={{ padding: "8px 24px", fontSize: "0.85rem" }}
-                  >
-                    {updatingCamp ? "Saving Settings…" : "Save Customization Settings"}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
 
           {/* Card 2: Game Teams Configurations */}
           <div className="card" style={{ padding: 0, overflow: "visible" }}>

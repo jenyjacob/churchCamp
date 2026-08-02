@@ -59,11 +59,22 @@ def parse_custom_activities(notes_str):
 @require_page_permission("finance", "read")
 def get_fees():
     import json
-    # 1. Fetch all registered campers OR campers participating in activities
+    year_arg = request.args.get("year", "current").strip()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    year = current_year
+    if year_arg.isdigit():
+        year = int(year_arg)
+
+    # 1. Fetch all registered campers OR campers participating in activities for the active/selected year
     campers = Camper.query.filter(
-        (Camper.registration_status == "registered") | 
-        (Camper.kayaking > 0) | 
-        (Camper.boat_tour > 0)
+        Camper.camp_year == year,
+        ((Camper.registration_status == "registered") | 
+         (Camper.activity_1 > 0) | 
+         (Camper.activity_2 > 0) |
+         (Camper.activity_3 > 0))
     ).all()
     rates_dict = get_fee_rates_dict()
 
@@ -78,7 +89,11 @@ def get_fees():
         pass
 
     try:
-        activity_list = json.loads(settings_dict.get("activity_names", '["Kayaking", "Boat Tour"]'))
+        year_activity_key = f"activity_names_{year}"
+        raw_activities = settings_dict.get(year_activity_key)
+        if not raw_activities:
+            raw_activities = settings_dict.get("activity_names", '["Kayaking", "Boat Tour"]')
+        activity_list = json.loads(raw_activities)
     except Exception:
         activity_list = ["Kayaking", "Boat Tour"]
     if len(activity_list) < 1 or not activity_list[0]:
@@ -110,8 +125,9 @@ def get_fees():
                 "family_group": fg,
                 "members": [],
                 "eligible_count": 0,
-                "kayaking_spots": 0,
-                "boat_tour_spots": 0,
+                "activity_1_spots": 0,
+                "activity_2_spots": 0,
+                "activity_3_spots": 0,
                 "custom_spots": {}
             }
 
@@ -127,8 +143,11 @@ def get_fees():
             "full_name": f"{camper.first_name} {camper.last_name}",
             "age": camper.age,
             "is_eligible": is_eligible,
-            "kayaking": camper.kayaking or 0,
-            "boat_tour": camper.boat_tour or 0,
+            "activity_1": camper.activity_1 or 0,
+            "activity_2": camper.activity_2 or 0,
+            "activity_3": camper.activity_3 or 0,
+            "kayaking": camper.activity_1 or 0,
+            "boat_tour": camper.activity_2 or 0,
             "notes": camper.notes,
             "guardian_phone": camper.guardian_phone,
             "custom_activities": custom_acts
@@ -137,15 +156,17 @@ def get_fees():
         if is_eligible:
             families[fg]["eligible_count"] += 1
         
-        families[fg]["kayaking_spots"] += camper.kayaking or 0
-        families[fg]["boat_tour_spots"] += camper.boat_tour or 0
-        for i in range(2, len(activity_list)):
+        families[fg]["activity_1_spots"] += camper.activity_1 or 0
+        families[fg]["activity_2_spots"] += camper.activity_2 or 0
+        families[fg]["activity_3_spots"] += camper.activity_3 or 0
+        for i in range(3, len(activity_list)):
             act_name = activity_list[i]
             spots = int(custom_acts.get(act_name, 0))
             families[fg]["custom_spots"][i] = families[fg]["custom_spots"].get(i, 0) + spots
 
-    # 3. Fetch all family payment records from DB
-    payments = {p.family_group: p for p in FamilyPayment.query.all()}
+    # 3. Fetch all family payment records from DB matching this year's family groups
+    current_year_fgs = [c.family_group for c in campers if c.family_group]
+    payments = {p.family_group: p for p in FamilyPayment.query.filter(FamilyPayment.family_group.in_(current_year_fgs)).all()} if current_year_fgs else {}
 
     # 4. Compute tiered fees and build results
     results = []
@@ -176,12 +197,15 @@ def get_fees():
 
         activity_fee = 0.0
         # Activity 1
-        activity_fee += family["kayaking_spots"] * activity_prices[0]
+        activity_fee += family["activity_1_spots"] * activity_prices[0]
         # Activity 2
         if len(activity_prices) > 1:
-            activity_fee += family["boat_tour_spots"] * activity_prices[1]
+            activity_fee += family["activity_2_spots"] * activity_prices[1]
+        # Activity 3
+        if len(activity_prices) > 2:
+            activity_fee += family["activity_3_spots"] * activity_prices[2]
         # Additional activities
-        for i in range(2, len(activity_list)):
+        for i in range(3, len(activity_list)):
             spots = family["custom_spots"].get(i, 0)
             if len(activity_prices) > i:
                 activity_fee += spots * activity_prices[i]
@@ -237,8 +261,11 @@ def get_fees():
             "is_overridden": is_overridden,
             "discount": discount,
             "activity_fee": activity_fee,
-            "activity_1_spots": family["kayaking_spots"],
-            "activity_2_spots": family["boat_tour_spots"],
+            "activity_1_spots": family["activity_1_spots"],
+            "activity_2_spots": family["activity_2_spots"],
+            "activity_3_spots": family["activity_3_spots"],
+            "kayaking_spots": family["activity_1_spots"],
+            "boat_tour_spots": family["activity_2_spots"],
             "custom_spots": family["custom_spots"],
             "total_expected_fee": calculated_fee + activity_fee,
             "amount_paid": amount_paid,
@@ -509,7 +536,19 @@ def get_expenses():
     if not has_access:
         return jsonify({"error": "Read permission for finance or receipt_upload is required."}), 403
 
-    expenses = Expense.query.order_by(Expense.date.desc()).all()
+    year_arg = request.args.get("year", "current").strip()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    year = current_year
+    if year_arg.isdigit():
+        year = int(year_arg)
+
+    expenses = Expense.query.filter(
+        Expense.date >= f"{year}-01-01",
+        Expense.date <= f"{year}-12-31"
+    ).order_by(Expense.date.desc()).all()
     return jsonify({"expenses": [e.to_dict() for e in expenses]}), 200
 
 @finance_bp.route("/expenses", methods=["POST"])
@@ -697,17 +736,32 @@ def delete_expense(expense_id):
 @jwt_required()
 @require_page_permission("finance", "read")
 def get_finance_stats():
-    # 1. Total expenses sum
-    total_expenses = db.session.query(db.func.sum(Expense.amount)).scalar() or 0.0
+    year_arg = request.args.get("year", "current").strip()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
-    # 2. Total collected and expected fees (requires grouping and parsing registered/participating campers)
+    year = current_year
+    if year_arg.isdigit():
+        year = int(year_arg)
+
+    # 1. Total expenses sum for the active/selected year
+    total_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.date >= f"{year}-01-01",
+        Expense.date <= f"{year}-12-31"
+    ).scalar() or 0.0
+
+    # 2. Total collected and expected fees (requires grouping and parsing registered/participating campers for the active/selected year)
     campers = Camper.query.filter(
-        (Camper.registration_status == "registered") | 
-        (Camper.kayaking > 0) | 
-        (Camper.boat_tour > 0)
+        Camper.camp_year == year,
+        ((Camper.registration_status == "registered") | 
+         (Camper.activity_1 > 0) | 
+         (Camper.activity_2 > 0) |
+         (Camper.activity_3 > 0))
     ).all()
     rates_dict = get_fee_rates_dict()
-    payments = {p.family_group: p for p in FamilyPayment.query.all()}
+    current_year_fgs = [c.family_group for c in campers if c.family_group]
+    payments = {p.family_group: p for p in FamilyPayment.query.filter(FamilyPayment.family_group.in_(current_year_fgs)).all()} if current_year_fgs else {}
 
     # Load settings for activity list and prices
     settings_dict = {}
@@ -720,7 +774,11 @@ def get_finance_stats():
         pass
 
     try:
-        activity_list = json.loads(settings_dict.get("activity_names", '["Kayaking", "Boat Tour"]'))
+        year_activity_key = f"activity_names_{year}"
+        raw_activities = settings_dict.get(year_activity_key)
+        if not raw_activities:
+            raw_activities = settings_dict.get("activity_names", '["Kayaking", "Boat Tour"]')
+        activity_list = json.loads(raw_activities)
     except Exception:
         activity_list = ["Kayaking", "Boat Tour"]
     if len(activity_list) < 1 or not activity_list[0]:
@@ -746,18 +804,20 @@ def get_finance_stats():
         if fg not in families:
             families[fg] = {
                 "eligible_count": 0,
-                "kayaking_spots": 0,
-                "boat_tour_spots": 0,
+                "activity_1_spots": 0,
+                "activity_2_spots": 0,
+                "activity_3_spots": 0,
                 "custom_spots": {}
             }
         is_eligible = (camper.registration_status == "registered") and ((camper.age is None) or (camper.age >= 5))
         if is_eligible:
             families[fg]["eligible_count"] += 1
-        families[fg]["kayaking_spots"] += camper.kayaking or 0
-        families[fg]["boat_tour_spots"] += camper.boat_tour or 0
+        families[fg]["activity_1_spots"] += camper.activity_1 or 0
+        families[fg]["activity_2_spots"] += camper.activity_2 or 0
+        families[fg]["activity_3_spots"] += camper.activity_3 or 0
 
         custom_acts = parse_custom_activities(camper.notes)
-        for i in range(2, len(activity_list)):
+        for i in range(3, len(activity_list)):
             act_name = activity_list[i]
             spots = int(custom_acts.get(act_name, 0))
             families[fg]["custom_spots"][i] = families[fg]["custom_spots"].get(i, 0) + spots
@@ -775,27 +835,41 @@ def get_finance_stats():
         
         activity_fee = 0.0
         # Activity 1
-        activity_fee += info["kayaking_spots"] * activity_prices[0]
+        activity_fee += info["activity_1_spots"] * activity_prices[0]
         # Activity 2
         if len(activity_prices) > 1:
-            activity_fee += info["boat_tour_spots"] * activity_prices[1]
+            activity_fee += info["activity_2_spots"] * activity_prices[1]
+        # Activity 3
+        if len(activity_prices) > 2:
+            activity_fee += info["activity_3_spots"] * activity_prices[2]
         # Additional activities
-        for i in range(2, len(activity_list)):
+        for i in range(3, len(activity_list)):
             spots = info["custom_spots"].get(i, 0)
             if len(activity_prices) > i:
                 activity_fee += spots * activity_prices[i]
         
         total_expected += (base_fee + activity_fee)
 
-    total_collected = db.session.query(db.func.sum(FamilyPayment.amount_paid)).scalar() or 0.0
-    total_discounts = db.session.query(db.func.sum(FamilyPayment.discount)).scalar() or 0.0
+    if current_year_fgs:
+        total_collected = db.session.query(db.func.sum(FamilyPayment.amount_paid)).filter(FamilyPayment.family_group.in_(current_year_fgs)).scalar() or 0.0
+        total_discounts = db.session.query(db.func.sum(FamilyPayment.discount)).filter(FamilyPayment.family_group.in_(current_year_fgs)).scalar() or 0.0
+    else:
+        total_collected = 0.0
+        total_discounts = 0.0
+
+    available_years = [y[0] for y in db.session.query(Camper.camp_year).filter(Camper.camp_year.isnot(None)).distinct().all() if y[0]]
+    if current_year not in available_years:
+        available_years.append(current_year)
+    available_years.sort(reverse=True)
 
     return jsonify({
         "total_expenses": total_expenses,
         "total_expected_fees": total_expected,
         "total_collected_fees": total_collected,
         "total_discounts": total_discounts,
-        "net_balance": total_collected - total_expenses
+        "net_balance": total_collected - total_expenses,
+        "years": available_years,
+        "current_year": current_year
     }), 200
 
 # Endpoint to fetch configured fee rates
@@ -948,8 +1022,22 @@ def download_all_receipts_zip():
     if role not in ["owner", "finance", "admin"]:
         return jsonify({"error": "Only Finance Manager, Owner, and Admin can download receipts"}), 403
         
-    # Get all expenses that have a receipt
-    expenses = Expense.query.filter(Expense.receipt_filename.isnot(None), Expense.receipt_filename != '').all()
+    year_arg = request.args.get("year", "current").strip()
+    from models import Setting
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
+
+    year = current_year
+    if year_arg.isdigit():
+        year = int(year_arg)
+
+    # Get all expenses that have a receipt for the selected camp year
+    expenses = Expense.query.filter(
+        Expense.receipt_filename.isnot(None),
+        Expense.receipt_filename != '',
+        Expense.date >= f"{year}-01-01",
+        Expense.date <= f"{year}-12-31"
+    ).all()
     if not expenses:
         return jsonify({"error": "No receipts uploaded yet"}), 404
         

@@ -29,6 +29,7 @@ export default function OutdoorPage() {
   const [campers, setCampers] = useState([]);
   const [totalKayaking, setTotalKayaking] = useState(0);
   const [totalBoatTour, setTotalBoatTour] = useState(0);
+  const [totalActivity3, setTotalActivity3] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
@@ -36,6 +37,7 @@ export default function OutdoorPage() {
 
   // Dynamic Activity Names
   const [activityNames, setActivityNames] = useState(["Kayaking", "Boat Tour"]);
+  const [campYear, setCampYear] = useState("2026");
 
   // Edit Activity Names Modal State
   const [editNamesModal, setEditNamesModal] = useState({
@@ -92,11 +94,12 @@ export default function OutdoorPage() {
     const camper = allCampers.find(c => c.id === parseInt(selectedCamperId, 10));
     if (!camper) return;
 
-    const spots1 = parseInt(activities[activityNames[0]], 10) || 0;
-    const spots2 = parseInt(activities[activityNames[1]], 10) || 0;
+    const spots1 = activityNames[0] ? (parseInt(activities[activityNames[0]], 10) || 0) : 0;
+    const spots2 = activityNames[1] ? (parseInt(activities[activityNames[1]], 10) || 0) : 0;
+    const spots3 = activityNames[2] ? (parseInt(activities[activityNames[2]], 10) || 0) : 0;
     
     const customObj = {};
-    for (let i = 2; i < activityNames.length; i++) {
+    for (let i = 3; i < activityNames.length; i++) {
       const name = activityNames[i];
       customObj[name] = parseInt(activities[name], 10) || 0;
     }
@@ -106,6 +109,9 @@ export default function OutdoorPage() {
     try {
       await api.put(`/api/campers/${camper.id}`, {
         ...camper,
+        activity_1: spots1,
+        activity_2: spots2,
+        activity_3: spots3,
         kayaking: spots1,
         boat_tour: spots2,
         notes: updatedNotes
@@ -123,9 +129,12 @@ export default function OutdoorPage() {
     setLoading(true);
 
     // Fetch dynamic activity names
-    api.get("/api/settings/public")
+    api.get("/api/settings/")
       .then(res => {
         const settings = res.data.settings || {};
+        if (settings.current_camp_year) {
+          setCampYear(settings.current_camp_year);
+        }
         try {
           let list = JSON.parse(settings.activity_names || '["Kayaking", "Boat Tour"]');
           if (Array.isArray(list)) {
@@ -144,8 +153,9 @@ export default function OutdoorPage() {
     api.get("/api/campers/outdoor")
       .then(res => {
         setCampers(res.data.campers || []);
-        setTotalKayaking(res.data.total_kayaking || 0);
-        setTotalBoatTour(res.data.total_boat_tour || 0);
+        setTotalKayaking(res.data.total_activity_1 || res.data.total_kayaking || 0);
+        setTotalBoatTour(res.data.total_activity_2 || res.data.total_boat_tour || 0);
+        setTotalActivity3(res.data.total_activity_3 || 0);
       })
       .catch(err => {
         setError("Failed to fetch outdoor activity participants data.");
@@ -195,9 +205,12 @@ export default function OutdoorPage() {
 
     setEditNamesModal(prev => ({ ...prev, saving: true }));
     try {
-      await api.post("/api/settings/", {
-        activity_names: JSON.stringify(cleaned)
-      });
+      const yearKey = `activity_names_${campYear}`;
+      const payload = {};
+      payload[yearKey] = JSON.stringify(cleaned);
+      payload["activity_names"] = JSON.stringify(cleaned);
+
+      await api.post("/api/settings/", payload);
 
       showFlash("success", "Activity configurations updated successfully.");
       setEditNamesModal({ isOpen: false, activities: [], saving: false });
@@ -212,8 +225,9 @@ export default function OutdoorPage() {
     const customActs = parseCustomActivities(camper.notes);
     const initialActs = {};
     activityNames.forEach((name, idx) => {
-      if (idx === 0) initialActs[name] = camper.kayaking || 0;
-      else if (idx === 1) initialActs[name] = camper.boat_tour || 0;
+      if (idx === 0) initialActs[name] = camper.activity_1 || camper.kayaking || 0;
+      else if (idx === 1) initialActs[name] = camper.activity_2 || camper.boat_tour || 0;
+      else if (idx === 2) initialActs[name] = camper.activity_3 || 0;
       else initialActs[name] = customActs[name] || 0;
     });
 
@@ -230,11 +244,12 @@ export default function OutdoorPage() {
     const { camper, activities } = editModal;
     if (!camper) return;
 
-    const spots1 = parseInt(activities[activityNames[0]], 10) || 0;
-    const spots2 = parseInt(activities[activityNames[1]], 10) || 0;
+    const spots1 = activityNames[0] ? (parseInt(activities[activityNames[0]], 10) || 0) : 0;
+    const spots2 = activityNames[1] ? (parseInt(activities[activityNames[1]], 10) || 0) : 0;
+    const spots3 = activityNames[2] ? (parseInt(activities[activityNames[2]], 10) || 0) : 0;
     
     const customObj = {};
-    for (let i = 2; i < activityNames.length; i++) {
+    for (let i = 3; i < activityNames.length; i++) {
       const name = activityNames[i];
       customObj[name] = parseInt(activities[name], 10) || 0;
     }
@@ -244,6 +259,9 @@ export default function OutdoorPage() {
     try {
       await api.put(`/api/campers/${camper.id}`, {
         ...camper,
+        activity_1: spots1,
+        activity_2: spots2,
+        activity_3: spots3,
         kayaking: spots1,
         boat_tour: spots2,
         notes: updatedNotes
@@ -307,6 +325,15 @@ export default function OutdoorPage() {
               <div>
                 <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--gold)" }}>{totalBoatTour}</div>
                 <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Total {activityNames[1]} Spots</div>
+              </div>
+            </div>
+          )}
+          {activityNames.length >= 3 && (
+            <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ fontSize: "2rem" }}>🧗</div>
+              <div>
+                <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--forest-mid)" }}>{totalActivity3}</div>
+                <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Total {activityNames[2]} Spots</div>
               </div>
             </div>
           )}
@@ -398,7 +425,7 @@ export default function OutdoorPage() {
                     <th>Camper Name</th>
                     {activityNames.map((name, idx) => (
                       <th key={idx} style={{ textAlign: "center" }}>
-                        {idx === 0 ? "🛶" : idx === 1 ? "🚤" : "🎯"} {name}
+                        {idx === 0 ? "🛶" : idx === 1 ? "🚤" : idx === 2 ? "🧗" : "🎯"} {name}
                       </th>
                     ))}
                     {canEdit && <th style={{ textAlign: "right" }}>Actions</th>}
@@ -412,8 +439,9 @@ export default function OutdoorPage() {
                         <td style={{ fontWeight: 600 }}>{c.full_name}</td>
                         {activityNames.map((name, idx) => {
                           let spots = 0;
-                          if (idx === 0) spots = c.kayaking || 0;
-                          else if (idx === 1) spots = c.boat_tour || 0;
+                          if (idx === 0) spots = c.activity_1 || c.kayaking || 0;
+                          else if (idx === 1) spots = c.activity_2 || c.boat_tour || 0;
+                          else if (idx === 2) spots = c.activity_3 || 0;
                           else spots = customActs[name] || 0;
 
                           const colorClass = idx === 0 ? "var(--forest-mid)" : idx === 1 ? "var(--gold)" : "var(--forest)";
@@ -557,7 +585,7 @@ export default function OutdoorPage() {
                     .filter(c => {
                       const customActs = parseCustomActivities(c.notes);
                       const hasCustom = Object.values(customActs).some(v => v > 0);
-                      return c.kayaking === 0 && c.boat_tour === 0 && !hasCustom;
+                      return (c.activity_1 || c.kayaking || 0) === 0 && (c.activity_2 || c.boat_tour || 0) === 0 && (c.activity_3 || 0) === 0 && !hasCustom;
                     })
                     .sort((a, b) => a.full_name.localeCompare(b.full_name))
                     .map(c => (
