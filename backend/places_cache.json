@@ -1,6 +1,7 @@
 {
   "269 METHODIST LN, POTTSBORO, TX 75076": {
-    "timestamp": 1784924488.5881996,
+    "timestamp": 1785638202.4612422,
+    "last_attempt": 1785638202.461243,
     "data": {
       "hospitals": [
         {
@@ -10,7 +11,7 @@
           "address": "1220 Reba McEntire Lane, Denison",
           "distance": "8.6 miles",
           "dist_val": 8.6,
-          "open_now": true,
+          "open_now": false,
           "phone": "(833) 325-3080"
         },
         {
@@ -30,7 +31,7 @@
           "address": "701 U.S. 70 #307, Kingston",
           "distance": "9.5 miles",
           "dist_val": 9.5,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 564-7338"
         },
         {
@@ -70,7 +71,7 @@
           "address": "5012 North Highway 75 #105, Denison",
           "distance": "11.6 miles",
           "dist_val": 11.6,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 548-4966"
         },
         {
@@ -80,7 +81,7 @@
           "address": "5012 U.S. 75, Denison",
           "distance": "11.6 miles",
           "dist_val": 11.6,
-          "open_now": true
+          "open_now": false
         },
         {
           "place_id": "ChIJe6mnmEaPTIYRSVvQo7E64x4",
@@ -129,17 +130,17 @@
           "address": "5125 Texoma Medical Center Drive Suite 100, Denison",
           "distance": "11.8 miles",
           "dist_val": 11.8,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 868-4700"
         },
         {
           "place_id": "ChIJkaLdIS3JyFIRMnbzzapXJeg",
-          "name": "Baylor Scott & White Urgent Care+, Sherman",
+          "name": "Baylor Scott & White Urgent Care+ Sherman",
           "rating": 4.6,
           "address": "4028 North Highway 75, Sherman",
           "distance": "13.2 miles",
           "dist_val": 13.2,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 375-0800"
         },
         {
@@ -169,7 +170,7 @@
           "address": "1724 West US Highway 82 Suite 100, Sherman",
           "distance": "13.8 miles",
           "dist_val": 13.8,
-          "open_now": true,
+          "open_now": false,
           "phone": "(833) 325-3079"
         },
         {
@@ -219,7 +220,7 @@
           "address": "600 East Taylor Street #308, Sherman",
           "distance": "14.9 miles",
           "dist_val": 14.9,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 218-8122"
         },
         {
@@ -229,7 +230,7 @@
           "address": "1715 Texoma Parkway, Sherman",
           "distance": "15.1 miles",
           "dist_val": 15.1,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 487-0477"
         },
         {
@@ -269,7 +270,7 @@
           "address": "200 East Evergreen Street Ste 200A, Sherman",
           "distance": "15.5 miles",
           "dist_val": 15.5,
-          "open_now": true,
+          "open_now": false,
           "phone": "(469) 888-4890"
         },
         {
@@ -338,7 +339,7 @@
           "address": "411 Westside Drive, Durant",
           "distance": "16.7 miles",
           "dist_val": 16.7,
-          "open_now": true,
+          "open_now": false,
           "phone": "(833) 344-2506"
         },
         {
@@ -348,7 +349,7 @@
           "address": "2701 University Boulevard, Durant",
           "distance": "17.0 miles",
           "dist_val": 17.0,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 931-0500"
         },
         {
@@ -358,7 +359,7 @@
           "address": "1805 University Boulevard, Durant",
           "distance": "17.4 miles",
           "dist_val": 17.4,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 924-4704"
         },
         {
@@ -388,7 +389,7 @@
           "address": "1610 University Boulevard, Durant",
           "distance": "17.5 miles",
           "dist_val": 17.5,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 924-3400"
         },
         {
@@ -398,7 +399,7 @@
           "address": "1610 University Boulevard, Durant",
           "distance": "17.5 miles",
           "dist_val": 17.5,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 924-3400"
         },
         {
@@ -408,7 +409,7 @@
           "address": "Durant",
           "distance": "17.5 miles",
           "dist_val": 17.5,
-          "open_now": true,
+          "open_now": false,
           "phone": "(539) 777-4648"
         },
         {
@@ -583,23 +584,13 @@
           "phone": "(903) 462-0259"
         },
         {
-          "place_id": "ChIJyWvmGMuPTIYRsaznN-hN_TA",
-          "name": "Chick-fil-A",
-          "rating": 4.1,
-          "address": "2801 FM 120, Denison",
-          "distance": "8.4 miles",
-          "dist_val": 8.4,
-          "open_now": true,
-          "phone": "(903) 465-1615"
-        },
-        {
           "place_id": "ChIJPUtfXIObTIYRWQ8Af70gB3g",
           "name": "The Farmstead",
           "rating": 4.5,
           "address": "117 South Franklin Street, Colbert",
           "distance": "8.6 miles",
           "dist_val": 8.6,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 296-2201"
         },
         {
@@ -629,7 +620,7 @@
           "address": "1006 U.S. 70, Kingston",
           "distance": "9.4 miles",
           "dist_val": 9.4,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 564-9599"
         },
         {
@@ -653,16 +644,6 @@
           "phone": "(903) 523-4500"
         },
         {
-          "place_id": "ChIJwRsyOKiFTIYRr8t2T5oWaN0",
-          "name": "Watson's Drive In",
-          "rating": 4.6,
-          "address": "631 W Main St, Denison",
-          "distance": "9.9 miles",
-          "dist_val": 9.9,
-          "open_now": true,
-          "phone": "(903) 465-4669"
-        },
-        {
           "place_id": "ChIJccXFSQCFTIYRTc87uSbZmLk",
           "name": "Church's Texas Chicken",
           "rating": 3.6,
@@ -675,22 +656,12 @@
         {
           "place_id": "ChIJg80vdKmFTIYRN20mod115TQ",
           "name": "Rustico Fine Mexican Cuisine",
-          "rating": 4.4,
+          "rating": 4.5,
           "address": "506 West Chestnut Street, Denison",
           "distance": "10.1 miles",
           "dist_val": 10.1,
           "open_now": true,
           "phone": "(903) 337-1447"
-        },
-        {
-          "place_id": "ChIJo1sMIcyFTIYRpewXrjUZXp4",
-          "name": "Jimmy John's",
-          "rating": 4.1,
-          "address": "317 W Main St Ste 101, Denison",
-          "distance": "10.1 miles",
-          "dist_val": 10.1,
-          "open_now": true,
-          "phone": "(430) 964-0057"
         },
         {
           "place_id": "ChIJ4yJhA16PTIYRPj0K_jZ-MN0",
@@ -699,17 +670,17 @@
           "address": "2811 South Trail Drive, Denison",
           "distance": "10.2 miles",
           "dist_val": 10.2,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 337-0033"
         },
         {
           "place_id": "ChIJ3aL-IlWETIYReFT4EUnsWwk",
           "name": "The Katy Depot",
-          "rating": 4.7,
+          "rating": 4.6,
           "address": "101 East Main Street, Denison",
           "distance": "10.3 miles",
           "dist_val": 10.3,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 463-7729"
         },
         {
@@ -733,14 +704,14 @@
           "phone": "(903) 463-5140"
         },
         {
-          "place_id": "ChIJkd20G7yOTIYRjYbpSxHQiHc",
-          "name": "The Barn Grill",
-          "rating": 4.6,
-          "address": "4906 FM1417, Denison",
-          "distance": "10.9 miles",
-          "dist_val": 10.9,
+          "place_id": "ChIJsecX67KFTIYRvqi44taQxtk",
+          "name": "Jack in the Box",
+          "rating": 3.7,
+          "address": "1120 S Austin Ave, Denison",
+          "distance": "10.8 miles",
+          "dist_val": 10.8,
           "open_now": true,
-          "phone": "(903) 786-9012"
+          "phone": "(903) 465-4343"
         },
         {
           "place_id": "ChIJ51jotsuFTIYRMFWb8jIcPTs",
@@ -751,16 +722,6 @@
           "dist_val": 11.4,
           "open_now": true,
           "phone": "(903) 462-6625"
-        },
-        {
-          "place_id": "ChIJ3xuJ9PGFTIYRF9m6DjQa-XM",
-          "name": "IFLY Tacos and Burritos",
-          "rating": 4.2,
-          "address": "400 US-69, Denison",
-          "distance": "11.4 miles",
-          "dist_val": 11.4,
-          "open_now": true,
-          "phone": "(903) 463-6775"
         },
         {
           "place_id": "ChIJm1D5FltxbYgRsp-TAOSdtUI",
@@ -779,8 +740,28 @@
           "address": "853 East North Creek Drive, Sherman",
           "distance": "13.0 miles",
           "dist_val": 13.0,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 892-6400"
+        },
+        {
+          "place_id": "ChIJkX_F_oSPTIYRpvCT2S3n5Z4",
+          "name": "Taco Bell",
+          "rating": 3.2,
+          "address": "4214 N Hwy 75, Sherman",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(903) 893-9824"
+        },
+        {
+          "place_id": "ChIJlUIPoOaITIYRcue40IN_IxI",
+          "name": "Chipotle Mexican Grill",
+          "rating": 3.3,
+          "address": "875 N Creek Dr, Sherman",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(903) 892-3150"
         },
         {
           "place_id": "ChIJnWE65amJTIYRIxEW3HLjrzQ",
@@ -799,7 +780,7 @@
           "address": "4040 North Highway 75, Sherman",
           "distance": "13.2 miles",
           "dist_val": 13.2,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 893-5252"
         },
         {
@@ -811,16 +792,6 @@
           "dist_val": 13.2,
           "open_now": true,
           "phone": "(903) 892-4722"
-        },
-        {
-          "place_id": "ChIJOfnJseiITIYRRxu9nhUYaIk",
-          "name": "MOOYAH Burgers, Fries & Shakes",
-          "rating": 4.6,
-          "address": "4114 N Hwy 75 Ste 100, Sherman",
-          "distance": "13.2 miles",
-          "dist_val": 13.2,
-          "open_now": true,
-          "phone": "(903) 771-2616"
         },
         {
           "place_id": "ChIJSUbtMvCITIYRb4-8uoe2-Nw",
@@ -853,16 +824,6 @@
           "phone": "(903) 813-0023"
         },
         {
-          "place_id": "ChIJgwkenzqJTIYRaMNyVGJgaoM",
-          "name": "Jersey Mike's Subs",
-          "rating": 4.3,
-          "address": "4001 US-75 Ste 400, Sherman",
-          "distance": "13.4 miles",
-          "dist_val": 13.4,
-          "open_now": true,
-          "phone": "(903) 328-6753"
-        },
-        {
           "place_id": "ChIJ_Wv0szWeTIYRBLzTNVLJoeI",
           "name": "Subway",
           "rating": 4.2,
@@ -889,28 +850,8 @@
           "address": "3811 North Highway 75 Suite 200, Sherman",
           "distance": "13.5 miles",
           "dist_val": 13.5,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 328-6940"
-        },
-        {
-          "place_id": "ChIJYW5C_--ITIYRUeL8jQp2Nac",
-          "name": "Chick-fil-A",
-          "rating": 4.5,
-          "address": "3500 US-75, Sherman",
-          "distance": "13.5 miles",
-          "dist_val": 13.5,
-          "open_now": true,
-          "phone": "(903) 870-2000"
-        },
-        {
-          "place_id": "ChIJVxgLhuxiTIYR7r8R-XESSoo",
-          "name": "McAlister's Deli",
-          "rating": 4.4,
-          "address": "3801 N Hwy 75, Sherman",
-          "distance": "13.5 miles",
-          "dist_val": 13.5,
-          "open_now": true,
-          "phone": "(903) 813-3354"
         },
         {
           "place_id": "ChIJ0Q-P2OWITIYR6QuFRp-4YRo",
@@ -983,16 +924,6 @@
           "phone": "(903) 771-0141"
         },
         {
-          "place_id": "ChIJkX_F_oSPTIYRFfae71zXBz4",
-          "name": "Jimmy John's",
-          "rating": 3.8,
-          "address": "3209 N Hwy 75, Sherman",
-          "distance": "13.8 miles",
-          "dist_val": 13.8,
-          "open_now": true,
-          "phone": "(903) 893-4080"
-        },
-        {
           "place_id": "ChIJszwVMc2fTIYRtu3SeIqaACI",
           "name": "Sonic Drive-In",
           "rating": 3.6,
@@ -1005,7 +936,7 @@
         {
           "place_id": "ChIJaeWiX8ShTIYRaIHPaMTheNc",
           "name": "One Stop Durant",
-          "rating": 4,
+          "rating": 4.1,
           "address": "8988 West Highway 70, Durant",
           "distance": "13.9 miles",
           "dist_val": 13.9,
@@ -1021,16 +952,6 @@
           "dist_val": 13.9,
           "open_now": true,
           "phone": "(903) 892-1006"
-        },
-        {
-          "place_id": "ChIJ_Wv0szWeTIYRIIA6cQtzGX8",
-          "name": "Taco Casa",
-          "rating": 4.2,
-          "address": "703 Service Rd, Calera",
-          "distance": "13.9 miles",
-          "dist_val": 13.9,
-          "open_now": true,
-          "phone": "(580) 434-4090"
         },
         {
           "place_id": "ChIJExM_T0MbTIYRjkwF_VLVOYg",
@@ -1119,13 +1040,13 @@
           "address": "4216 U.S. 69, Durant",
           "distance": "14.6 miles",
           "dist_val": 14.6,
-          "open_now": false,
+          "open_now": true,
           "phone": "(580) 920-0160"
         },
         {
           "place_id": "ChIJbbY8WmCITIYRHaF9CqbW67I",
           "name": "McDonald's",
-          "rating": 3.6,
+          "rating": 3.5,
           "address": "2217 Texoma Pkwy, Sherman",
           "distance": "14.6 miles",
           "dist_val": 14.6,
@@ -1139,7 +1060,7 @@
           "address": "2124 Texoma Parkway, Sherman",
           "distance": "14.7 miles",
           "dist_val": 14.7,
-          "open_now": true,
+          "open_now": false,
           "phone": "(903) 892-1644"
         },
         {
@@ -1161,6 +1082,16 @@
           "dist_val": 14.7,
           "open_now": true,
           "phone": "(903) 893-2919"
+        },
+        {
+          "place_id": "ChIJf6E5lmCITIYRy-DUPK_PXYY",
+          "name": "Arby's",
+          "rating": 3.7,
+          "address": "2131 Texoma Pkwy, Sherman",
+          "distance": "14.7 miles",
+          "dist_val": 14.7,
+          "open_now": true,
+          "phone": "(903) 868-1420"
         },
         {
           "place_id": "ChIJN6taNdefTIYRYR8y2NhN4JQ",
@@ -1233,14 +1164,24 @@
           "phone": "(903) 891-7257"
         },
         {
-          "place_id": "ChIJWZpnSD-JTIYRYRZKWTWzndo",
-          "name": "MG's Burgers",
-          "rating": 4.7,
-          "address": "1715 N Woods St, Sherman",
-          "distance": "15.1 miles",
-          "dist_val": 15.1,
+          "place_id": "ChIJGZhmuEiITIYRvjNyNHCbfO4",
+          "name": "Burger King",
+          "rating": 3.2,
+          "address": "1213 N Travis St, Sherman",
+          "distance": "15.5 miles",
+          "dist_val": 15.5,
           "open_now": true,
-          "phone": "(903) 893-9011"
+          "phone": "(903) 868-1820"
+        },
+        {
+          "place_id": "ChIJ1dBNxGnHTIYRcJLz-omRvsQ",
+          "name": "Taco Bell",
+          "rating": 3.8,
+          "address": "901 S 1st St, Madill",
+          "distance": "15.9 miles",
+          "dist_val": 15.9,
+          "open_now": true,
+          "phone": "(580) 677-9454"
         },
         {
           "place_id": "ChIJoZZeg2vHTIYRPPJ2cR72J3M",
@@ -1251,26 +1192,6 @@
           "dist_val": 16.0,
           "open_now": true,
           "phone": "(580) 795-3777"
-        },
-        {
-          "place_id": "ChIJxT_8aFWJTIYRCgkdE5XohSU",
-          "name": "Wanna Burger",
-          "rating": 4.4,
-          "address": "706 W Houston St, Sherman",
-          "distance": "16.3 miles",
-          "dist_val": 16.3,
-          "open_now": true,
-          "phone": "(903) 892-1240"
-        },
-        {
-          "place_id": "ChIJpV1jYACJTIYR1JVRK-wAqZw",
-          "name": "Tx Southern Sweets",
-          "rating": 4.7,
-          "address": "320 W Houston St, Sherman",
-          "distance": "16.3 miles",
-          "dist_val": 16.3,
-          "open_now": true,
-          "phone": "(940) 641-4282"
         },
         {
           "place_id": "ChIJ9UpLKjqITIYREZf5VlQpyD4",
@@ -1323,6 +1244,26 @@
           "phone": "(580) 745-9003"
         },
         {
+          "place_id": "ChIJF3u1w2zHTIYRSFJcMcQzJpA",
+          "name": "McDonald's",
+          "rating": 3.3,
+          "address": "511 S 1st St, Madill",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(580) 795-2600"
+        },
+        {
+          "place_id": "ChIJ06DmXs6JTIYRbufRj-7WRzc",
+          "name": "Dairy Queen",
+          "rating": 4.3,
+          "address": "103 Sunset Blvd, Sherman",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(903) 893-3336"
+        },
+        {
           "place_id": "ChIJ6wGLMW3HTIYRWHSDPb0a6Ec",
           "name": "Love's Country Store",
           "rating": 4,
@@ -1331,6 +1272,16 @@
           "dist_val": 16.5,
           "open_now": true,
           "phone": "(580) 795-2612"
+        },
+        {
+          "place_id": "ChIJNfWUd8ZfS4YRZsKJ5ndEXSk",
+          "name": "Arby's",
+          "rating": 4,
+          "address": "513 University Pl, Durant",
+          "distance": "16.5 miles",
+          "dist_val": 16.5,
+          "open_now": true,
+          "phone": "(580) 920-0737"
         },
         {
           "place_id": "ChIJd4H8JQigTIYR5n0wWRwIAx4",
@@ -1363,13 +1314,43 @@
           "phone": "(580) 920-0126"
         },
         {
+          "place_id": "ChIJx_YX1flfS4YRSeu3SfpC7jo",
+          "name": "Long John Silver's",
+          "rating": 3.8,
+          "address": "2223 W Main St, Durant",
+          "distance": "16.6 miles",
+          "dist_val": 16.6,
+          "open_now": true,
+          "phone": "(580) 924-6717"
+        },
+        {
+          "place_id": "ChIJAR66v_dfS4YRaqe73D1uQ_8",
+          "name": "Taco Bell",
+          "rating": 3.5,
+          "address": "206 Westside Dr, Durant",
+          "distance": "16.7 miles",
+          "dist_val": 16.7,
+          "open_now": true,
+          "phone": "(580) 920-0242"
+        },
+        {
+          "place_id": "ChIJz8BIGvpfS4YR3Yi0E6MsT3U",
+          "name": "Jack in the Box",
+          "rating": 3.6,
+          "address": "2117 W Main St, Durant",
+          "distance": "16.8 miles",
+          "dist_val": 16.8,
+          "open_now": true,
+          "phone": "(580) 931-3502"
+        },
+        {
           "place_id": "ChIJEXP-gAvHTIYRwaAqeBhsDFE",
           "name": "Subway",
           "rating": 4.1,
           "address": "513 North 1st Street, Madill",
           "distance": "17.2 miles",
           "dist_val": 17.2,
-          "open_now": true,
+          "open_now": false,
           "phone": "(580) 677-9452"
         },
         {
@@ -1383,26 +1364,6 @@
           "phone": "(580) 916-9062"
         },
         {
-          "place_id": "ChIJoy4J1d9fS4YRJr4thhT9rj0",
-          "name": "Wright's Drive In",
-          "rating": 4.6,
-          "address": "319 S 9th Ave, Durant",
-          "distance": "17.3 miles",
-          "dist_val": 17.3,
-          "open_now": true,
-          "phone": "(580) 924-4793"
-        },
-        {
-          "place_id": "ChIJW_7PtAvHTIYR7QhVxBCOQdk",
-          "name": "Sonic Drive-In",
-          "rating": 3.7,
-          "address": "708 N 1st St, Madill",
-          "distance": "17.3 miles",
-          "dist_val": 17.3,
-          "open_now": true,
-          "phone": "(580) 795-5523"
-        },
-        {
           "place_id": "ChIJM9IrMthfS4YRm_1EkltOJdw",
           "name": "Roma",
           "rating": 4.6,
@@ -1411,36 +1372,6 @@
           "dist_val": 17.8,
           "open_now": true,
           "phone": "(580) 931-9961"
-        },
-        {
-          "place_id": "ChIJy8mDUtdfS4YRLb9VYgdtCfs",
-          "name": "Taco Casa",
-          "rating": 4.1,
-          "address": "324 N 1st Ave, Durant",
-          "distance": "18.0 miles",
-          "dist_val": 18.0,
-          "open_now": true,
-          "phone": "(580) 920-2820"
-        },
-        {
-          "place_id": "ChIJ12LimPZfS4YRTKsu3ILh0eU",
-          "name": "Nick’s Burger",
-          "rating": 4.3,
-          "address": "520 N 1st Ave, Durant",
-          "distance": "18.1 miles",
-          "dist_val": 18.1,
-          "open_now": true,
-          "phone": "(580) 745-8002"
-        },
-        {
-          "place_id": "ChIJjVvitM9fS4YRxnd4iw_KTbI",
-          "name": "Sonic Drive-In",
-          "rating": 3.9,
-          "address": "1111 N 1st Ave, Durant",
-          "distance": "18.3 miles",
-          "dist_val": 18.3,
-          "open_now": true,
-          "phone": "(580) 924-5050"
         },
         {
           "place_id": "ChIJRQkz_M5fS4YRATngZeFiOKs",
@@ -1455,7 +1386,7 @@
         {
           "place_id": "ChIJS7nEDgBjTIYR-BdDTuy6qI0",
           "name": "Whataburger",
-          "rating": 3.8,
+          "rating": 3.9,
           "address": "3010 US-75, Sherman",
           "distance": "18.7 miles",
           "dist_val": 18.7,
@@ -1475,12 +1406,22 @@
         {
           "place_id": "ChIJ6w6iAe6bTIYRp0XaSBSQt88",
           "name": "Chipotle Mexican Grill",
-          "rating": 3.6,
+          "rating": 3.7,
           "address": "3514 US-75, Sherman",
           "distance": "19.0 miles",
           "dist_val": 19.0,
           "open_now": true,
           "phone": "(430) 262-5757"
+        },
+        {
+          "place_id": "ChIJIeIg3Q5jTIYRaTtv1c13Jk8",
+          "name": "McDonald's",
+          "rating": 3.3,
+          "address": "3612 US-75, Sherman",
+          "distance": "19.0 miles",
+          "dist_val": 19.0,
+          "open_now": true,
+          "phone": "(903) 957-2510"
         },
         {
           "place_id": "ChIJX7klzM5jTIYRBpnXJksCALo",
@@ -1501,6 +1442,16 @@
           "dist_val": 19.2,
           "open_now": true,
           "phone": "(903) 328-2049"
+        },
+        {
+          "place_id": "ChIJ00R4gOiJTIYRustG767RNkQ",
+          "name": "Jack in the Box",
+          "rating": 3.6,
+          "address": "100 FM1417, Sherman",
+          "distance": "19.2 miles",
+          "dist_val": 19.2,
+          "open_now": true,
+          "phone": "(903) 868-4805"
         },
         {
           "place_id": "ChIJoTZr3UP3TIYRfeCVg1LXKo0",
@@ -1533,6 +1484,16 @@
           "phone": "(903) 564-6391"
         },
         {
+          "place_id": "ChIJGxHQNUL3TIYRGJd1Jk9EH4U",
+          "name": "McDonald's",
+          "rating": 3.5,
+          "address": "871 US-377, Whitesboro",
+          "distance": "20.1 miles",
+          "dist_val": 20.1,
+          "open_now": true,
+          "phone": "(903) 564-6790"
+        },
+        {
           "place_id": "ChIJrRUKjGn3TIYRx5OQmUTlLwM",
           "name": "Subway",
           "rating": 4,
@@ -1554,11 +1515,14 @@
         }
       ],
       "is_mock": false,
-      "camp_address": "269 Methodist Ln, Pottsboro, TX 75076"
+      "camp_address": "269 Methodist Ln, Pottsboro, TX 75076",
+      "throttled": false,
+      "refresh_failed": false,
+      "failure_reason": null
     }
   },
   "TBA": {
-    "timestamp": 1785484837.784703,
+    "timestamp": 1785572509.8165686,
     "data": {
       "hospitals": [
         {
@@ -1737,6 +1701,1850 @@
       ],
       "is_mock": true,
       "camp_address": "Camp Prothro"
+    }
+  },
+  "5302 VIEWSIDE DR": {
+    "timestamp": 1785569760.361606,
+    "last_attempt": 1785572205.4330413,
+    "data": {
+      "hospitals": [
+        {
+          "name": "Texoma Medical Center",
+          "rating": 4.2,
+          "address": "5016 S US 75, Denison, TX",
+          "distance": "8.4 miles",
+          "phone": "+1 (903) 246-6000",
+          "open_now": true
+        },
+        {
+          "name": "Wilson N. Jones Regional Medical Center",
+          "rating": 4.1,
+          "address": "500 N Highland Ave, Sherman, TX",
+          "distance": "12.1 miles",
+          "phone": "+1 (903) 892-6101",
+          "open_now": true
+        },
+        {
+          "name": "Pottsboro Primary Care Clinic",
+          "rating": 4.5,
+          "address": "111 Highway 120, Pottsboro, TX",
+          "distance": "1.2 miles",
+          "phone": "+1 (903) 786-3911",
+          "open_now": true
+        }
+      ],
+      "restaurants": [
+        {
+          "name": "McDonald's",
+          "rating": 3.8,
+          "address": "415 Highport Rd, Pottsboro, TX",
+          "distance": "3.4 miles",
+          "phone": "+1 (903) 786-1212",
+          "open_now": true
+        },
+        {
+          "name": "The Island Bar & Grill",
+          "rating": 4.6,
+          "address": "407 Highport Rd, Pottsboro, TX",
+          "distance": "3.5 miles",
+          "phone": "+1 (903) 786-2187",
+          "open_now": true
+        },
+        {
+          "name": "Napoli's Pizza & Restaurant",
+          "rating": 4.4,
+          "address": "118 FM120, Pottsboro, TX",
+          "distance": "0.9 miles",
+          "phone": "+1 (903) 786-2383",
+          "open_now": true
+        },
+        {
+          "name": "Devolli's Italian Restaurant",
+          "rating": 4.7,
+          "address": "109 FM120, Pottsboro, TX",
+          "distance": "0.8 miles",
+          "phone": "+1 (903) 786-4545",
+          "open_now": false
+        },
+        {
+          "name": "Sonic Drive-In",
+          "rating": 4.1,
+          "address": "120 Highway 120, Pottsboro, TX",
+          "distance": "1.0 miles",
+          "phone": "+1 (903) 786-4040",
+          "open_now": true
+        },
+        {
+          "name": "Subway",
+          "rating": 4.0,
+          "address": "105 FM120, Pottsboro, TX",
+          "distance": "0.7 miles",
+          "phone": "+1 (903) 786-5500",
+          "open_now": true
+        },
+        {
+          "name": "Mommie's Diner",
+          "rating": 4.3,
+          "address": "510 S Pottsboro Rd, Pottsboro, TX",
+          "distance": "1.1 miles",
+          "phone": "+1 (903) 786-6300",
+          "open_now": true
+        }
+      ],
+      "is_mock": true,
+      "camp_address": "5302 Viewside Dr",
+      "throttled": false,
+      "refresh_failed": true
+    }
+  },
+  "5302 VIEWSIDE DR, GARLAND, TX 75043": {
+    "timestamp": 1785638324.3870614,
+    "last_attempt": 1785638324.387062,
+    "data": {
+      "hospitals": [
+        {
+          "place_id": "ChIJmWzC7KKlToYRpNoYEh-y3i4",
+          "name": "Dallas Regional Medical Center | Mesquite, TX",
+          "rating": 3.6,
+          "address": "1011 North Galloway Avenue, Mesquite",
+          "distance": "5.8 miles",
+          "dist_val": 5.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJNV2DEXkCTIYRcpwQ7Zk5WvY",
+          "name": "Texas Oncology-Rowlett",
+          "rating": 2.9,
+          "address": "9100 Lakeview Parkway, Rowlett",
+          "distance": "6.2 miles",
+          "dist_val": 6.2,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJm-pI7Q0CTIYRBV0y1ZtH5Co",
+          "name": "Baylor Scott & White Medical Center - Lake Pointe",
+          "rating": 3.5,
+          "address": "6800 Scenic Drive Suite 1071, Rowlett",
+          "distance": "6.3 miles",
+          "dist_val": 6.3,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJB_MiWUCqToYRDKtEW712hsY",
+          "name": "Texas Oncology-Rockwall",
+          "rating": 3.6,
+          "address": "3144 Horizon Road Suite 110, Rockwall",
+          "distance": "7.6 miles",
+          "dist_val": 7.6,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJAf_ree6fToYRyJoKl8nAOSg",
+          "name": "Texas Health Presbyterian Hospital Dallas",
+          "rating": 3.7,
+          "address": "8200 Walnut Hill Lane, Dallas",
+          "distance": "9.8 miles",
+          "dist_val": 9.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJQSNdDu-fToYRLePamEkrwTY",
+          "name": "Presbyterian Senior Med Center",
+          "rating": "N/A",
+          "address": "8200 Walnut Hill Lane, Dallas",
+          "distance": "9.8 miles",
+          "dist_val": 9.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJH5Idpu2fToYRShuk2xsx9SU",
+          "name": "TIS - Texas Institute For Surgery",
+          "rating": 4.2,
+          "address": "7115 Greenville Avenue, Dallas",
+          "distance": "9.8 miles",
+          "dist_val": 9.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ6STJJMCfToYRYkMLjc1ft4A",
+          "name": "North Central Surgical Center Hospital",
+          "rating": 4.3,
+          "address": "9301 North Central Expressway, Dallas",
+          "distance": "10.3 miles",
+          "dist_val": 10.3,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJmzfucFW7ToYRkltmcs5nVAs",
+          "name": "Southeast Dallas Health Center",
+          "rating": 2.9,
+          "address": "9202 Elam Road, Dallas",
+          "distance": "10.7 miles",
+          "dist_val": 10.7,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJ_alEWWsgTIYRt5UNqWYtqDM",
+          "name": "Medical City Green Oaks Hospital",
+          "rating": 2.3,
+          "address": "7808 Clodus Fields Drive, Dallas",
+          "distance": "10.8 miles",
+          "dist_val": 10.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJw5I1L20gTIYRC0ZT281ifPE",
+          "name": "Gustavo H. Day MD, PA",
+          "rating": 4.5,
+          "address": "7777 Forest Lane BLDG-B, STE-416, Dallas",
+          "distance": "10.8 miles",
+          "dist_val": 10.8,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJgfM0WTgfTIYRb8xy3K8Po1U",
+          "name": "Richardson Methodist Medical Hospital 24 Hour Emergency Room",
+          "rating": 2.7,
+          "address": "401 West Campbell Road, Richardson",
+          "distance": "10.9 miles",
+          "dist_val": 10.9,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJw5I1L20gTIYR3NjHJBb-ND0",
+          "name": "Texas Oncology-Medical City Dallas Blood and Marrow Transplant",
+          "rating": 3.8,
+          "address": "7777 Forest Lane Suite D220, Dallas",
+          "distance": "11.0 miles",
+          "dist_val": 11.0,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJ1VE9_7OfToYREPK163Xqykc",
+          "name": "Hillcrest Medical",
+          "rating": 4.5,
+          "address": "8611 Hillcrest Avenue #180, Dallas",
+          "distance": "11.2 miles",
+          "dist_val": 11.2,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJ1VE9_7OfToYRhQbtHhXOKGA",
+          "name": "UT Southwestern Park Cities",
+          "rating": 3.9,
+          "address": "8611 Hillcrest Road, Dallas",
+          "distance": "11.2 miles",
+          "dist_val": 11.2,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJTZxCv8SYToYRaewa5BUSmw4",
+          "name": "Baylor University Medical Center, part of Baylor Scott & White Health",
+          "rating": 4.3,
+          "address": "3500 Gaston Avenue, Dallas",
+          "distance": "11.8 miles",
+          "dist_val": 11.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJZeDKZ8OYToYRKSwK-yyVjQc",
+          "name": "Texas Oncology-Baylor Charles A. Sammons Cancer Center",
+          "rating": 3.6,
+          "address": "3410 Worth Street Suite 400, Dallas",
+          "distance": "11.8 miles",
+          "dist_val": 11.8,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJLam0QsOYToYRTFkl0H5zb2E",
+          "name": "Baylor Scott & White The Heart Hospital - Dallas",
+          "rating": 4.8,
+          "address": "621 North Hall Street, Dallas",
+          "distance": "11.9 miles",
+          "dist_val": 11.9,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ7XSXfMOYToYRSUp5EhDG5j8",
+          "name": "Orthopaedic Trauma Associates of North Texas",
+          "rating": 3.5,
+          "address": "Worth Street Tower, 3409 Worth Street #300, Dallas",
+          "distance": "11.9 miles",
+          "dist_val": 11.9,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJXzlzKCuZToYRaziKMro5t9I",
+          "name": "Baylor Scott & White Medical Center - Uptown",
+          "rating": 3.5,
+          "address": "2727 Lemmon Avenue, Dallas",
+          "distance": "12.3 miles",
+          "dist_val": 12.3,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJrxMhRiuZToYRhPzjaJIRZtM",
+          "name": "Khan Plastic Surgery",
+          "rating": 4.9,
+          "address": "3811 Turtle Creek Boulevard #200, Dallas",
+          "distance": "12.4 miles",
+          "dist_val": 12.4,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJczeBWgt644kRrK9Yhx_agvw",
+          "name": "Steward Health Care Corporate Headquarters",
+          "rating": 1.8,
+          "address": "1900 North Pearl Street Suite 2400, Dallas",
+          "distance": "12.9 miles",
+          "dist_val": 12.9,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJjzgDVA8iTIYRCE1lNRncYco",
+          "name": "Encompass Health Rehabilitation Hospital of Richardson",
+          "rating": 4.4,
+          "address": "3351 Waterview Parkway, Richardson",
+          "distance": "13.2 miles",
+          "dist_val": 13.2,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJa6xskUqZToYR7r0qoL1lX04",
+          "name": "Dallas Scottish Rite for Children",
+          "rating": 4.7,
+          "address": "2222 Welborn Street, Dallas",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJa6xskUqZToYRcqrwa95IxVc",
+          "name": "Scott Oishi, M.D., FACS",
+          "rating": 4.8,
+          "address": "2222 Welborn Street, Dallas",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJ7QWUygOcToYRygLZofIDstg",
+          "name": "Edwards Maureen D",
+          "rating": "N/A",
+          "address": "1935 Medical District Drive, Dallas",
+          "distance": "14.5 miles",
+          "dist_val": 14.5,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ7QWUygOcToYRoA57BoREwJ0",
+          "name": "Hauge Jennifer E",
+          "rating": "N/A",
+          "address": "1935 Medical District Drive, Dallas",
+          "distance": "14.5 miles",
+          "dist_val": 14.5,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ7QWUygOcToYR54oNWv_CMgA",
+          "name": "Jones Shelton K",
+          "rating": "N/A",
+          "address": "1935 Medical District Drive, Dallas",
+          "distance": "14.5 miles",
+          "dist_val": 14.5,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ7QWUygOcToYRbS3RgB5kkf0",
+          "name": "Mockenhaupt Lindsey A",
+          "rating": "N/A",
+          "address": "1935 Medical District Drive, Dallas",
+          "distance": "14.5 miles",
+          "dist_val": 14.5,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJw0eFiAScToYR3jp21bWK0OM",
+          "name": "UT Southwestern Orthopaedic Trauma Service",
+          "rating": 5,
+          "address": "5323 Harry Hines Boulevard, Dallas",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJw0eFiAScToYRGmHt088UHbY",
+          "name": "James W. Aston Ambulatory Care Center - UT Southwestern",
+          "rating": 4.5,
+          "address": "5303 Harry Hines Boulevard, Dallas",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJw5I1L20gTIYR0lkRK1IJ1Yk",
+          "name": "Devesh Ramnath, MD",
+          "rating": 4.8,
+          "address": "1600 Coit Road Suite 104, Plano",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJBXLeZGYiTIYRe86s-kKIkmk",
+          "name": "HCA Medical Center-Plano Physicians",
+          "rating": 2.3,
+          "address": "3901 West 15th Street, Plano",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ238AKWgiTIYRLjtV0W8Bcps",
+          "name": "Head and Spine Institute of Texas, LLC",
+          "rating": "N/A",
+          "address": "4100 West 15th Street Suite 210, Plano",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJoet36XeZToYRSGFHCbrTXDY",
+          "name": "Methodist Dallas Medical Center",
+          "rating": 4.2,
+          "address": "1441 North Beckley Avenue, Dallas",
+          "distance": "15.1 miles",
+          "dist_val": 15.1,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJoet36XeZToYRGu2p4kZzb3I",
+          "name": "Texas Oncology-Methodist Dallas Cancer Center",
+          "rating": 3.2,
+          "address": "1441 North Beckley Avenue Suite 102, Dallas",
+          "distance": "15.1 miles",
+          "dist_val": 15.1,
+          "open_now": false,
+          "phone": "(214) 943-9911"
+        },
+        {
+          "place_id": "ChIJD_uzw0wiTIYR9gVmCZxP2O4",
+          "name": "Baylor Scott & White Medical Center - Plano",
+          "rating": 3.9,
+          "address": "4700 Alliance Boulevard, Plano",
+          "distance": "15.4 miles",
+          "dist_val": 15.4,
+          "open_now": true,
+          "phone": "(469) 814-2000"
+        },
+        {
+          "place_id": "ChIJ6fEVG00iTIYRGgVcmzfnzhE",
+          "name": "Baylor Scott & White The Heart Hospital - Plano",
+          "rating": 4.5,
+          "address": "1100 Allied Drive, Plano",
+          "distance": "15.4 miles",
+          "dist_val": 15.4,
+          "open_now": true,
+          "phone": "(469) 814-3278"
+        },
+        {
+          "place_id": "ChIJtXjnz0wiTIYRKizx13QaglI",
+          "name": "Texas Oncology-Plano West",
+          "rating": 3.4,
+          "address": "4708 Alliance Boulevard Suite 150, Plano",
+          "distance": "15.5 miles",
+          "dist_val": 15.5,
+          "open_now": false,
+          "phone": "(972) 596-7801"
+        },
+        {
+          "place_id": "ChIJOabjI_wjTIYR21vy3OT17hk",
+          "name": "Methodist Hospital For Surgery",
+          "rating": 3.9,
+          "address": "17101 Dallas Parkway, Addison",
+          "distance": "16.0 miles",
+          "dist_val": 16.0,
+          "open_now": true,
+          "phone": "(469) 248-3900"
+        },
+        {
+          "place_id": "ChIJu14AkQwnTIYRmrJ15xjX-N8",
+          "name": "Dallas Medical Center",
+          "rating": 3.9,
+          "address": "7 Medical Parkway, Farmers Branch",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJH7a-By8XTIYRFi9C0OCZElE",
+          "name": "Texas Health Presbyterian Hospital Allen",
+          "rating": 3.5,
+          "address": "1105 Central Expressway North, Allen",
+          "distance": "18.1 miles",
+          "dist_val": 18.1,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJobKShi8XTIYR4LlWUuJh2U4",
+          "name": "TLC Pediatrics",
+          "rating": 4.4,
+          "address": "1105 North Central Expressway Suite 250, Allen",
+          "distance": "18.1 miles",
+          "dist_val": 18.1,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJ0b-bbmEjTIYRxu95mD5YWm4",
+          "name": "Texas Back Institute - Plano",
+          "rating": 4.1,
+          "address": "6020 West Parker Road #200, Plano",
+          "distance": "18.6 miles",
+          "dist_val": 18.6,
+          "open_now": false,
+          "phone": "(972) 608-5000"
+        },
+        {
+          "place_id": "ChIJ0b-bbmEjTIYREFr9fLjmH4k",
+          "name": "Dr. Blumenthal; Texas Back Institute",
+          "rating": 4.1,
+          "address": "6020 West Parker Road #200, Plano",
+          "distance": "18.6 miles",
+          "dist_val": 18.6,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJr1foaIwkTIYRSlzuGfcLl8E",
+          "name": "Texas Health Center for Diagnostics & Surgery Plano",
+          "rating": 4.2,
+          "address": "6020 West Parker Road, Plano",
+          "distance": "18.6 miles",
+          "dist_val": 18.6,
+          "open_now": true,
+          "phone": "(972) 403-2700"
+        },
+        {
+          "place_id": "ChIJ792bC54kTIYR2Id6twzCx44",
+          "name": "Texas Health Presbyterian Hospital Plano",
+          "rating": 3.5,
+          "address": "6200 West Parker Road, Plano",
+          "distance": "18.8 miles",
+          "dist_val": 18.8,
+          "open_now": true,
+          "phone": "(972) 981-8000"
+        },
+        {
+          "place_id": "ChIJ35wAEJ4kTIYRfm-I_OH9McE",
+          "name": "Fresenius Medical Care at Texas Health Presbyterian Hospital",
+          "rating": "N/A",
+          "address": "6200 West Parker Road, Plano",
+          "distance": "18.9 miles",
+          "dist_val": 18.9,
+          "open_now": true,
+          "phone": "(972) 981-8000"
+        },
+        {
+          "place_id": "ChIJNWmrlY4kTIYRKnRs9_NZHCQ",
+          "name": "Andrew Hillman Dallas",
+          "rating": "N/A",
+          "address": "6957 Plano Parkway, Plano",
+          "distance": "18.9 miles",
+          "dist_val": 18.9,
+          "open_now": true,
+          "phone": "(972) 999-0490"
+        },
+        {
+          "place_id": "ChIJNYPOg4wkTIYRxccMPfr6WEc",
+          "name": "Plano Surgical Hospital",
+          "rating": 4.1,
+          "address": "2301 Marsh Lane, Plano",
+          "distance": "19.0 miles",
+          "dist_val": 19.0,
+          "open_now": false
+        },
+        {
+          "place_id": "ChIJNYPOg4wkTIYRyj8-C9H_URg",
+          "name": "Acute Rehabilitation Hospital of Plano",
+          "rating": 4.6,
+          "address": "2301 Marsh Lane Suite 200, Plano",
+          "distance": "19.0 miles",
+          "dist_val": 19.0,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJ_UnmgjcjTIYRnr1LSrrrLd0",
+          "name": "Catalyst Physician Group - West Plano",
+          "rating": 4.2,
+          "address": "5655 West Spring Creek Parkway Suite 200, Plano",
+          "distance": "19.1 miles",
+          "dist_val": 19.1,
+          "open_now": false,
+          "phone": "(972) 599-9600"
+        },
+        {
+          "place_id": "ChIJBzVly3Q9TIYR7HKYF0ybdtQ",
+          "name": "Baylor Scott & White Medical Center - Centennial",
+          "rating": 3.8,
+          "address": "12505 Lebanon Road, Frisco",
+          "distance": "20.2 miles",
+          "dist_val": 20.2,
+          "open_now": true,
+          "phone": "(469) 764-8000"
+        },
+        {
+          "place_id": "ChIJrzOTgHQ9TIYRI_ivG5Ffqbw",
+          "name": "Texas Oncology-Frisco",
+          "rating": 2.7,
+          "address": "4461 Coit Road Suite 100, Frisco",
+          "distance": "20.2 miles",
+          "dist_val": 20.2,
+          "open_now": false,
+          "phone": "(972) 987-1975"
+        },
+        {
+          "place_id": "ChIJPXClTAYlTIYRJH7RamsUoh4",
+          "name": "Carrollton Regional Medical Center",
+          "rating": 4.3,
+          "address": "4343 North Josey Lane, Carrollton",
+          "distance": "20.4 miles",
+          "dist_val": 20.4,
+          "open_now": true,
+          "phone": "(972) 492-1010"
+        },
+        {
+          "place_id": "ChIJ8aWWSW8RTIYRmJE4JcbVB1U",
+          "name": "Medical City McKinney",
+          "rating": 4.3,
+          "address": "4500 Medical Center Drive, McKinney",
+          "distance": "20.7 miles",
+          "dist_val": 20.7,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJqTbWyjYoTIYR71SthvjJbLc",
+          "name": "Medical City Las Colinas",
+          "rating": 4.3,
+          "address": "6800 North MacArthur Boulevard, Irving",
+          "distance": "21.2 miles",
+          "dist_val": 21.2,
+          "open_now": true,
+          "phone": "(972) 969-2000"
+        },
+        {
+          "place_id": "ChIJxzh4KQGDToYRx39hw0EObYw",
+          "name": "Baylor Scott & White Medical Center - Irving",
+          "rating": 3.7,
+          "address": "1901 North MacArthur Boulevard, Irving",
+          "distance": "21.3 miles",
+          "dist_val": 21.3,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJSVFfLH07TIYRUYO7emZBKic",
+          "name": "Baylor Scott & White Medical Center - Frisco",
+          "rating": 4.7,
+          "address": "5601 Warren Parkway, Frisco",
+          "distance": "21.9 miles",
+          "dist_val": 21.9,
+          "open_now": true,
+          "phone": "(214) 407-5000"
+        },
+        {
+          "place_id": "ChIJMeC38wqRToYRsyfdVcNwfrw",
+          "name": "Methodist Southwest Medical Center",
+          "rating": 4,
+          "address": "3500 West Wheatland Road, Dallas",
+          "distance": "22.2 miles",
+          "dist_val": 22.2,
+          "open_now": true,
+          "phone": "(214) 947-7777"
+        }
+      ],
+      "restaurants": [
+        {
+          "place_id": "ChIJR_UXxfKmToYR9l1Ta-9F698",
+          "name": "Wienerschnitzel",
+          "rating": 4.3,
+          "address": "1904 Oates Dr, Mesquite",
+          "distance": "2.7 miles",
+          "dist_val": 2.7,
+          "open_now": true,
+          "phone": "(972) 682-3643"
+        },
+        {
+          "place_id": "ChIJBbkuA4SgToYRh83es4CFdIs",
+          "name": "PT's Mens Club Dallas Strip",
+          "rating": 3.5,
+          "address": "10601 Plano Road, Dallas",
+          "distance": "6.5 miles",
+          "dist_val": 6.5,
+          "open_now": true,
+          "phone": "(205) 360-0949"
+        },
+        {
+          "place_id": "ChIJVza6zv4cTIYRpTyP8a3_uCs",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "150 Town Center Blvd, Garland",
+          "distance": "6.5 miles",
+          "dist_val": 6.5,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJV-fsY_ikToYReWwWOpXkXT8",
+          "name": "Griff's Hamburgers",
+          "rating": 4.4,
+          "address": "2010 Military Pkwy, Mesquite",
+          "distance": "6.8 miles",
+          "dist_val": 6.8,
+          "open_now": true,
+          "phone": "(972) 288-6063"
+        },
+        {
+          "place_id": "ChIJ4eiJYmgeTIYRikd55pqlmVM",
+          "name": "Griff's Hamburgers",
+          "rating": 4.3,
+          "address": "2150 N Jupiter Rd, Garland",
+          "distance": "7.0 miles",
+          "dist_val": 7.0,
+          "open_now": true,
+          "phone": "(972) 530-7886"
+        },
+        {
+          "place_id": "ChIJYcRLXlYeTIYRYnWtzN3UK6c",
+          "name": "Whataburger",
+          "rating": 4.2,
+          "address": "505 S Plano Rd, Richardson",
+          "distance": "8.2 miles",
+          "dist_val": 8.2,
+          "open_now": true,
+          "phone": "(972) 918-9680"
+        },
+        {
+          "place_id": "ChIJmW455vShToYRdH8EUB7UK2M",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "7345 Gaston Ave, Dallas",
+          "distance": "8.6 miles",
+          "dist_val": 8.6,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJEbASqCCgToYRoYUHkN2qGgE",
+          "name": "Topgolf Dallas",
+          "rating": 4.4,
+          "address": "8787 Park Lane, Dallas",
+          "distance": "8.8 miles",
+          "dist_val": 8.8,
+          "open_now": true,
+          "phone": "(214) 341-9600"
+        },
+        {
+          "place_id": "ChIJFUdXWXyqToYRMl7WD9lyS6s",
+          "name": "Whataburger",
+          "rating": 3.6,
+          "address": "1070 E Interstate 30, Rockwall",
+          "distance": "8.9 miles",
+          "dist_val": 8.9,
+          "open_now": true,
+          "phone": "(972) 771-0335"
+        },
+        {
+          "place_id": "ChIJMdyl21afToYRr1rEiv45OWQ",
+          "name": "Times Ten Cellars",
+          "rating": 4.8,
+          "address": "6324 Prospect Avenue, Dallas",
+          "distance": "9.8 miles",
+          "dist_val": 9.8,
+          "open_now": true,
+          "phone": "(214) 824-9463"
+        },
+        {
+          "place_id": "ChIJnRp_X5ifToYRY8pMA_vA96A",
+          "name": "In-N-Out Burger",
+          "rating": 4.4,
+          "address": "7940 North Central Expressway, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": true
+        },
+        {
+          "place_id": "ChIJX23aGp-fToYRR3xbTnmgr_E",
+          "name": "Subway",
+          "rating": 3.8,
+          "address": "5500 Greenville Avenue Suite 212, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": false,
+          "phone": "(214) 987-2290"
+        },
+        {
+          "place_id": "ChIJhax9jqeYToYROcmVujU8wVo",
+          "name": "Kalachandji's",
+          "rating": 4.7,
+          "address": "5430 Gurley Avenue, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": false,
+          "phone": "(214) 821-1048"
+        },
+        {
+          "place_id": "ChIJX23aGp-fToYRq-MZygRTyKY",
+          "name": "Royal Thai",
+          "rating": 4.3,
+          "address": "5500 Greenville Avenue #608, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": false,
+          "phone": "(214) 691-3555"
+        },
+        {
+          "place_id": "ChIJX23aGp-fToYRfBJI7WnXBPo",
+          "name": "Pluckers Wing Bar",
+          "rating": 4.3,
+          "address": "5500 Greenville Avenue Suite 406, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": true,
+          "phone": "(214) 363-9464"
+        },
+        {
+          "place_id": "ChIJX23aGp-fToYRJORqKAX9IqU",
+          "name": "Panda Express",
+          "rating": 3.5,
+          "address": "5500 Greenville Avenue Suite 200, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": true,
+          "phone": "(214) 361-8283"
+        },
+        {
+          "place_id": "ChIJlwTcaKefToYRp16EwToum8M",
+          "name": "Shake Shack Old Town",
+          "rating": 4,
+          "address": "5500 Greenville Ave Ste. 505, Dallas",
+          "distance": "10.1 miles",
+          "dist_val": 10.1,
+          "open_now": true,
+          "phone": "(469) 501-5031"
+        },
+        {
+          "place_id": "ChIJS-SKwHAfTIYRk7UbTIB-3cM",
+          "name": "Aboca's Italian Grill",
+          "rating": 4.5,
+          "address": "100 Central Expressway Suite 63, Richardson",
+          "distance": "10.2 miles",
+          "dist_val": 10.2,
+          "open_now": false,
+          "phone": "(972) 231-7500"
+        },
+        {
+          "place_id": "ChIJ0wBI8fSfToYRqeWnq4l2KEs",
+          "name": "Savvy Sliders",
+          "rating": 4.4,
+          "address": "4814 Greenville Ave, Dallas",
+          "distance": "10.2 miles",
+          "dist_val": 10.2,
+          "open_now": true,
+          "phone": "(214) 861-5555"
+        },
+        {
+          "place_id": "ChIJkfsjInWfToYRUzgb0yp0Mr8",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "5030 Greenville Ave, Dallas",
+          "distance": "10.2 miles",
+          "dist_val": 10.2,
+          "open_now": true,
+          "phone": "(214) 360-6080"
+        },
+        {
+          "place_id": "ChIJG4HivXAfTIYRsczz2glokQA",
+          "name": "Alamo Drafthouse Cinema Richardson",
+          "rating": 4.5,
+          "address": "100 South Central Expressway #14, Richardson",
+          "distance": "10.3 miles",
+          "dist_val": 10.3,
+          "open_now": true,
+          "phone": "(214) 272-8499"
+        },
+        {
+          "place_id": "ChIJEUqdAb2fToYRJ3XQ93ZnoXE",
+          "name": "The Cheesecake Factory",
+          "rating": 4.2,
+          "address": "7700 West Northwest Highway, Dallas",
+          "distance": "10.3 miles",
+          "dist_val": 10.3,
+          "open_now": true,
+          "phone": "(214) 373-4844"
+        },
+        {
+          "place_id": "ChIJC-XQlb-fToYRzDDlECV0bug",
+          "name": "Buca di Beppo Italian Restaurant",
+          "rating": 4.1,
+          "address": "7843 Park Lane, Dallas",
+          "distance": "10.3 miles",
+          "dist_val": 10.3,
+          "open_now": true,
+          "phone": "(214) 361-8462"
+        },
+        {
+          "place_id": "ChIJTc2DLwyfToYREwOt941MnaQ",
+          "name": "Cafe Brazil - University Park",
+          "rating": 4.3,
+          "address": "6420 North Central Expressway, Dallas",
+          "distance": "10.4 miles",
+          "dist_val": 10.4,
+          "open_now": true,
+          "phone": "(214) 691-7791"
+        },
+        {
+          "place_id": "ChIJkSyOXyogTIYRqXvrUJEndic",
+          "name": "Studio Movie Grill",
+          "rating": 3.9,
+          "address": "13933 North Central Expressway, Dallas",
+          "distance": "10.5 miles",
+          "dist_val": 10.5,
+          "open_now": true,
+          "phone": "(469) 405-8521"
+        },
+        {
+          "place_id": "ChIJTSIEVQ6fToYR6bFECcv6kD4",
+          "name": "George W. Bush Presidential Center",
+          "rating": 4.5,
+          "address": "2943 SMU Boulevard, Dallas",
+          "distance": "10.7 miles",
+          "dist_val": 10.7,
+          "open_now": false,
+          "phone": "(214) 200-4300"
+        },
+        {
+          "place_id": "ChIJl3gBPzofTIYR3y7p4hoEVL4",
+          "name": "Chipotle Mexican Grill",
+          "rating": 4.1,
+          "address": "283 W Campbell Rd, Richardson",
+          "distance": "10.7 miles",
+          "dist_val": 10.7,
+          "open_now": true,
+          "phone": "(972) 907-1712"
+        },
+        {
+          "place_id": "ChIJM935rDWfToYRShQ-xj84E8w",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.3,
+          "address": "5201 Ross Ave, Dallas",
+          "distance": "11.0 miles",
+          "dist_val": 11.0,
+          "open_now": true,
+          "phone": "(214) 515-9105"
+        },
+        {
+          "place_id": "ChIJvyjpKyGWToYRse8ezeIfGZo",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "7909 Lyndon B Johnson Fwy, Dallas",
+          "distance": "11.1 miles",
+          "dist_val": 11.1,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJvelCHwGfToYRemjCsKjNIi4",
+          "name": "Kuby's Sausage House",
+          "rating": 4.7,
+          "address": "6601 Snider Plaza, Dallas",
+          "distance": "11.3 miles",
+          "dist_val": 11.3,
+          "open_now": false,
+          "phone": "(214) 363-2231"
+        },
+        {
+          "place_id": "ChIJ-WiXpRifToYRY7pO4UZyZV8",
+          "name": "Javier's Gourmet Mexicano",
+          "rating": 4.5,
+          "address": "4912 Cole Avenue, Dallas",
+          "distance": "11.3 miles",
+          "dist_val": 11.3,
+          "open_now": true,
+          "phone": "(214) 521-4211"
+        },
+        {
+          "place_id": "ChIJzR6rqSafToYRH2LCXpNUaNo",
+          "name": "Fadi's Mediterranean Grill",
+          "rating": 4.3,
+          "address": "3001 Knox Street #110, Dallas",
+          "distance": "11.5 miles",
+          "dist_val": 11.5,
+          "open_now": true,
+          "phone": "(214) 528-1800"
+        },
+        {
+          "place_id": "ChIJ1fHqLCufToYRV0-adAzD23E",
+          "name": "Whataburger",
+          "rating": 3.8,
+          "address": "2428 N Haskell Ave., Dallas",
+          "distance": "11.9 miles",
+          "dist_val": 11.9,
+          "open_now": true,
+          "phone": "(214) 821-0293"
+        },
+        {
+          "place_id": "ChIJhzE1NnqtToYRWckT3iASpqg",
+          "name": "Whataburger",
+          "rating": 3.5,
+          "address": "962 US-80, Forney",
+          "distance": "12.1 miles",
+          "dist_val": 12.1,
+          "open_now": true,
+          "phone": "(972) 564-1232"
+        },
+        {
+          "place_id": "ChIJR3xmR-6eToYRUJ2jRefgG5Q",
+          "name": "Highland Park Village",
+          "rating": 4.6,
+          "address": "47 Highland Park Village, Dallas",
+          "distance": "12.4 miles",
+          "dist_val": 12.4,
+          "open_now": false,
+          "phone": "(214) 443-9898"
+        },
+        {
+          "place_id": "ChIJFWBqMtOeToYRvS9FXF0BOCw",
+          "name": "Bread Winners Cafe & Bakery",
+          "rating": 4.3,
+          "address": "3301 McKinney Avenue, Dallas",
+          "distance": "12.5 miles",
+          "dist_val": 12.5,
+          "open_now": false,
+          "phone": "(214) 556-1334"
+        },
+        {
+          "place_id": "ChIJfxzjA_A-TIYRYaJxr_EEmy0",
+          "name": "Meso Maya Comida y Copas",
+          "rating": 4.5,
+          "address": "11909 Preston Road Suite 1426, Dallas",
+          "distance": "12.6 miles",
+          "dist_val": 12.6,
+          "open_now": true,
+          "phone": "(469) 726-4390"
+        },
+        {
+          "place_id": "ChIJMclRUc6eToYRH-EdHhrvbfQ",
+          "name": "Pappadeaux Seafood Kitchen",
+          "rating": 4.3,
+          "address": "3520 Oak Lawn Avenue, Dallas",
+          "distance": "12.6 miles",
+          "dist_val": 12.6,
+          "open_now": true,
+          "phone": "(214) 521-4700"
+        },
+        {
+          "place_id": "ChIJwfu5e-GYToYRikmj_Cz3-bw",
+          "name": "Dallas Farmers Market",
+          "rating": 4.5,
+          "address": "920 South Harwood Street, Dallas",
+          "distance": "12.7 miles",
+          "dist_val": 12.7,
+          "open_now": false,
+          "phone": "(214) 664-9110"
+        },
+        {
+          "place_id": "ChIJpRbheR-ZToYRjrfQZ37KI2o",
+          "name": "Hotel Indigo Dallas Downtown by IHG",
+          "rating": 4.2,
+          "address": "1933 Main Street, Dallas",
+          "distance": "12.8 miles",
+          "dist_val": 12.8,
+          "open_now": true,
+          "phone": "(214) 741-7700"
+        },
+        {
+          "place_id": "ChIJIYeaPO4gTIYRgNd7Z6a4oKk",
+          "name": "India Palace",
+          "rating": 4.2,
+          "address": "12817 Preston Rd Suite # 105, Dallas",
+          "distance": "12.9 miles",
+          "dist_val": 12.9,
+          "open_now": true,
+          "phone": "(972) 392-0190"
+        },
+        {
+          "place_id": "ChIJ3xmRmOUYTIYRabQAr1XT2yI",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "1000 W 15th St, Plano",
+          "distance": "12.9 miles",
+          "dist_val": 12.9,
+          "open_now": true,
+          "phone": "(972) 422-7084"
+        },
+        {
+          "place_id": "ChIJE4ottMyeToYRXNX8EpUbhtY",
+          "name": "Rosewood Mansion on Turtle Creek",
+          "rating": 4.7,
+          "address": "2821 Turtle Creek Boulevard, Dallas",
+          "distance": "13.0 miles",
+          "dist_val": 13.0,
+          "open_now": true,
+          "phone": "(214) 559-2100"
+        },
+        {
+          "place_id": "ChIJZ60CBDOZToYRxFiIHUYngXY",
+          "name": "Texas de Brazil - Dallas",
+          "rating": 4.5,
+          "address": "2727 Cedar Springs Road, Dallas",
+          "distance": "13.0 miles",
+          "dist_val": 13.0,
+          "open_now": true,
+          "phone": "(214) 740-4911"
+        },
+        {
+          "place_id": "ChIJFZTfCzCZToYR9dyl_SdjzG4",
+          "name": "Shake Shack Uptown Dallas",
+          "rating": 4.2,
+          "address": "2500 N Pearl St, Dallas",
+          "distance": "13.0 miles",
+          "dist_val": 13.0,
+          "open_now": true,
+          "phone": "(214) 983-1023"
+        },
+        {
+          "place_id": "ChIJzZ8OFSOZToYR8E34w1-AprA",
+          "name": "Fairmont Dallas",
+          "rating": 4.4,
+          "address": "1717 North Akard Street, Dallas",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(214) 720-2020"
+        },
+        {
+          "place_id": "ChIJs8StfjCZToYROdX0LGp2HXw",
+          "name": "Ocean Prime",
+          "rating": 4.6,
+          "address": "2101 Cedar Springs Road #150, Dallas",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(214) 965-0440"
+        },
+        {
+          "place_id": "ChIJg_4v_TOZToYRiL6IItIqa1E",
+          "name": "Nick & Sam's",
+          "rating": 4.3,
+          "address": "3008 Maple Avenue, Dallas",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(214) 871-7444"
+        },
+        {
+          "place_id": "ChIJiTH8AyOZToYRjgcpq1BhUdE",
+          "name": "Dakota's Steakhouse",
+          "rating": 4.5,
+          "address": "600 North Akard Street, Dallas",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(214) 740-4001"
+        },
+        {
+          "place_id": "ChIJuW9izCAhTIYRC9kB2gghzHs",
+          "name": "Del Frisco's Double Eagle Steakhouse",
+          "rating": 4.4,
+          "address": "2323 Olive Street, Dallas",
+          "distance": "13.1 miles",
+          "dist_val": 13.1,
+          "open_now": true,
+          "phone": "(972) 490-9000"
+        },
+        {
+          "place_id": "ChIJmczW8xeZToYRLT1AzM0hrrg",
+          "name": "Crowne Plaza Dallas Downtown by IHG",
+          "rating": 2.9,
+          "address": "1015 Elm Street, Dallas",
+          "distance": "13.3 miles",
+          "dist_val": 13.3,
+          "open_now": true,
+          "phone": "(214) 742-5678"
+        },
+        {
+          "place_id": "ChIJ2xz9MWOeToYRVyuD9egQxvw",
+          "name": "Neighborhood Services",
+          "rating": 4.5,
+          "address": "5027 West Lovers Lane, Dallas",
+          "distance": "13.3 miles",
+          "dist_val": 13.3,
+          "open_now": true,
+          "phone": "(214) 350-5027"
+        },
+        {
+          "place_id": "ChIJ_8GjDj2ZToYR4oj1dMzSWRg",
+          "name": "The Dallas World Aquarium",
+          "rating": 4.4,
+          "address": "1801 North Griffin Street, Dallas",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": false,
+          "phone": "(214) 720-2224"
+        },
+        {
+          "place_id": "ChIJwaFrfheZToYRgzTEHZJUrXI",
+          "name": "McDonald’s",
+          "rating": 3.5,
+          "address": "1000 Commerce St, Dallas",
+          "distance": "13.4 miles",
+          "dist_val": 13.4,
+          "open_now": true,
+          "phone": "(469) 227-8533"
+        },
+        {
+          "place_id": "ChIJAbeKgT6ZToYRlMNqC9jpYgE",
+          "name": "Hooters",
+          "rating": 3.9,
+          "address": "2201 North Lamar Street, Dallas",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(214) 979-9464"
+        },
+        {
+          "place_id": "ChIJ1xQiJxaZToYRnuQRys6KY_k",
+          "name": "Y.O. Ranch Steakhouse",
+          "rating": 4.8,
+          "address": "702 Ross Avenue, Dallas",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(214) 744-3287"
+        },
+        {
+          "place_id": "ChIJu0ZgoKoZTIYRK7GUxFPF4_o",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "2740 N Central Expy, Plano",
+          "distance": "13.5 miles",
+          "dist_val": 13.5,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJv0VLMIOeToYRhCZByk2ATLc",
+          "name": "Popeyes Louisiana Kitchen",
+          "rating": 3.2,
+          "address": "6502 Lemmon Ave, Dallas",
+          "distance": "13.8 miles",
+          "dist_val": 13.8,
+          "open_now": true,
+          "phone": "(214) 350-8675"
+        },
+        {
+          "place_id": "ChIJO_4amk2ZToYRVK3lSV3WG8w",
+          "name": "Medieval Times Dinner & Tournament",
+          "rating": 4.7,
+          "address": "2021 North Stemmons Freeway, Dallas",
+          "distance": "13.9 miles",
+          "dist_val": 13.9,
+          "open_now": true,
+          "phone": "(888) 935-6878"
+        },
+        {
+          "place_id": "ChIJA-qSkg6ZToYRreTSYZCn-AU",
+          "name": "Fuel City Dallas",
+          "rating": 4,
+          "address": "801 South Riverfront Boulevard, Dallas",
+          "distance": "14.0 miles",
+          "dist_val": 14.0,
+          "open_now": true,
+          "phone": "(214) 426-0011"
+        },
+        {
+          "place_id": "ChIJHeg4_K0ZTIYRhZCvKqM443Y",
+          "name": "Whataburger",
+          "rating": 4.1,
+          "address": "3521 N Central Expy, Plano",
+          "distance": "14.0 miles",
+          "dist_val": 14.0,
+          "open_now": true,
+          "phone": "(972) 578-3835"
+        },
+        {
+          "place_id": "ChIJf-zFDychTIYRI5BgiY9B3GA",
+          "name": "Wendy's",
+          "rating": 3.5,
+          "address": "5215 Spring Valley Rd, Dallas",
+          "distance": "14.2 miles",
+          "dist_val": 14.2,
+          "open_now": true,
+          "phone": "(972) 591-3628"
+        },
+        {
+          "place_id": "ChIJc5IeEDshTIYRrLVRCQH8egY",
+          "name": "Blue Mesa Grill",
+          "rating": 4.3,
+          "address": "14866 Montfort Drive, Dallas",
+          "distance": "14.3 miles",
+          "dist_val": 14.3,
+          "open_now": true,
+          "phone": "(972) 934-0165"
+        },
+        {
+          "place_id": "ChIJ72DQ81CZToYR9vLRCMH6y2o",
+          "name": "Bowlounge",
+          "rating": 4.4,
+          "address": "167 Turtle Creek Boulevard #103, Dallas",
+          "distance": "14.3 miles",
+          "dist_val": 14.3,
+          "open_now": true,
+          "phone": "(214) 741-7737"
+        },
+        {
+          "place_id": "ChIJCzdeodCdToYRDfVxqsVdHgE",
+          "name": "Chick-fil-A",
+          "rating": 4.1,
+          "address": "3040 W Mockingbird Ln, Dallas",
+          "distance": "14.3 miles",
+          "dist_val": 14.3,
+          "open_now": true,
+          "phone": "(214) 736-3866"
+        },
+        {
+          "place_id": "ChIJc5IeEDshTIYRKtfVlnuPDOs",
+          "name": "Gloria's Latin Cuisine",
+          "rating": 4.5,
+          "address": "5100 Belt Line Road Suite 864, Dallas",
+          "distance": "14.5 miles",
+          "dist_val": 14.5,
+          "open_now": true,
+          "phone": "(972) 387-8442"
+        },
+        {
+          "place_id": "ChIJmdvmXb8ZTIYRULKZVzuFKig",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "6010 K Ave, Plano",
+          "distance": "14.5 miles",
+          "dist_val": 14.5,
+          "open_now": true,
+          "phone": "(214) 299-4700"
+        },
+        {
+          "place_id": "ChIJD9zXXkedToYR_2A95cjycaU",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "2525 W Mockingbird Ln, Dallas",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJHWFXBDkhTIYRZc9FwpFAeuQ",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "15260 Dallas Pkwy, Dallas",
+          "distance": "14.6 miles",
+          "dist_val": 14.6,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJDxQCPiOcToYR8-8n22wZlSc",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "2503 W Mockingbird Ln, Dallas",
+          "distance": "14.7 miles",
+          "dist_val": 14.7,
+          "open_now": true,
+          "phone": "(214) 353-6993"
+        },
+        {
+          "place_id": "ChIJVYijqzAhTIYRhdAvkfRm5Ag",
+          "name": "The Magic Time Machine",
+          "rating": 4.2,
+          "address": "5003 Belt Line Road, Dallas",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true,
+          "phone": "(972) 980-1903"
+        },
+        {
+          "place_id": "ChIJTTr7QzInTIYRpzb219i8PTI",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "12909 Midway Rd, Dallas",
+          "distance": "14.8 miles",
+          "dist_val": 14.8,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJa9B3NTEhTIYRDXpCVFdwLT0",
+          "name": "BJ's Restaurant & Brewhouse",
+          "rating": 4.2,
+          "address": "4901 Belt Line Road, Dallas",
+          "distance": "14.9 miles",
+          "dist_val": 14.9,
+          "open_now": true,
+          "phone": "(972) 392-4600"
+        },
+        {
+          "place_id": "ChIJfzVs0mAiTIYRbJsb0V017Tg",
+          "name": "Cinemark Central Plano",
+          "rating": 4.4,
+          "address": "1818 Coit Road, Plano",
+          "distance": "15.1 miles",
+          "dist_val": 15.1,
+          "open_now": true,
+          "phone": "(972) 985-1394"
+        },
+        {
+          "place_id": "ChIJsVS4BTQhTIYR8udYso0I2LI",
+          "name": "Texas de Brazil - Addison",
+          "rating": 4.5,
+          "address": "15101 Addison Road, Addison",
+          "distance": "15.1 miles",
+          "dist_val": 15.1,
+          "open_now": true,
+          "phone": "(972) 385-4350"
+        },
+        {
+          "place_id": "ChIJgRXqdmAiTIYRipC0uluy9ls",
+          "name": "Burger King",
+          "rating": 3.9,
+          "address": "2009 Coit Rd, Plano",
+          "distance": "15.3 miles",
+          "dist_val": 15.3,
+          "open_now": true,
+          "phone": "(972) 964-0838"
+        },
+        {
+          "place_id": "ChIJ3_3xedsZTIYR029fqJRWXS8",
+          "name": "Cinemark Legacy and XD",
+          "rating": 4.5,
+          "address": "7201 North Central Expressway Suite #100, Plano",
+          "distance": "15.5 miles",
+          "dist_val": 15.5,
+          "open_now": true,
+          "phone": "(972) 527-4385"
+        },
+        {
+          "place_id": "ChIJDziQyoWZToYRAAIV6Mf35KQ",
+          "name": "Lockhart Smokehouse BBQ",
+          "rating": 4.4,
+          "address": "400 West Davis Street, Dallas",
+          "distance": "15.6 miles",
+          "dist_val": 15.6,
+          "open_now": true,
+          "phone": "(214) 944-5521"
+        },
+        {
+          "place_id": "ChIJSwNvxjMjTIYRNrz3BvMWSOw",
+          "name": "Jollibee",
+          "rating": 4.1,
+          "address": "1016 Preston Rd, Plano",
+          "distance": "15.6 miles",
+          "dist_val": 15.6,
+          "open_now": true,
+          "phone": "(469) 333-2520"
+        },
+        {
+          "place_id": "ChIJYYrvJcL_S4YRM1HXDdIh4cQ",
+          "name": "Popeyes Louisiana Kitchen",
+          "rating": 3.3,
+          "address": "696 I-30, Royse City",
+          "distance": "16.0 miles",
+          "dist_val": 16.0,
+          "open_now": true,
+          "phone": "(469) 656-7911"
+        },
+        {
+          "place_id": "ChIJvVZ6XG-cToYR_uPnPuhuiYQ",
+          "name": "Crowne Plaza Dallas Market Ctr - Love Field by IHG",
+          "rating": 3.7,
+          "address": "7050 North Stemmons Freeway, Dallas",
+          "distance": "16.1 miles",
+          "dist_val": 16.1,
+          "open_now": true,
+          "phone": "(214) 630-8500"
+        },
+        {
+          "place_id": "ChIJhWd0xcYmTIYRHBV6CoYXTPo",
+          "name": "Lucky Strike Addison",
+          "rating": 4.2,
+          "address": "3805 Belt Line Road, Addison",
+          "distance": "16.1 miles",
+          "dist_val": 16.1,
+          "open_now": true,
+          "phone": "(972) 620-7700"
+        },
+        {
+          "place_id": "ChIJNcEVA1EXTIYRLfBrI2iAJLU",
+          "name": "Wienerschnitzel",
+          "rating": 4.4,
+          "address": "415 E Bethany Dr, Allen",
+          "distance": "16.2 miles",
+          "dist_val": 16.2,
+          "open_now": true,
+          "phone": "(469) 854-6464"
+        },
+        {
+          "place_id": "ChIJvxIDbVecToYRrf1BTp79j0Q",
+          "name": "Whataburger",
+          "rating": 3.9,
+          "address": "8850 N Stemmons Fwy, Dallas",
+          "distance": "16.3 miles",
+          "dist_val": 16.3,
+          "open_now": true,
+          "phone": "(214) 905-9014"
+        },
+        {
+          "place_id": "ChIJa2h5IfEjTIYR6oVePaAqrTU",
+          "name": "Whataburger",
+          "rating": 4.1,
+          "address": "18180 Dallas Pkwy, Dallas",
+          "distance": "16.4 miles",
+          "dist_val": 16.4,
+          "open_now": true,
+          "phone": "(972) 248-6181"
+        },
+        {
+          "place_id": "ChIJK_Kp73QnTIYRYY5roy6xNow",
+          "name": "Cinemark Dallas XD and IMAX",
+          "rating": 4.4,
+          "address": "11819 Webb Chapel Road, Dallas",
+          "distance": "16.5 miles",
+          "dist_val": 16.5,
+          "open_now": true,
+          "phone": "(972) 247-8172"
+        },
+        {
+          "place_id": "ChIJrZfZG4IjTIYRRvBkVMXE9EI",
+          "name": "Pappadeaux Seafood Kitchen",
+          "rating": 4.5,
+          "address": "18349 Dallas Parkway, Dallas",
+          "distance": "16.6 miles",
+          "dist_val": 16.6,
+          "open_now": true,
+          "phone": "(972) 447-9616"
+        },
+        {
+          "place_id": "ChIJ4xDipAMkTIYRKSHFcTL6odg",
+          "name": "Wendy's",
+          "rating": 3.7,
+          "address": "2655 Midway Rd, Carrollton",
+          "distance": "16.7 miles",
+          "dist_val": 16.7,
+          "open_now": true,
+          "phone": "(214) 272-3843"
+        },
+        {
+          "place_id": "ChIJH_9XWRKdToYRwGTsxTwI2iY",
+          "name": "Baby Dolls",
+          "rating": 4,
+          "address": "10250 Shady Trail, Dallas",
+          "distance": "17.1 miles",
+          "dist_val": 17.1,
+          "open_now": true,
+          "phone": "(214) 358-5511"
+        },
+        {
+          "place_id": "ChIJfxwpH_KcToYRtn5IRJnH-hk",
+          "name": "Sterling Hotel Convention, Meeting and Event Center",
+          "rating": 3.3,
+          "address": "1055 Regal Row ste 150, Dallas",
+          "distance": "17.1 miles",
+          "dist_val": 17.1,
+          "open_now": true,
+          "phone": "(214) 634-8550"
+        },
+        {
+          "place_id": "ChIJBzTFS0cXTIYRjWF_zmIsoTA",
+          "name": "Layne's Chicken Fingers- Allen",
+          "rating": 4.3,
+          "address": "102 Central Expy S, Allen",
+          "distance": "17.2 miles",
+          "dist_val": 17.2,
+          "open_now": true,
+          "phone": "(972) 908-0594"
+        },
+        {
+          "place_id": "ChIJN71fSBSdToYRktyvfoLaXrM",
+          "name": "Olive Garden Italian Restaurant",
+          "rating": 4.3,
+          "address": "10280 Technology Boulevard East, Dallas",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": true,
+          "phone": "(214) 902-8163"
+        },
+        {
+          "place_id": "ChIJfRNg0FOXToYRorWbb-7h9qE",
+          "name": "Golden Chick",
+          "rating": 3.8,
+          "address": "410 W Kiest Blvd, Dallas",
+          "distance": "17.5 miles",
+          "dist_val": 17.5,
+          "open_now": true,
+          "phone": "(214) 371-2400"
+        },
+        {
+          "place_id": "ChIJM84YNBWdToYRT4WZ7Fp78-0",
+          "name": "Pappasito's Cantina",
+          "rating": 4.5,
+          "address": "10433 Lombardy Lane, Dallas",
+          "distance": "17.6 miles",
+          "dist_val": 17.6,
+          "open_now": true,
+          "phone": "(214) 350-1970"
+        },
+        {
+          "place_id": "ChIJmYyXz2qdToYRJ7829Jemk5k",
+          "name": "Pappas Bros. Steakhouse",
+          "rating": 4.7,
+          "address": "10477 Lombardy Lane, Dallas",
+          "distance": "17.6 miles",
+          "dist_val": 17.6,
+          "open_now": true,
+          "phone": "(214) 366-2000"
+        },
+        {
+          "place_id": "ChIJaTe_N38jTIYR5CmFE-BXwQc",
+          "name": "Maggiano's Little Italy",
+          "rating": 4.5,
+          "address": "6001 West Park Boulevard, Plano",
+          "distance": "17.8 miles",
+          "dist_val": 17.8,
+          "open_now": true,
+          "phone": "(972) 781-0776"
+        },
+        {
+          "place_id": "ChIJg0LEiBUkTIYRO1etEWOvf_I",
+          "name": "Popeyes Louisiana Kitchen",
+          "rating": 3.6,
+          "address": "18311 Marsh Ln, Dallas",
+          "distance": "17.9 miles",
+          "dist_val": 17.9,
+          "open_now": true,
+          "phone": "(972) 820-6304"
+        },
+        {
+          "place_id": "ChIJ97wBshUiTIYR6KgQ02A36Nk",
+          "name": "Whataburger",
+          "rating": 3.7,
+          "address": "3424 E Hebron Pkwy, Carrollton",
+          "distance": "18.2 miles",
+          "dist_val": 18.2,
+          "open_now": true,
+          "phone": "(972) 732-1942"
+        },
+        {
+          "place_id": "ChIJUcK6ztUQTIYRaW8GN1Fuv70",
+          "name": "Topgolf Allen",
+          "rating": 4.3,
+          "address": "1500 Andrews Parkway, Allen",
+          "distance": "18.4 miles",
+          "dist_val": 18.4,
+          "open_now": true,
+          "phone": "(469) 675-9730"
+        },
+        {
+          "place_id": "ChIJNT9WgCgRTIYRD8bZ8gv5xwY",
+          "name": "In-N-Out Burger",
+          "rating": 4.6,
+          "address": "190 E Stacy Rd #700, Allen",
+          "distance": "18.7 miles",
+          "dist_val": 18.7,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJFR3CYpGWToYRXdWatJmFu80",
+          "name": "Whataburger",
+          "rating": 3.5,
+          "address": "3797 N Houston School Rd, Lancaster",
+          "distance": "19.6 miles",
+          "dist_val": 19.6,
+          "open_now": true,
+          "phone": "(972) 224-3040"
+        },
+        {
+          "place_id": "ChIJG5_js688TIYRKyJyTfJamSo",
+          "name": "Shake Shack Legacy West (Plano)",
+          "rating": 4.2,
+          "address": "7401 Windrose Ave., Plano",
+          "distance": "20.1 miles",
+          "dist_val": 20.1,
+          "open_now": true,
+          "phone": "(972) 665-7175"
+        },
+        {
+          "place_id": "ChIJNTb240ODToYR82k2k743fdA",
+          "name": "Griff's Hamburgers",
+          "rating": 4.4,
+          "address": "718 E Irving Blvd, Irving",
+          "distance": "20.2 miles",
+          "dist_val": 20.2,
+          "open_now": true,
+          "phone": "(972) 579-7651"
+        },
+        {
+          "place_id": "ChIJT378t9c9TIYRO7ULCYlGVP4",
+          "name": "Olive Burger",
+          "rating": 4.5,
+          "address": "5720 State Hwy 121, Plano",
+          "distance": "20.4 miles",
+          "dist_val": 20.4,
+          "open_now": true,
+          "phone": "(972) 238-2811"
+        },
+        {
+          "place_id": "ChIJkfnq5_A8TIYROgKJejRaRqI",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "3890 Preston Rd, Frisco",
+          "distance": "21.1 miles",
+          "dist_val": 21.1,
+          "open_now": true,
+          "phone": "(214) 494-4470"
+        },
+        {
+          "place_id": "ChIJ4R73LBaRToYRtyKT6H39-JI",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.3,
+          "address": "8150 S Hampton Rd, Dallas",
+          "distance": "21.2 miles",
+          "dist_val": 21.2,
+          "open_now": true,
+          "phone": "(972) 228-4482"
+        },
+        {
+          "place_id": "ChIJ6xWRGDIoTIYR1jp6jFL69pw",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "6501 N MacArthur Blvd, Irving",
+          "distance": "21.3 miles",
+          "dist_val": 21.3,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJuV0r700oTIYRH64QFFz8lhI",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.3,
+          "address": "7955 N MacArthur Blvd, Irving",
+          "distance": "21.5 miles",
+          "dist_val": 21.5,
+          "open_now": true,
+          "phone": "(972) 910-8373"
+        },
+        {
+          "place_id": "ChIJA1HYDNU6TIYRUDVZnb0Y04A",
+          "name": "In-N-Out Burger",
+          "rating": 4.5,
+          "address": "5298 State Hwy 121, The Colony",
+          "distance": "21.7 miles",
+          "dist_val": 21.7,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJ72PMK1o8TIYRN4BX8zKN1yY",
+          "name": "Whataburger",
+          "rating": 3.9,
+          "address": "5266 Preston Rd, Frisco",
+          "distance": "21.7 miles",
+          "dist_val": 21.7,
+          "open_now": true,
+          "phone": "(214) 705-0831"
+        },
+        {
+          "place_id": "ChIJu_nhhguUToYRqx2UfMGBUkE",
+          "name": "Golden Chick",
+          "rating": 3.4,
+          "address": "1100 E Pleasant Run Rd, DeSoto",
+          "distance": "22.5 miles",
+          "dist_val": 22.5,
+          "open_now": true,
+          "phone": "(469) 530-5525"
+        },
+        {
+          "place_id": "ChIJfQnDZhCUToYRWFGgf7CoL5Q",
+          "name": "In-N-Out Burger",
+          "rating": 4.4,
+          "address": "740 I-35E, Lancaster",
+          "distance": "22.6 miles",
+          "dist_val": 22.6,
+          "open_now": true,
+          "phone": "(800) 786-1000"
+        },
+        {
+          "place_id": "ChIJsylf2BaCToYRV1ix84-ZyDc",
+          "name": "Sonic Drive-In",
+          "rating": 3.4,
+          "address": "3431 W Walnut Hill Ln, Irving",
+          "distance": "23.1 miles",
+          "dist_val": 23.1,
+          "open_now": true,
+          "phone": "(972) 252-7108"
+        },
+        {
+          "place_id": "ChIJFcoDdyU8TIYRhtxqUQvdrzs",
+          "name": "Popeyes Louisiana Kitchen",
+          "rating": 3.2,
+          "address": "9185 Preston Rd, Frisco",
+          "distance": "23.5 miles",
+          "dist_val": 23.5,
+          "open_now": true,
+          "phone": "(214) 436-4693"
+        },
+        {
+          "place_id": "ChIJc4ixAAQvTIYRuvHhNuycSfg",
+          "name": "Taco Casa",
+          "rating": 4.1,
+          "address": "740 Hebron Pkwy, Lewisville",
+          "distance": "23.9 miles",
+          "dist_val": 23.9,
+          "open_now": true,
+          "phone": "(972) 459-5071"
+        },
+        {
+          "place_id": "ChIJddXv2gkTTIYRr2iqinoMXLw",
+          "name": "Raising Cane's Chicken Fingers",
+          "rating": 4.4,
+          "address": "1902 N Central Expy, McKinney",
+          "distance": "24.6 miles",
+          "dist_val": 24.6,
+          "open_now": true,
+          "phone": "(214) 491-4128"
+        },
+        {
+          "place_id": "ChIJEWPg4nWBToYR7gujwttExWc",
+          "name": "Whataburger",
+          "rating": 4,
+          "address": "4920 W Airport Fwy, Irving",
+          "distance": "24.9 miles",
+          "dist_val": 24.9,
+          "open_now": true,
+          "phone": "(972) 313-0789"
+        },
+        {
+          "place_id": "ChIJq0oatZ4VTIYRCWiDg7r65co",
+          "name": "Sonic Drive-In",
+          "rating": 4,
+          "address": "420 N Custer Rd, McKinney",
+          "distance": "25.0 miles",
+          "dist_val": 25.0,
+          "open_now": true,
+          "phone": "(469) 952-5111"
+        }
+      ],
+      "is_mock": false,
+      "camp_address": "5302 Viewside Dr, Garland, TX 75043",
+      "throttled": false,
+      "refresh_failed": false,
+      "failure_reason": null
     }
   }
 }
