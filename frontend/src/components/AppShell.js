@@ -17,6 +17,7 @@ const navItems = [
   { to: "/cabins",  icon: "⛺", label: "Cabins", pageKey: "cabins" },
   { to: "/app/schedule", icon: "📅", label: "Schedule", pageKey: "schedule" },
   { to: "/retreat-ops", icon: "⛺", label: "Retreat Ops", pageKey: "retreat_ops" },
+  { to: "/kidz-corner", icon: "🧸", label: "Kidz Corner", pageKey: "kidz_corner" },
   { to: "/outdoor", icon: "🛶", label: "Outdoor Activities", pageKey: "outdoor" },
   { to: "/tshirts", icon: "👕", label: "Apparel", pageKey: "apparel" },
   { to: "/camp-info", icon: "ℹ️", label: "Camp Info", pageKey: "camp_info" },
@@ -316,16 +317,62 @@ export default function AppShell() {
         </div>
 
         <nav className="sidebar-nav">
+          {/* Main / Overview */}
           {navItems
+            .filter(item => item.pageKey === "dashboard")
             .filter(item => hasPermission(item.pageKey, "hide"))
             .map(item => (
               <NavItem key={item.to} {...item} />
             ))
           }
+
+          {/* Rosters & Logistics */}
+          {navItems.some(item => ["campers", "teams", "checkin", "cabins"].includes(item.pageKey) && hasPermission(item.pageKey, "hide")) && (
+            <>
+              <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "10px 12px 2px" }}>Rosters & Logistics</div>
+              {navItems
+                .filter(item => ["campers", "teams", "checkin", "cabins"].includes(item.pageKey))
+                .filter(item => hasPermission(item.pageKey, "hide"))
+                .map(item => (
+                  <NavItem key={item.to} {...item} />
+                ))
+              }
+            </>
+          )}
+
+          {/* Operations */}
+          {navItems.some(item => ["schedule", "retreat_ops", "apparel", "camp_info"].includes(item.pageKey) && hasPermission(item.pageKey, "hide")) && (
+            <>
+              <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "10px 12px 2px" }}>Operations</div>
+              {navItems
+                .filter(item => ["schedule", "retreat_ops", "apparel", "camp_info"].includes(item.pageKey))
+                .filter(item => hasPermission(item.pageKey, "hide"))
+                .map(item => (
+                  <NavItem key={item.to} {...item} />
+                ))
+              }
+            </>
+          )}
+
+          {/* Activities */}
+          {navItems.some(item => ["kidz_corner", "outdoor"].includes(item.pageKey) && hasPermission(item.pageKey, "hide")) && (
+            <>
+              <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "10px 12px 2px" }}>Activities</div>
+              {navItems
+                .filter(item => ["kidz_corner", "outdoor"].includes(item.pageKey))
+                .filter(item => hasPermission(item.pageKey, "hide"))
+                .map(item => (
+                  <NavItem key={item.to} {...item} />
+                ))
+              }
+            </>
+          )}
+
+          {/* Admin Section */}
           {(adminItems.some(item => hasPermission(item.pageKey, "hide")) || (!hasPermission("finance", "hide") && hasPermission("receipt_upload", "hide"))) && (
             <>
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", margin: "8px 0" }} />
-              <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "4px 12px 2px" }}>Admin</div>
+              <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.35)", padding: "4px 12px 2px" }}>Admin</div>
               {adminItems
                 .filter(item => hasPermission(item.pageKey, "hide"))
                 .map(item => (
