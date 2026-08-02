@@ -84,6 +84,29 @@ export default function FinancePage() {
   const [familySearch, setFamilySearch] = useState("");
   const [familyFilter, setFamilyFilter] = useState("all"); // all, unpaid, partial, paid
   const [expandedFamilies, setExpandedFamilies] = useState({});
+  const [reminderMode, setReminderMode] = useState("balance"); // balance, activity
+  const [reminderTemplates, setReminderTemplates] = useState({
+    balance: `Hi {first_name} {last_name},
+
+This is a friendly reminder from GCA Church Camp regarding your camp fee balance of \${balance}. We'd greatly appreciate it if you could arrange payment at your earliest convenience.
+
+If you've already taken care of this, please disregard this message — and thank you for your prompt attention!
+
+We're so grateful to have you with us this year. If you have any questions, please don't hesitate to reach out.
+
+Warm regards,
+GCA Church Camp Team`,
+    activity: `Hi {first_name} {last_name},
+
+This is a friendly reminder from GCA Church Camp that the outdoor activity fees (kayaking, boat tour, etc.) for your family come to \${activity_fee}.
+
+If you've already taken care of this, please disregard this message — and thank you!
+
+Warm regards,
+GCA Church Camp Team`
+  });
+  const [reminderFilter, setReminderFilter] = useState("due"); // due, all
+  const [markingReminder, setMarkingReminder] = useState(null); // family_group currently being marked
 
   // Dynamic Activity Configs
   const [activityNames, setActivityNames] = useState(["Kayaking", "Boat Tour"]);
@@ -195,6 +218,61 @@ export default function FinancePage() {
       ...prev,
       [familyGroup]: !prev[familyGroup]
     }));
+  };
+
+  // ---- Fee Reminder helpers (free SMS / WhatsApp deep links, no third-party service) ----
+
+  const buildReminderMessage = (family) => {
+    const balance = ((family.total_expected_fee || 0) - (family.amount_paid || 0)).toFixed(2);
+    const activityFee = (family.activity_fee || 0).toFixed(2);
+    const template = reminderTemplates[reminderMode];
+
+    return template
+      .replaceAll("{first_name}", family.head_first_name || "there")
+      .replaceAll("{last_name}", family.head_last_name || "")
+      .replaceAll("{name}", family.head_full_name || family.display_name || "there")
+      .replaceAll("{family}", family.family_group)
+      .replaceAll("{balance}", balance)
+      .replaceAll("{activity_fee}", activityFee);
+  };
+
+  // Normalize a stored phone number into digits-only, assuming US numbers by
+  // default (10 digits -> prefix with 1) if no country code is already present.
+  const normalizePhoneDigits = (phone) => {
+    if (!phone) return null;
+    const digits = phone.replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.length === 10) return `1${digits}`;
+    return digits;
+  };
+
+  const buildSmsHref = (phone, message) => {
+    const digits = normalizePhoneDigits(phone);
+    if (!digits) return null;
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const separator = isIOS ? "&" : "?";
+    return `sms:+${digits}${separator}body=${encodeURIComponent(message)}`;
+  };
+
+  const buildWhatsAppHref = (phone, message) => {
+    const digits = normalizePhoneDigits(phone);
+    if (!digits) return null;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleMarkReminderSent = async (familyGroup) => {
+    setMarkingReminder(familyGroup);
+    try {
+      const res = await api.post("/api/finance/fees/mark-reminder-sent", { family_group: familyGroup });
+      setFamilies(prev => prev.map(f =>
+        f.family_group === familyGroup ? { ...f, reminder_sent_at: res.data.payment.reminder_sent_at } : f
+      ));
+      flashSuccess("Marked reminder as sent.");
+    } catch (err) {
+      flashError(err.response?.data?.error || "Failed to mark reminder as sent.");
+    } finally {
+      setMarkingReminder(null);
+    }
   };
 
   // Expense CRUD
@@ -942,6 +1020,30 @@ export default function FinancePage() {
               <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Outflow</div>
             </div>
           </button>
+          <button
+            style={{
+              padding: "12px 20px",
+              background: activeTab === "reminders" ? "#ffffff" : "rgba(0,0,0,0.02)",
+              border: "1px solid var(--border-color)",
+              borderLeft: "4px solid #3498db",
+              borderRadius: "10px",
+              color: activeTab === "reminders" ? "#3498db" : "var(--text-secondary)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              boxShadow: activeTab === "reminders" ? "0 4px 12px rgba(52, 152, 219, 0.06)" : "none",
+              transform: activeTab === "reminders" ? "translateY(-1px)" : "none",
+              transition: "all 0.2s ease"
+            }}
+            onClick={() => setActiveTab("reminders")}
+          >
+            <span style={{ fontSize: "1.25rem" }}>📱</span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Send Reminders</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Text Families Free</div>
+            </div>
+          </button>
         </div>
       )}
 
@@ -1182,6 +1284,224 @@ export default function FinancePage() {
               </tfoot>
             </table>
           </div>
+        </div>
+      )}
+
+      {!loading && activeTab === "reminders" && (
+        <div>
+          <div style={{
+            background: "#eef6fc",
+            border: "1px solid #cfe6f5",
+            borderRadius: "10px",
+            padding: "16px",
+            marginBottom: "20px",
+            fontSize: "0.875rem",
+            color: "var(--text-secondary)"
+          }}>
+            This opens your own phone's SMS or WhatsApp app with the message pre-filled — nothing is sent
+            automatically and there's no per-message charge. Tap Send for each family, then Send in your
+            messaging app to actually deliver it.
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+            <button
+              onClick={() => { setReminderMode("balance"); setReminderFilter("due"); }}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                background: reminderMode === "balance" ? "var(--forest)" : "#fff",
+                color: reminderMode === "balance" ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 700
+              }}
+            >
+              💰 Fee Balance Reminder
+            </button>
+            <button
+              onClick={() => { setReminderMode("activity"); setReminderFilter("all"); }}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                background: reminderMode === "activity" ? "#3498db" : "#fff",
+                color: reminderMode === "activity" ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 700
+              }}
+            >
+              🚣 Outdoor Activity Fee Notice
+            </button>
+          </div>
+
+          <div style={{ marginBottom: "20px" }}>
+            <label style={{ fontWeight: 600, fontSize: "0.875rem", display: "block", marginBottom: 6 }}>
+              Message template — {reminderMode === "balance" ? "Fee Balance Reminder" : "Outdoor Activity Fee Notice"}
+            </label>
+            <textarea
+              value={reminderTemplates[reminderMode]}
+              onChange={(e) => setReminderTemplates(prev => ({ ...prev, [reminderMode]: e.target.value }))}
+              rows={3}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid var(--border-color)",
+                borderRadius: "8px",
+                fontFamily: "inherit",
+                fontSize: "0.9rem",
+                resize: "vertical"
+              }}
+            />
+            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
+              Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
+            <button
+              onClick={() => setReminderFilter("due")}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                background: reminderFilter === "due" ? "var(--forest)" : "#fff",
+                color: reminderFilter === "due" ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 600
+              }}
+            >
+              Balance Due Only
+            </button>
+            <button
+              onClick={() => setReminderFilter("all")}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                background: reminderFilter === "all" ? "var(--forest)" : "#fff",
+                color: reminderFilter === "all" ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: 600
+              }}
+            >
+              All Families
+            </button>
+          </div>
+
+          {(() => {
+            const list = families.filter(f => {
+              const balance = (f.total_expected_fee || 0) - (f.amount_paid || 0);
+              return reminderFilter === "all" ? true : balance > 0.005;
+            });
+
+            if (list.length === 0) {
+              return (
+                <div style={{ textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>
+                  No families with an outstanding balance. 🎉
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {list.map((family) => {
+                  const balance = (family.total_expected_fee || 0) - (family.amount_paid || 0);
+                  const message = buildReminderMessage(family);
+                  const smsHref = buildSmsHref(family.contact_phone, message);
+                  const waHref = buildWhatsAppHref(family.contact_phone, message);
+                  const alreadySent = !!family.reminder_sent_at;
+
+                  return (
+                    <div key={family.family_group} style={{
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "10px",
+                      padding: "14px 16px",
+                      background: "#fff",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "12px",
+                      justifyContent: "space-between"
+                    }}>
+                      <div style={{ minWidth: "220px", flex: "1 1 260px" }}>
+                        <div style={{ fontWeight: 700 }}>{family.display_name}</div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                          {family.contact_phone ? family.contact_phone : "⚠️ No phone on file"}
+                          {"  ·  "}Balance: <strong style={{ color: balance > 0 ? "var(--danger)" : "#2e7d32" }}>${balance.toFixed(2)}</strong>
+                        </div>
+                        {alreadySent && (
+                          <div style={{ fontSize: "0.75rem", color: "#2e7d32", marginTop: 2 }}>
+                            ✓ Reminder sent {new Date(family.reminder_sent_at).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", flex: "2 1 320px", fontStyle: "italic" }}>
+                        "{message}"
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <a
+                          href={smsHref || "#"}
+                          onClick={(e) => { if (!smsHref) e.preventDefault(); }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            background: smsHref ? "var(--forest)" : "#ccc",
+                            color: "#fff",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                            cursor: smsHref ? "pointer" : "not-allowed"
+                          }}
+                        >
+                          💬 SMS
+                        </a>
+                        <a
+                          href={waHref || "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => { if (!waHref) e.preventDefault(); }}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            background: waHref ? "#25D366" : "#ccc",
+                            color: "#fff",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                            cursor: waHref ? "pointer" : "not-allowed"
+                          }}
+                        >
+                          🟢 WhatsApp
+                        </a>
+                        <button
+                          onClick={() => handleMarkReminderSent(family.family_group)}
+                          disabled={markingReminder === family.family_group}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-color)",
+                            background: alreadySent ? "#f0f0f0" : "#fff",
+                            color: "var(--text-secondary)",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            cursor: "pointer"
+                          }}
+                        >
+                          {markingReminder === family.family_group ? "..." : alreadySent ? "Mark Sent Again" : "Mark Sent"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
