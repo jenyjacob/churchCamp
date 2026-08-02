@@ -3,7 +3,6 @@ import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 const DAY_OPTIONS = [
-  "Template",
   "Friday Night",
   "Saturday Morning",
   "Saturday Night",
@@ -68,7 +67,7 @@ export default function KidzCornerPage() {
   const canEdit = hasPermission("kidz_corner", "edit");
 
   const [tab, setTab] = useState("people");
-  const [scheduleDay, setScheduleDay] = useState("Template");
+  const [scheduleDay, setScheduleDay] = useState("Friday Night");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState(null);
