@@ -416,6 +416,44 @@ export default function RetreatOpsPage() {
     { key: "contingency", label: "⚠️ Contingency" },
   ];
 
+  const exportCSV = (filename, headers, rows) => {
+    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportRunOfShow = () => exportCSV(
+    `gca_retreat_run_of_show_${new Date().toISOString().split("T")[0]}.csv`,
+    ["Day", "Start Time", "End Time", "Block Title", "Location", "Point Person", "Supporting Teams", "Status"],
+    blocks.map(b => [b.day, b.start_time || "", b.end_time || "", b.block_title, b.location || "", b.point_person || "", b.supporting_teams || "", b.status])
+  );
+
+  const exportRoster = () => exportCSV(
+    `gca_retreat_team_roster_${new Date().toISOString().split("T")[0]}.csv`,
+    ["Team", "Lead", "Phone", "Members", "Owns Blocks", "Notes"],
+    teams.map(t => [t.name, t.lead || "", t.phone || "", t.members || "", t.owns_blocks || "", t.notes || ""])
+  );
+
+  const exportSetupTasks = () => exportCSV(
+    `gca_retreat_setup_tasks_${new Date().toISOString().split("T")[0]}.csv`,
+    ["Item", "For Block", "Owner", "Deadline", "Qty / Detail", "Done"],
+    sortedTasks.map(t => [t.item, t.for_block || "", t.owner || "", t.deadline || "", t.qty_detail || "", t.done ? "Yes" : "No"])
+  );
+
+  const exportContingency = () => exportCSV(
+    `gca_retreat_contingency_plans_${new Date().toISOString().split("T")[0]}.csv`,
+    ["Scenario", "Trigger", "Action", "Who Decides"],
+    plans.map(p => [p.scenario, p.trigger || "", p.action || "", p.who_decides || ""])
+  );
+
   return (
     <>
       <div className="top-bar">
@@ -451,11 +489,16 @@ export default function RetreatOpsPage() {
             {tab === "run_of_show" && (
               <Section
                 title="Internal Run of Show"
-                action={canEdit && (
-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBlock(blankBlock())}>
-                    ➕ Add Block
-                  </button>
-                )}
+                action={
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportRunOfShow}>📥 Export Excel</button>
+                    {canEdit && (
+                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBlock(blankBlock())}>
+                        ➕ Add Block
+                      </button>
+                    )}
+                  </div>
+                }
               >
                 {newBlock && (
                   <BlockForm block={newBlock} setBlock={setNewBlock} onSave={saveNewBlock} onCancel={() => setNewBlock(null)} />
@@ -573,11 +616,16 @@ export default function RetreatOpsPage() {
             {tab === "roster" && (
               <Section
                 title="Team Roster & Contacts"
-                action={canEdit && (
-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTeam(blankTeam())}>
-                    ➕ Add Team
-                  </button>
-                )}
+                action={
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportRoster}>📥 Export Excel</button>
+                    {canEdit && (
+                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTeam(blankTeam())}>
+                        ➕ Add Team
+                      </button>
+                    )}
+                  </div>
+                }
               >
                 {newTeam && <TeamForm team={newTeam} setTeam={setNewTeam} onSave={saveNewTeam} onCancel={() => setNewTeam(null)} />}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
@@ -632,11 +680,16 @@ export default function RetreatOpsPage() {
             {tab === "setup" && (
               <Section
                 title={`Setup & Supplies Checklist  (${doneCount}/${tasks.length} done)`}
-                action={canEdit && (
-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTask(blankTask())}>
-                    ➕ Add Task
-                  </button>
-                )}
+                action={
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportSetupTasks}>📥 Export Excel</button>
+                    {canEdit && (
+                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTask(blankTask())}>
+                        ➕ Add Task
+                      </button>
+                    )}
+                  </div>
+                }
               >
                 {newTask && <TaskForm task={newTask} setTask={setNewTask} onSave={saveNewTask} onCancel={() => setNewTask(null)} />}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -672,11 +725,16 @@ export default function RetreatOpsPage() {
             {tab === "contingency" && (
               <Section
                 title="Contingency & Safety Protocols"
-                action={canEdit && (
-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewPlan(blankPlan())}>
-                    ➕ Add Scenario
-                  </button>
-                )}
+                action={
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportContingency}>📥 Export Excel</button>
+                    {canEdit && (
+                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewPlan(blankPlan())}>
+                        ➕ Add Scenario
+                      </button>
+                    )}
+                  </div>
+                }
               >
                 {newPlan && <PlanForm plan={newPlan} setPlan={setNewPlan} onSave={saveNewPlan} onCancel={() => setNewPlan(null)} />}
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

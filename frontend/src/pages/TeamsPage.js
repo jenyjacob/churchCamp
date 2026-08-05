@@ -7,6 +7,26 @@ export default function TeamsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
+  const handleExportExcel = () => {
+    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const headers = ["Team", "Camper Name", "Age"];
+    const rows = [
+      ...team1Members.map(c => [team1Name, `${c.first_name || ""} ${c.last_name || ""}`.trim(), c.age ?? ""]),
+      ...team2Members.map(c => [team2Name, `${c.first_name || ""} ${c.last_name || ""}`.trim(), c.age ?? ""]),
+      ...unassignedMembers.map(c => ["Unassigned", `${c.first_name || ""} ${c.last_name || ""}`.trim(), c.age ?? ""]),
+    ];
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_team_assignments_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const fetchTeamsData = () => {
     setLoading(true);
     setError("");
@@ -81,6 +101,9 @@ export default function TeamsPage() {
       <div className="top-bar">
         <h1>🏆 Team Assignments</h1>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <button onClick={handleExportExcel} className="btn btn-secondary btn-sm" disabled={loading}>
+            📥 Export Excel
+          </button>
           <button onClick={fetchTeamsData} className="btn btn-secondary btn-sm" disabled={loading}>
             🔄 Refresh
           </button>

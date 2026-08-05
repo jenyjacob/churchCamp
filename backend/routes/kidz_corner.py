@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from datetime import datetime
 from models import (
     KidzCornerVolunteer,
     KidzCornerKid,
+    KidzCornerCheckIn,
     KidzCornerScheduleItem,
     KidzCornerCraft,
     KidzCornerBudgetItem,
@@ -15,6 +17,8 @@ from utils.logging import log_action
 kidz_corner_bp = Blueprint("kidz_corner", __name__)
 
 PAGE_KEY = "kidz_corner"
+CHECKIN_PAGE_KEY = "kidz_corner_checkin"
+BUDGET_PAGE_KEY = "kidz_corner_budget"
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +140,107 @@ def delete_kid(row_id):
     db.session.commit()
     log_action("DELETE_KIDZ_CORNER_KID", f"Deleted kid '{name}' (ID: {row_id})")
     return jsonify({"message": "Kid deleted"}), 200
+
+
+# ---------------------------------------------------------------------------
+# VBS Check-In
+# ---------------------------------------------------------------------------
+
+@kidz_corner_bp.route("/checkins", methods=["GET"])
+@jwt_required()
+@require_page_permission(CHECKIN_PAGE_KEY, "read")
+def list_kidz_corner_checkins():
+    active_only = request.args.get("active_only", "false").lower() == "true"
+    query = KidzCornerCheckIn.query
+    if active_only:
+        query = query.filter(KidzCornerCheckIn.checked_out_at.is_(None))
+    rows = query.order_by(KidzCornerCheckIn.checked_in_at.desc()).all()
+    return jsonify({"checkins": [r.to_dict() for r in rows]}), 200
+
+
+@kidz_corner_bp.route("/checkins", methods=["POST"])
+@jwt_required()
+@require_page_permission(CHECKIN_PAGE_KEY, "edit")
+def check_in_kid():
+    user_id = int(get_jwt_identity())
+    data = request.get_json() or {}
+    kid_id = data.get("kid_id")
+
+    if not kid_id:
+        return jsonify({"error": "kid_id is required"}), 400
+
+    kid = KidzCornerKid.query.get_or_404(kid_id)
+
+    active = KidzCornerCheckIn.query.filter_by(kid_id=kid_id, checked_out_at=None).first()
+    if active:
+        return jsonify({"error": f"{kid.name} is already checked in"}), 409
+
+    # Volunteers can jot down allergies/notes discovered at the door without
+    # needing full edit access to the Kidz Corner roster.
+    if "allergies" in data and data["allergies"] != kid.allergies:
+        kid.allergies = data["allergies"]
+
+    row = KidzCornerCheckIn(
+        kid_id=kid_id,
+        checked_in_by=user_id,
+        notes=data.get("notes"),
+    )
+    db.session.add(row)
+    db.session.commit()
+    log_action("KIDZ_CORNER_CHECK_IN", f"Checked in kid '{kid.name}' (ID: {kid.id}) for VBS")
+    return jsonify({"checkin": row.to_dict(), "kid": kid.to_dict()}), 201
+
+
+@kidz_corner_bp.route("/checkins/<int:row_id>/checkout", methods=["POST"])
+@jwt_required()
+@require_page_permission(CHECKIN_PAGE_KEY, "edit")
+def check_out_kid(row_id):
+    user_id = int(get_jwt_identity())
+    row = KidzCornerCheckIn.query.get_or_404(row_id)
+
+    if row.checked_out_at:
+        return jsonify({"error": "Already checked out"}), 409
+
+    row.checked_out_at = datetime.utcnow()
+    row.checked_out_by = user_id
+    db.session.commit()
+    kid_name = row.kid.name if row.kid else str(row.kid_id)
+    log_action("KIDZ_CORNER_CHECK_OUT", f"Checked out kid '{kid_name}' (Checkin ID: {row.id})")
+    return jsonify({"checkin": row.to_dict()}), 200
+
+
+@kidz_corner_bp.route("/checkins/<int:row_id>", methods=["DELETE"])
+@jwt_required()
+@require_page_permission(CHECKIN_PAGE_KEY, "edit")
+def delete_kidz_corner_checkin(row_id):
+    claims = get_jwt()
+    if claims.get("role") not in ["admin", "owner"]:
+        return jsonify({"error": "Admin access required"}), 403
+
+    row = KidzCornerCheckIn.query.get_or_404(row_id)
+    kid_name = row.kid.name if row.kid else str(row.kid_id)
+    db.session.delete(row)
+    db.session.commit()
+    log_action("KIDZ_CORNER_RESET_CHECK_IN", f"Reset VBS check-in for '{kid_name}' (ID: {row_id})")
+    return jsonify({"message": "Check-in reset successfully"}), 200
+
+
+@kidz_corner_bp.route("/kids/<int:kid_id>/allergies", methods=["PUT"])
+@jwt_required()
+@require_page_permission(CHECKIN_PAGE_KEY, "edit")
+def update_kid_allergies(kid_id):
+    """
+    Lightweight endpoint so check-in volunteers can record/update a kid's
+    allergies or notes without needing full edit access to the Kidz Corner roster.
+    """
+    kid = KidzCornerKid.query.get_or_404(kid_id)
+    data = request.get_json() or {}
+    if "allergies" not in data:
+        return jsonify({"error": "allergies is required"}), 400
+    kid.allergies = data["allergies"]
+    db.session.commit()
+    log_action("UPDATE_KIDZ_CORNER_KID_ALLERGIES", f"Updated allergies/notes for '{kid.name}' (ID: {kid.id})")
+    return jsonify({"kid": kid.to_dict()}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -272,7 +377,7 @@ def delete_craft(row_id):
 
 @kidz_corner_bp.route("/budget", methods=["GET"])
 @jwt_required()
-@require_page_permission(PAGE_KEY, "read")
+@require_page_permission(BUDGET_PAGE_KEY, "read")
 def list_budget():
     rows = KidzCornerBudgetItem.query.order_by(
         KidzCornerBudgetItem.order_index.asc(), KidzCornerBudgetItem.id.asc()
@@ -282,7 +387,7 @@ def list_budget():
 
 @kidz_corner_bp.route("/budget", methods=["POST"])
 @jwt_required()
-@require_page_permission(PAGE_KEY, "edit")
+@require_page_permission(BUDGET_PAGE_KEY, "edit")
 def create_budget_item():
     data = request.get_json() or {}
     row = KidzCornerBudgetItem(
@@ -302,7 +407,7 @@ def create_budget_item():
 
 @kidz_corner_bp.route("/budget/<int:row_id>", methods=["PUT"])
 @jwt_required()
-@require_page_permission(PAGE_KEY, "edit")
+@require_page_permission(BUDGET_PAGE_KEY, "edit")
 def update_budget_item(row_id):
     row = KidzCornerBudgetItem.query.get_or_404(row_id)
     data = request.get_json() or {}
@@ -318,7 +423,7 @@ def update_budget_item(row_id):
 
 @kidz_corner_bp.route("/budget/<int:row_id>", methods=["DELETE"])
 @jwt_required()
-@require_page_permission(PAGE_KEY, "edit")
+@require_page_permission(BUDGET_PAGE_KEY, "edit")
 def delete_budget_item(row_id):
     row = KidzCornerBudgetItem.query.get_or_404(row_id)
     db.session.delete(row)

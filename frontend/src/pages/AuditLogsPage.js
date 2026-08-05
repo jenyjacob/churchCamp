@@ -25,6 +25,7 @@ export default function AuditLogsPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [operatorSearch, setOperatorSearch] = useState("");
   const [availableOperators, setAvailableOperators] = useState([]);
 
@@ -106,6 +107,42 @@ export default function AuditLogsPage() {
     }
   };
 
+  const handleExportLogs = async () => {
+    setExporting(true);
+    try {
+      const query = new URLSearchParams({
+        page: 1,
+        per_page: 100000,
+        ...(operatorSearch.trim() ? { operator: operatorSearch.trim() } : {})
+      });
+      const res = await api.get(`/api/users/audit-logs?${query.toString()}`);
+      const allLogs = res.data.logs || [];
+      const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+      const headers = ["Timestamp", "Operator", "Action", "Details", "IP Address"];
+      const rows = allLogs.map(log => [
+        formatTimestamp(log.timestamp),
+        log.username || "System",
+        log.action,
+        log.details || "",
+        log.ip_address || "",
+      ]);
+      const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `gca_audit_logs_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("Failed to export activity logs.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <>
       <div className="top-bar">
@@ -178,7 +215,17 @@ export default function AuditLogsPage() {
               )}
             </div>
 
-            <span className="text-muted" style={{ fontSize: "0.85rem" }}>Total events: {total}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span className="text-muted" style={{ fontSize: "0.85rem" }}>Total events: {total}</span>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleExportLogs}
+                disabled={exporting || total === 0}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
+              >
+                📥 {exporting ? "Exporting..." : "Export Excel"}
+              </button>
+            </div>
           </div>
 
           <div className="table-wrap" style={{ margin: 0, border: "none", borderRadius: 0 }}>

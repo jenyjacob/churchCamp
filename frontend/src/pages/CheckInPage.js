@@ -45,6 +45,28 @@ export default function CheckInPage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
+  const handleExportOnSite = () => {
+    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const headers = ["Camper Name", "Family Group", "Checked In At", "Checked In By", "Notes"];
+    const rows = activeCheckins.map(ci => [
+      ci.camper_name || "",
+      ci.family_group || "",
+      ci.checked_in_at ? new Date(ci.checked_in_at).toLocaleString() : "",
+      ci.checked_in_by || "",
+      ci.notes || "",
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_currently_on_site_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const toggleGroupExpand = (fg) => {
     setExpandedGroups(prev => ({
       ...prev,
@@ -502,9 +524,20 @@ export default function CheckInPage() {
           {/* Right: Currently Checked In */}
           <div>
             <div className="card">
-              <h3 style={{ color: "var(--forest)", fontSize: "1rem", marginBottom: 16 }}>
-                🏕️ Currently On Site ({activeCheckins.length})
-              </h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+                <h3 style={{ color: "var(--forest)", fontSize: "1rem", margin: 0 }}>
+                  🏕️ Currently On Site ({activeCheckins.length})
+                </h3>
+                {activeCheckins.length > 0 && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={handleExportOnSite}
+                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
+                  >
+                    📥 Export Excel
+                  </button>
+                )}
+              </div>
 
               {loadingActive ? (
                 <p className="text-muted">Loading…</p>

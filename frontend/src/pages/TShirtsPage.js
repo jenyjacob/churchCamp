@@ -328,6 +328,27 @@ export default function TShirtsPage() {
     });
   })();
 
+  const handleExportExcel = () => {
+    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const headers = ["Camper Name", "Family Group", "US Size", "Indian Size"];
+    const rows = filteredCampers.map(c => [
+      c.full_name || "",
+      c.family_group || "",
+      c.tshirt_size || "",
+      c.indian_size || "",
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_apparel_orders_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Group campers by family
   const families = {};
   const individuals = [];
@@ -407,6 +428,13 @@ export default function TShirtsPage() {
               <option key={y} value={String(y)}>{y}</option>
             ))}
           </select>
+          <button
+            className="btn btn-outline"
+            onClick={handleExportExcel}
+            style={{ marginLeft: 10, height: 38, padding: "0 16px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600, whiteSpace: "nowrap" }}
+          >
+            📥 Export Excel
+          </button>
         </div>
 
         {/* T-Shirt Inventory & Stock Tracking Widget */}

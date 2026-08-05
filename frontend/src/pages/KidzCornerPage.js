@@ -62,11 +62,40 @@ const FormActions = ({ onSave, onCancel }) => (
   </div>
 );
 
+const ExportBtn = ({ onClick, label = "Export Excel" }) => (
+  <button
+    className="btn btn-outline"
+    style={{ padding: "0 14px", height: 38, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: 6 }}
+    onClick={onClick}
+  >
+    📥 {label}
+  </button>
+);
+
+function exportToExcel(filename, headers, rows) {
+  const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+  const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+const todayStamp = () => new Date().toISOString().split("T")[0];
+
 export default function KidzCornerPage() {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission("kidz_corner", "edit");
+  const canCheckIn = hasPermission("kidz_corner_checkin", "edit");
+  const canViewBudget = hasPermission("kidz_corner_budget", "read");
+  const canEditBudget = hasPermission("kidz_corner_budget", "edit");
 
-  const [tab, setTab] = useState("people");
+  const [tab, setTab] = useState(() => (canEdit ? "overview" : "checkin"));
   const [scheduleDay, setScheduleDay] = useState("Friday Night");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,10 +103,16 @@ export default function KidzCornerPage() {
 
   const [volunteers, setVolunteers] = useState([]);
   const [kids, setKids] = useState([]);
+  const [checkins, setCheckins] = useState([]);
   const [scheduleItems, setScheduleItems] = useState([]);
   const [crafts, setCrafts] = useState([]);
   const [budgetItems, setBudgetItems] = useState([]);
   const [avLinks, setAvLinks] = useState([]);
+
+  const [checkinSearch, setCheckinSearch] = useState("");
+  const [checkinBusyId, setCheckinBusyId] = useState(null);
+  const [editAllergyKidId, setEditAllergyKidId] = useState(null);
+  const [editAllergyDraft, setEditAllergyDraft] = useState("");
 
   const [newVolunteer, setNewVolunteer] = useState(null);
   const [editVolunteerId, setEditVolunteerId] = useState(null);
@@ -111,21 +146,27 @@ export default function KidzCornerPage() {
   const fetchAll = () => {
     setLoading(true);
     setError("");
+    const budgetCall = canViewBudget
+      ? api.get("/api/kidz-corner/budget")
+      : Promise.resolve({ data: { items: [] } });
+
     Promise.all([
       api.get("/api/kidz-corner/volunteers"),
       api.get("/api/kidz-corner/kids"),
+      api.get("/api/kidz-corner/checkins"),
       api.get("/api/kidz-corner/schedule"),
       api.get("/api/kidz-corner/crafts"),
-      api.get("/api/kidz-corner/budget"),
+      budgetCall,
       api.get("/api/kidz-corner/av-links"),
     ])
-      .then(([a, b, c, d, e, f]) => {
+      .then(([a, b, c, d, e, f, g]) => {
         setVolunteers(a.data.volunteers || []);
         setKids(b.data.kids || []);
-        setScheduleItems(c.data.items || []);
-        setCrafts(d.data.crafts || []);
-        setBudgetItems(e.data.items || []);
-        setAvLinks(f.data.links || []);
+        setCheckins(c.data.checkins || []);
+        setScheduleItems(d.data.items || []);
+        setCrafts(e.data.crafts || []);
+        setBudgetItems(f.data.items || []);
+        setAvLinks(g.data.links || []);
       })
       .catch(() => setError("Failed to load Kidz Corner data."))
       .finally(() => setLoading(false));
@@ -206,6 +247,135 @@ export default function KidzCornerPage() {
       showFlash("error", "Failed to remove kid.");
     }
   };
+
+  // ---- VBS Check-In ----
+  const checkInKid = async (kidId, kidName) => {
+    setCheckinBusyId(kidId);
+    try {
+      await api.post("/api/kidz-corner/checkins", { kid_id: kidId });
+      showFlash("success", `✅ ${kidName} checked in.`);
+      fetchAll();
+    } catch (err) {
+      showFlash("error", err.response?.data?.error || "Failed to check in.");
+    } finally {
+      setCheckinBusyId(null);
+    }
+  };
+
+  const checkOutKid = async (checkinId, kidName) => {
+    setCheckinBusyId(checkinId);
+    try {
+      await api.post(`/api/kidz-corner/checkins/${checkinId}/checkout`);
+      showFlash("success", `👋 ${kidName} checked out.`);
+      fetchAll();
+    } catch (err) {
+      showFlash("error", err.response?.data?.error || "Failed to check out.");
+    } finally {
+      setCheckinBusyId(null);
+    }
+  };
+
+  const resetKidCheckin = async (checkinId) => {
+    if (!await window.confirm("Reset this check-in record? This cannot be undone.")) return;
+    try {
+      await api.delete(`/api/kidz-corner/checkins/${checkinId}`);
+      showFlash("success", "Check-in reset.");
+      fetchAll();
+    } catch (err) {
+      showFlash("error", err.response?.data?.error || "Failed to reset check-in.");
+    }
+  };
+
+  const startEditAllergy = (kid) => {
+    setEditAllergyKidId(kid.id);
+    setEditAllergyDraft(kid.allergies || "");
+  };
+
+  const cancelEditAllergy = () => {
+    setEditAllergyKidId(null);
+    setEditAllergyDraft("");
+  };
+
+  const saveAllergy = async (kidId) => {
+    try {
+      const res = await api.put(`/api/kidz-corner/kids/${kidId}/allergies`, { allergies: editAllergyDraft });
+      setKids(prev => prev.map(k => (k.id === kidId ? res.data.kid : k)));
+      setEditAllergyKidId(null);
+      setEditAllergyDraft("");
+      showFlash("success", "Allergies / notes updated.");
+    } catch (err) {
+      showFlash("error", err.response?.data?.error || "Failed to update allergies.");
+    }
+  };
+
+  // ---- Excel exports ----
+  const exportVolunteers = () => exportToExcel(
+    `kidz_corner_volunteers_${todayStamp()}.csv`,
+    ["Name", "Assignment"],
+    volunteers.map(v => [v.name, v.assignment || ""])
+  );
+
+  const exportKids = () => exportToExcel(
+    `kidz_corner_kids_${todayStamp()}.csv`,
+    ["Name", "Age", "Allergies / Notes"],
+    kids.map(k => [k.name, k.age ?? "", k.allergies || ""])
+  );
+
+  const exportCheckinStatus = () => exportToExcel(
+    `kidz_corner_checkin_status_${todayStamp()}.csv`,
+    ["Name", "Age", "Allergies / Notes", "Status", "Checked In At", "Checked In By"],
+    visibleKidsForCheckin.map(k => {
+      const active = activeCheckinByKidId[k.id];
+      return [
+        k.name, k.age ?? "", k.allergies || "",
+        active ? "Checked In" : "Not Checked In",
+        active ? new Date(active.checked_in_at).toLocaleString() : "",
+        active ? (active.checked_in_by || "") : "",
+      ];
+    })
+  );
+
+  const exportRecentActivity = () => exportToExcel(
+    `kidz_corner_checkin_activity_${todayStamp()}.csv`,
+    ["Kid", "Checked In At", "Checked In By", "Checked Out At", "Checked Out By"],
+    recentCheckins.map(c => [
+      c.kid_name || "",
+      c.checked_in_at ? new Date(c.checked_in_at).toLocaleString() : "",
+      c.checked_in_by || "",
+      c.checked_out_at ? new Date(c.checked_out_at).toLocaleString() : "",
+      c.checked_out_by || "",
+    ])
+  );
+
+  const exportAllergyList = () => exportToExcel(
+    `kidz_corner_allergy_list_${todayStamp()}.csv`,
+    ["Name", "Allergy / Medical Note"],
+    kidsWithAllergies.map(k => [k.name, k.allergies])
+  );
+
+  const exportSchedule = () => exportToExcel(
+    `kidz_corner_schedule_${todayStamp()}.csv`,
+    ["Day", "Date", "Time", "Activity", "Volunteers Needed", "Items Needed", "Notes"],
+    scheduleItems.map(i => [i.day, i.date || "", i.time || "", i.activity, i.volunteers_needed || "", i.items_needed || "", i.notes || ""])
+  );
+
+  const exportCrafts = () => exportToExcel(
+    `kidz_corner_crafts_${todayStamp()}.csv`,
+    ["Day", "Title", "Materials", "How To", "Ages", "Things To Bring"],
+    crafts.map(c => [c.day, c.title || "", c.materials || "", c.how_to || "", c.ages || "", c.things_to_bring || ""])
+  );
+
+  const exportBudget = () => exportToExcel(
+    `kidz_corner_budget_${todayStamp()}.csv`,
+    ["Month", "Income (Actual)", "Expenses (Actual)", "Expenses (Projected)", "Related Files", "Notes"],
+    budgetItems.map(b => [b.month || "", b.income_actual ?? "", b.expenses_actual ?? "", b.expenses_projected ?? "", b.related_files || "", b.notes || ""])
+  );
+
+  const exportAvLinks = () => exportToExcel(
+    `kidz_corner_av_links_${todayStamp()}.csv`,
+    ["Category", "Label", "URL"],
+    avLinks.map(l => [l.category || "", l.label, l.url || ""])
+  );
 
   // ---- Schedule ----
   const blankScheduleItem = (day) => ({
@@ -363,11 +533,30 @@ export default function KidzCornerPage() {
   };
 
   const tabs = [
+    { key: "overview", label: "📊 Overview" },
     { key: "people", label: "👥 People" },
+    { key: "checkin", label: "✅ Check-In" },
     { key: "schedule", label: "🗓️ Schedule" },
-    { key: "budget", label: "💰 Budget" },
+    ...(canViewBudget ? [{ key: "budget", label: "💰 Budget" }] : []),
     { key: "av", label: "🎬 Audio/Video" },
   ];
+
+  // Map kid_id -> active (not checked out) checkin record, if any
+  const activeCheckinByKidId = checkins.reduce((acc, c) => {
+    if (!c.checked_out_at) acc[c.kid_id] = c;
+    return acc;
+  }, {});
+
+  const checkinSearchLower = checkinSearch.trim().toLowerCase();
+  const visibleKidsForCheckin = kids
+    .filter(k => !checkinSearchLower || k.name.toLowerCase().includes(checkinSearchLower))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const checkedInCount = kids.filter(k => activeCheckinByKidId[k.id]).length;
+
+  const recentCheckins = [...checkins]
+    .sort((a, b) => new Date(b.checked_in_at) - new Date(a.checked_in_at))
+    .slice(0, 10);
 
   const scheduleForDay = scheduleItems
     .filter(i => i.day === scheduleDay)
@@ -390,11 +579,17 @@ export default function KidzCornerPage() {
     return acc;
   }, {});
 
+  // ---- Overview / dashboard derived data ----
+  const kidsWithAllergies = kids.filter(k => (k.allergies || "").trim().length > 0);
+  const activeCheckinsSorted = checkins
+    .filter(c => !c.checked_out_at)
+    .sort((a, b) => new Date(b.checked_in_at) - new Date(a.checked_in_at));
+
   return (
     <>
       <div className="top-bar">
         <h1>🧸 Kidz Corner</h1>
-        <span className="text-muted">Volunteers, kids, session schedule, budget &amp; audio/video for Kidz Corner</span>
+        <span className="text-muted">Overview, volunteers, kids, check-in, session schedule, budget &amp; audio/video for Kidz Corner</span>
       </div>
 
       <div className="page-body">
@@ -422,16 +617,140 @@ export default function KidzCornerPage() {
           <p className="text-muted">Loading Kidz Corner data...</p>
         ) : (
           <>
+            {/* ---------------- OVERVIEW ---------------- */}
+            {tab === "overview" && (
+              <>
+                <Section title="At a Glance">
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                    <Chip label="Kids Registered" value={kids.length} />
+                    <Chip label="Currently Checked In" value={checkedInCount} />
+                    <Chip label="Volunteers on Roster" value={volunteers.length} />
+                    <Chip label="Allergy / Medical Notes" value={kidsWithAllergies.length} />
+                  </div>
+                </Section>
+
+                <Section
+                  title="⚠️ Allergy & Medical Notes"
+                  action={
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {kidsWithAllergies.length > 0 && <ExportBtn onClick={exportAllergyList} />}
+                      <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={() => setTab("checkin")}>
+                        Manage in Check-In →
+                      </button>
+                    </div>
+                  }
+                >
+                  {kidsWithAllergies.length === 0 ? (
+                    <p className="text-muted">No allergies or medical notes on file.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {kidsWithAllergies.map(k => (
+                        <div key={k.id} style={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          padding: "8px 14px", borderRadius: 8, background: "rgba(176, 42, 42, 0.06)",
+                          border: "1px solid rgba(176, 42, 42, 0.2)",
+                        }}>
+                          <strong>{k.name}</strong>
+                          <span style={{ color: "#B02A2A", fontSize: "0.85rem" }}>⚠️ {k.allergies}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Section>
+
+                <Section
+                  title="Who's Checked In Right Now"
+                  action={
+                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 34, fontSize: "0.8rem" }} onClick={() => setTab("checkin")}>
+                      Go to Check-In →
+                    </button>
+                  }
+                >
+                  {activeCheckinsSorted.length === 0 ? (
+                    <p className="text-muted">No kids are currently checked in.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {activeCheckinsSorted.map(c => (
+                        <span key={c.id} className="badge badge-green" style={{ fontSize: "0.8rem" }}>
+                          {c.kid_name} · {new Date(c.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </Section>
+
+                <Section
+                  title={`🗓️ ${scheduleDay} — Schedule Preview`}
+                  action={
+                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 34, fontSize: "0.8rem" }} onClick={() => setTab("schedule")}>
+                      Full Schedule →
+                    </button>
+                  }
+                >
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                    {DAY_OPTIONS.map(day => (
+                      <button
+                        key={day}
+                        onClick={() => setScheduleDay(day)}
+                        className={scheduleDay === day ? "btn btn-primary" : "btn btn-outline"}
+                        style={{ padding: "5px 12px", fontSize: "0.78rem" }}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                  {scheduleForDay.length === 0 ? (
+                    <p className="text-muted">No schedule items planned for {scheduleDay} yet.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {scheduleForDay.map(item => (
+                        <div key={item.id} style={{
+                          display: "flex", justifyContent: "space-between", gap: 12,
+                          padding: "8px 12px", borderRadius: 8, background: "var(--cream)",
+                          border: "1px solid var(--border)", fontSize: "0.85rem", flexWrap: "wrap",
+                        }}>
+                          <span><strong>{item.time || "—"}</strong> &nbsp; {item.activity}</span>
+                          {item.volunteers_needed && <span className="text-muted">👥 {item.volunteers_needed}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Section>
+
+                {canViewBudget && (
+                  <Section
+                    title="💰 Budget Snapshot"
+                    action={
+                      <button className="btn btn-outline" style={{ padding: "0 14px", height: 34, fontSize: "0.8rem" }} onClick={() => setTab("budget")}>
+                        Full Budget →
+                      </button>
+                    }
+                  >
+                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                      <Chip label="Total Income" value={`$${budgetTotals.income.toFixed(2)}`} />
+                      <Chip label="Total Expenses (Actual)" value={`$${budgetTotals.actual.toFixed(2)}`} />
+                      <Chip label="Total Expenses (Projected)" value={`$${budgetTotals.projected.toFixed(2)}`} />
+                    </div>
+                  </Section>
+                )}
+              </>
+            )}
+
             {/* ---------------- PEOPLE ---------------- */}
             {tab === "people" && (
               <>
                 <Section
                   title="Volunteers"
-                  action={canEdit && (
-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewVolunteer(blankVolunteer())}>
-                      ➕ Add Volunteer
-                    </button>
-                  )}
+                  action={
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <ExportBtn onClick={exportVolunteers} />
+                      {canEdit && (
+                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewVolunteer(blankVolunteer())}>
+                          ➕ Add Volunteer
+                        </button>
+                      )}
+                    </div>
+                  }
                 >
                   {newVolunteer && (
                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
@@ -481,11 +800,16 @@ export default function KidzCornerPage() {
 
                 <Section
                   title="Kids"
-                  action={canEdit && (
-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewKid(blankKid())}>
-                      ➕ Add Kid
-                    </button>
-                  )}
+                  action={
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <ExportBtn onClick={exportKids} />
+                      {canEdit && (
+                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewKid(blankKid())}>
+                          ➕ Add Kid
+                        </button>
+                      )}
+                    </div>
+                  }
                 >
                   {newKid && (
                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
@@ -538,6 +862,147 @@ export default function KidzCornerPage() {
               </>
             )}
 
+            {/* ---------------- VBS CHECK-IN ---------------- */}
+            {tab === "checkin" && (
+              <>
+                <Section
+                  title="VBS Check-In Status"
+                  action={<ExportBtn onClick={exportCheckinStatus} />}
+                >
+                  <div style={{ display: "flex", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
+                    <Chip label="Registered Kids" value={kids.length} />
+                    <Chip label="Currently Checked In" value={checkedInCount} />
+                  </div>
+
+                  <div style={{ marginBottom: 16, maxWidth: 340 }}>
+                    <Field label="Search Kids">
+                      <input
+                        style={inputStyle}
+                        placeholder="Search by name..."
+                        value={checkinSearch}
+                        onChange={e => setCheckinSearch(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+
+                  <table className="table" style={{ width: "100%" }}>
+                    <thead>
+                      <tr>
+                        <th>Name</th><th>Age</th><th>Allergies / Notes</th><th>Status</th><th style={{ width: 140 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleKidsForCheckin.map(k => {
+                        const active = activeCheckinByKidId[k.id];
+                        const busy = checkinBusyId === k.id || (active && checkinBusyId === active.id);
+                        const editingAllergy = editAllergyKidId === k.id;
+                        return (
+                          <tr key={k.id}>
+                            <td>{k.name}</td>
+                            <td>{k.age ?? "—"}</td>
+                            <td style={{ minWidth: 200 }}>
+                              {editingAllergy ? (
+                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                  <input
+                                    style={inputStyle}
+                                    autoFocus
+                                    placeholder="e.g. peanut allergy"
+                                    value={editAllergyDraft}
+                                    onChange={e => setEditAllergyDraft(e.target.value)}
+                                  />
+                                  <IconBtn title="Save" onClick={() => saveAllergy(k.id)}>✔️</IconBtn>
+                                  <IconBtn title="Cancel" onClick={cancelEditAllergy}>✖️</IconBtn>
+                                </div>
+                              ) : (
+                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                  <span style={k.allergies ? { color: "#B02A2A", fontWeight: 600 } : undefined}>
+                                    {k.allergies ? `⚠️ ${k.allergies}` : "—"}
+                                  </span>
+                                  {canCheckIn && (
+                                    <IconBtn title="Add / edit allergy note" onClick={() => startEditAllergy(k)}>✏️</IconBtn>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              {active ? (
+                                <span className="badge badge-green" style={{ fontSize: "0.75rem" }}>
+                                  ✅ Checked in {new Date(active.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  {active.checked_in_by ? ` by ${active.checked_in_by}` : ""}
+                                </span>
+                              ) : (
+                                <span className="text-muted" style={{ fontSize: "0.8rem" }}>Not checked in</span>
+                              )}
+                            </td>
+                            <td>
+                              {canCheckIn && (
+                                active ? (
+                                  <button
+                                    className="btn btn-outline"
+                                    disabled={busy}
+                                    style={{ padding: "5px 12px", fontSize: "0.8rem" }}
+                                    onClick={() => checkOutKid(active.id, k.name)}
+                                  >
+                                    Check Out
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="btn btn-primary"
+                                    disabled={busy}
+                                    style={{ padding: "5px 12px", fontSize: "0.8rem" }}
+                                    onClick={() => checkInKid(k.id, k.name)}
+                                  >
+                                    Check In
+                                  </button>
+                                )
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {visibleKidsForCheckin.length === 0 && (
+                        <tr><td colSpan={5} className="text-muted">
+                          {kids.length === 0 ? "No kids registered yet. Add them under the People tab." : "No kids match your search."}
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </Section>
+
+                <Section
+                  title="Recent Activity"
+                  action={<ExportBtn onClick={exportRecentActivity} />}
+                >
+                  <table className="table" style={{ width: "100%" }}>
+                    <thead>
+                      <tr>
+                        <th>Kid</th><th>Checked In</th><th>By</th><th>Checked Out</th><th>By</th>{canEdit && <th style={{ width: 50 }}></th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentCheckins.map(c => (
+                        <tr key={c.id}>
+                          <td>{c.kid_name || "—"}</td>
+                          <td>{c.checked_in_at ? new Date(c.checked_in_at).toLocaleString() : "—"}</td>
+                          <td>{c.checked_in_by || "—"}</td>
+                          <td>{c.checked_out_at ? new Date(c.checked_out_at).toLocaleString() : "—"}</td>
+                          <td>{c.checked_out_by || "—"}</td>
+                          {canEdit && (
+                            <td>
+                              <IconBtn title="Reset check-in" danger onClick={() => resetKidCheckin(c.id)}>🗑️</IconBtn>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                      {recentCheckins.length === 0 && (
+                        <tr><td colSpan={6} className="text-muted">No check-in activity yet.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </Section>
+              </>
+            )}
+
             {/* ---------------- SCHEDULE ---------------- */}
             {tab === "schedule" && (
               <>
@@ -556,11 +1021,16 @@ export default function KidzCornerPage() {
 
                 <Section
                   title={`${scheduleDay} — Run of Show`}
-                  action={canEdit && (
-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewScheduleItem(blankScheduleItem(scheduleDay))}>
-                      ➕ Add Item
-                    </button>
-                  )}
+                  action={
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <ExportBtn onClick={exportSchedule} label="Export All Days" />
+                      {canEdit && (
+                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewScheduleItem(blankScheduleItem(scheduleDay))}>
+                          ➕ Add Item
+                        </button>
+                      )}
+                    </div>
+                  }
                 >
                   {newScheduleItem && (
                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
@@ -640,11 +1110,16 @@ export default function KidzCornerPage() {
 
                 <Section
                   title={`${scheduleDay} — Craft / Activity`}
-                  action={canEdit && (
-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewCraft(blankCraft(scheduleDay))}>
-                      ➕ Add Craft
-                    </button>
-                  )}
+                  action={
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <ExportBtn onClick={exportCrafts} label="Export All Days" />
+                      {canEdit && (
+                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewCraft(blankCraft(scheduleDay))}>
+                          ➕ Add Craft
+                        </button>
+                      )}
+                    </div>
+                  }
                 >
                   {newCraft && (
                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
@@ -709,14 +1184,19 @@ export default function KidzCornerPage() {
             )}
 
             {/* ---------------- BUDGET ---------------- */}
-            {tab === "budget" && (
+            {tab === "budget" && canViewBudget && (
               <Section
                 title="Budget & Expenses"
-                action={canEdit && (
-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBudgetItem(blankBudgetItem())}>
-                    ➕ Add Line
-                  </button>
-                )}
+                action={
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <ExportBtn onClick={exportBudget} />
+                    {canEditBudget && (
+                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBudgetItem(blankBudgetItem())}>
+                        ➕ Add Line
+                      </button>
+                    )}
+                  </div>
+                }
               >
                 <div style={{ display: "flex", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
                   <Chip label="Total Income" value={`$${budgetTotals.income.toFixed(2)}`} />
@@ -744,7 +1224,7 @@ export default function KidzCornerPage() {
                   <thead>
                     <tr>
                       <th>Month</th><th>Income (actual)</th><th>Expenses (actual)</th><th>Expenses (projected)</th>
-                      <th>Related Files</th><th>Notes</th>{canEdit && <th style={{ width: 90 }}></th>}
+                      <th>Related Files</th><th>Notes</th>{canEditBudget && <th style={{ width: 90 }}></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -772,7 +1252,7 @@ export default function KidzCornerPage() {
                           <td>{b.expenses_projected != null ? `$${Number(b.expenses_projected).toFixed(2)}` : "—"}</td>
                           <td>{b.related_files || "—"}</td>
                           <td>{b.notes || "—"}</td>
-                          {canEdit && (
+                          {canEditBudget && (
                             <td>
                               <div style={{ display: "flex", gap: 6 }}>
                                 <IconBtn title="Edit" onClick={() => { setEditBudgetId(b.id); setEditBudgetDraft(b); }}>✏️</IconBtn>
@@ -793,11 +1273,16 @@ export default function KidzCornerPage() {
             {tab === "av" && (
               <Section
                 title="Audio / Video Links"
-                action={canEdit && (
-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewAvLink(blankAvLink())}>
-                    ➕ Add Link
-                  </button>
-                )}
+                action={
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <ExportBtn onClick={exportAvLinks} />
+                    {canEdit && (
+                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewAvLink(blankAvLink())}>
+                        ➕ Add Link
+                      </button>
+                    )}
+                  </div>
+                }
               >
                 {newAvLink && (
                   <div className="card" style={{ padding: 16, marginBottom: 12 }}>

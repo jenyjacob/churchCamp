@@ -46,6 +46,36 @@ class KidzCornerKid(db.Model):
         }
 
 
+class KidzCornerCheckIn(db.Model):
+    """VBS check-in / check-out log for Kidz Corner kids, logged by volunteers."""
+    __tablename__ = "kidz_corner_checkins"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kid_id = db.Column(db.Integer, db.ForeignKey("kidz_corner_kids.id"), nullable=False)
+    checked_in_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    checked_in_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    checked_out_at = db.Column(db.DateTime, nullable=True)
+    checked_out_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    kid = db.relationship("KidzCornerKid")
+    staff_in = db.relationship("User", foreign_keys=[checked_in_by])
+    staff_out = db.relationship("User", foreign_keys=[checked_out_by])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "kid_id": self.kid_id,
+            "kid_name": self.kid.name if self.kid else None,
+            "kid_age": self.kid.age if self.kid else None,
+            "checked_in_by": self.staff_in.username if self.staff_in else None,
+            "checked_in_at": self.checked_in_at.isoformat() if self.checked_in_at else None,
+            "checked_out_at": self.checked_out_at.isoformat() if self.checked_out_at else None,
+            "checked_out_by": self.staff_out.username if self.staff_out else None,
+            "notes": self.notes,
+        }
+
+
 class KidzCornerScheduleItem(db.Model):
     """
     Kidz Corner run-of-show, one row per activity block.

@@ -17,7 +17,9 @@ const PAGES = [
   { key: "camp_info", label: "ℹ️ Camp Info" },
   { key: "retreat_ops", label: "📋 Retreat Operations" },
   { key: "registration_config", label: "📝 Registration Config" },
-  { key: "kidz_corner", label: "🧸 Kidz Corner" }
+  { key: "kidz_corner", label: "🧸 Kidz Corner" },
+  { key: "kidz_corner_checkin", label: "✅ VBS Check-In" },
+  { key: "kidz_corner_budget", label: "💰 Kidz Corner Budget" }
 ];
 
 const getRoleLabel = (roleKey) => {

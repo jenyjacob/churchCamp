@@ -283,6 +283,31 @@ export default function OutdoorPage() {
     return nameMatch || famMatch;
   });
 
+  const handleExportExcel = () => {
+    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+    const headers = ["Camper Name", "Family Group", ...activityNames];
+    const rows = filteredCampers.map(c => {
+      const customActs = parseCustomActivities(c.notes);
+      const spots = activityNames.map((name, idx) => {
+        if (idx === 0) return c.activity_1 || c.kayaking || 0;
+        if (idx === 1) return c.activity_2 || c.boat_tour || 0;
+        if (idx === 2) return c.activity_3 || 0;
+        return customActs[name] || 0;
+      });
+      return [c.full_name, c.family_group || "", ...spots];
+    });
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `gca_outdoor_activities_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <div className="top-bar">
@@ -385,6 +410,13 @@ export default function OutdoorPage() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
+              <button
+                className="btn btn-outline"
+                onClick={handleExportExcel}
+                style={{ padding: "0 16px", height: "38px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600 }}
+              >
+                📥 Export Excel
+              </button>
               {isOwner && (
                 <button
                   className="btn btn-outline"

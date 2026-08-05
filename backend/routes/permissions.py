@@ -24,7 +24,9 @@ DEFAULT_PERMISSIONS = {
         "camp_info": "edit",
         "retreat_ops": "edit",
         "registration_config": "edit",
-        "kidz_corner": "edit"
+        "kidz_corner": "edit",
+        "kidz_corner_checkin": "edit",
+        "kidz_corner_budget": "edit"
     },
     "admin": {
         "dashboard": "read",
@@ -43,7 +45,9 @@ DEFAULT_PERMISSIONS = {
         "camp_info": "read",
         "retreat_ops": "edit",
         "registration_config": "edit",
-        "kidz_corner": "edit"
+        "kidz_corner": "edit",
+        "kidz_corner_checkin": "edit",
+        "kidz_corner_budget": "edit"
     },
     "director": {
         "dashboard": "read",
@@ -62,7 +66,9 @@ DEFAULT_PERMISSIONS = {
         "camp_info": "read",
         "retreat_ops": "edit",
         "registration_config": "hide",
-        "kidz_corner": "edit"
+        "kidz_corner": "edit",
+        "kidz_corner_checkin": "edit",
+        "kidz_corner_budget": "edit"
     },
     "user": {
         "dashboard": "read",
@@ -81,7 +87,9 @@ DEFAULT_PERMISSIONS = {
         "camp_info": "read",
         "retreat_ops": "hide",
         "registration_config": "hide",
-        "kidz_corner": "read"
+        "kidz_corner": "read",
+        "kidz_corner_checkin": "edit",
+        "kidz_corner_budget": "hide"
     },
     "finance": {
         "dashboard": "read",
@@ -100,7 +108,9 @@ DEFAULT_PERMISSIONS = {
         "camp_info": "read",
         "retreat_ops": "hide",
         "registration_config": "hide",
-        "kidz_corner": "hide"
+        "kidz_corner": "hide",
+        "kidz_corner_checkin": "hide",
+        "kidz_corner_budget": "hide"
     }
 }
 

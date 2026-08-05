@@ -19,6 +19,7 @@ from .contingency_plan import ContingencyPlan
 from .kidz_corner import (
     KidzCornerVolunteer,
     KidzCornerKid,
+    KidzCornerCheckIn,
     KidzCornerScheduleItem,
     KidzCornerCraft,
     KidzCornerBudgetItem,

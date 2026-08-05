@@ -1,0 +1,1442 @@
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/backend/models/__init__.py b/backend/models/__init__.py
+--- a/backend/models/__init__.py	2026-08-05 06:07:13.176261009 +0000
++++ b/backend/models/__init__.py	2026-08-05 06:07:13.198186537 +0000
+@@ -19,6 +19,7 @@
+ from .kidz_corner import (
+     KidzCornerVolunteer,
+     KidzCornerKid,
++    KidzCornerCheckIn,
+     KidzCornerScheduleItem,
+     KidzCornerCraft,
+     KidzCornerBudgetItem,
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/backend/models/kidz_corner.py b/backend/models/kidz_corner.py
+--- a/backend/models/kidz_corner.py	2026-08-05 06:07:13.176799559 +0000
++++ b/backend/models/kidz_corner.py	2026-08-05 06:07:13.198878754 +0000
+@@ -46,6 +46,36 @@
+         }
+ 
+ 
++class KidzCornerCheckIn(db.Model):
++    """VBS check-in / check-out log for Kidz Corner kids, logged by volunteers."""
++    __tablename__ = "kidz_corner_checkins"
++
++    id = db.Column(db.Integer, primary_key=True)
++    kid_id = db.Column(db.Integer, db.ForeignKey("kidz_corner_kids.id"), nullable=False)
++    checked_in_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
++    checked_in_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
++    checked_out_at = db.Column(db.DateTime, nullable=True)
++    checked_out_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
++    notes = db.Column(db.Text, nullable=True)
++
++    kid = db.relationship("KidzCornerKid")
++    staff_in = db.relationship("User", foreign_keys=[checked_in_by])
++    staff_out = db.relationship("User", foreign_keys=[checked_out_by])
++
++    def to_dict(self):
++        return {
++            "id": self.id,
++            "kid_id": self.kid_id,
++            "kid_name": self.kid.name if self.kid else None,
++            "kid_age": self.kid.age if self.kid else None,
++            "checked_in_by": self.staff_in.username if self.staff_in else None,
++            "checked_in_at": self.checked_in_at.isoformat() if self.checked_in_at else None,
++            "checked_out_at": self.checked_out_at.isoformat() if self.checked_out_at else None,
++            "checked_out_by": self.staff_out.username if self.staff_out else None,
++            "notes": self.notes,
++        }
++
++
+ class KidzCornerScheduleItem(db.Model):
+     """
+     Kidz Corner run-of-show, one row per activity block.
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/backend/routes/kidz_corner.py b/backend/routes/kidz_corner.py
+--- a/backend/routes/kidz_corner.py	2026-08-05 06:07:13.179621392 +0000
++++ b/backend/routes/kidz_corner.py	2026-08-05 06:07:13.201542283 +0000
+@@ -1,8 +1,10 @@
+ from flask import Blueprint, request, jsonify
+-from flask_jwt_extended import jwt_required
++from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
++from datetime import datetime
+ from models import (
+     KidzCornerVolunteer,
+     KidzCornerKid,
++    KidzCornerCheckIn,
+     KidzCornerScheduleItem,
+     KidzCornerCraft,
+     KidzCornerBudgetItem,
+@@ -15,6 +17,8 @@
+ kidz_corner_bp = Blueprint("kidz_corner", __name__)
+ 
+ PAGE_KEY = "kidz_corner"
++CHECKIN_PAGE_KEY = "kidz_corner_checkin"
++BUDGET_PAGE_KEY = "kidz_corner_budget"
+ 
+ 
+ # ---------------------------------------------------------------------------
+@@ -139,6 +143,107 @@
+ 
+ 
+ # ---------------------------------------------------------------------------
++# VBS Check-In
++# ---------------------------------------------------------------------------
++
++@kidz_corner_bp.route("/checkins", methods=["GET"])
++@jwt_required()
++@require_page_permission(CHECKIN_PAGE_KEY, "read")
++def list_kidz_corner_checkins():
++    active_only = request.args.get("active_only", "false").lower() == "true"
++    query = KidzCornerCheckIn.query
++    if active_only:
++        query = query.filter(KidzCornerCheckIn.checked_out_at.is_(None))
++    rows = query.order_by(KidzCornerCheckIn.checked_in_at.desc()).all()
++    return jsonify({"checkins": [r.to_dict() for r in rows]}), 200
++
++
++@kidz_corner_bp.route("/checkins", methods=["POST"])
++@jwt_required()
++@require_page_permission(CHECKIN_PAGE_KEY, "edit")
++def check_in_kid():
++    user_id = int(get_jwt_identity())
++    data = request.get_json() or {}
++    kid_id = data.get("kid_id")
++
++    if not kid_id:
++        return jsonify({"error": "kid_id is required"}), 400
++
++    kid = KidzCornerKid.query.get_or_404(kid_id)
++
++    active = KidzCornerCheckIn.query.filter_by(kid_id=kid_id, checked_out_at=None).first()
++    if active:
++        return jsonify({"error": f"{kid.name} is already checked in"}), 409
++
++    # Volunteers can jot down allergies/notes discovered at the door without
++    # needing full edit access to the Kidz Corner roster.
++    if "allergies" in data and data["allergies"] != kid.allergies:
++        kid.allergies = data["allergies"]
++
++    row = KidzCornerCheckIn(
++        kid_id=kid_id,
++        checked_in_by=user_id,
++        notes=data.get("notes"),
++    )
++    db.session.add(row)
++    db.session.commit()
++    log_action("KIDZ_CORNER_CHECK_IN", f"Checked in kid '{kid.name}' (ID: {kid.id}) for VBS")
++    return jsonify({"checkin": row.to_dict(), "kid": kid.to_dict()}), 201
++
++
++@kidz_corner_bp.route("/checkins/<int:row_id>/checkout", methods=["POST"])
++@jwt_required()
++@require_page_permission(CHECKIN_PAGE_KEY, "edit")
++def check_out_kid(row_id):
++    user_id = int(get_jwt_identity())
++    row = KidzCornerCheckIn.query.get_or_404(row_id)
++
++    if row.checked_out_at:
++        return jsonify({"error": "Already checked out"}), 409
++
++    row.checked_out_at = datetime.utcnow()
++    row.checked_out_by = user_id
++    db.session.commit()
++    kid_name = row.kid.name if row.kid else str(row.kid_id)
++    log_action("KIDZ_CORNER_CHECK_OUT", f"Checked out kid '{kid_name}' (Checkin ID: {row.id})")
++    return jsonify({"checkin": row.to_dict()}), 200
++
++
++@kidz_corner_bp.route("/checkins/<int:row_id>", methods=["DELETE"])
++@jwt_required()
++@require_page_permission(CHECKIN_PAGE_KEY, "edit")
++def delete_kidz_corner_checkin(row_id):
++    claims = get_jwt()
++    if claims.get("role") not in ["admin", "owner"]:
++        return jsonify({"error": "Admin access required"}), 403
++
++    row = KidzCornerCheckIn.query.get_or_404(row_id)
++    kid_name = row.kid.name if row.kid else str(row.kid_id)
++    db.session.delete(row)
++    db.session.commit()
++    log_action("KIDZ_CORNER_RESET_CHECK_IN", f"Reset VBS check-in for '{kid_name}' (ID: {row_id})")
++    return jsonify({"message": "Check-in reset successfully"}), 200
++
++
++@kidz_corner_bp.route("/kids/<int:kid_id>/allergies", methods=["PUT"])
++@jwt_required()
++@require_page_permission(CHECKIN_PAGE_KEY, "edit")
++def update_kid_allergies(kid_id):
++    """
++    Lightweight endpoint so check-in volunteers can record/update a kid's
++    allergies or notes without needing full edit access to the Kidz Corner roster.
++    """
++    kid = KidzCornerKid.query.get_or_404(kid_id)
++    data = request.get_json() or {}
++    if "allergies" not in data:
++        return jsonify({"error": "allergies is required"}), 400
++    kid.allergies = data["allergies"]
++    db.session.commit()
++    log_action("UPDATE_KIDZ_CORNER_KID_ALLERGIES", f"Updated allergies/notes for '{kid.name}' (ID: {kid.id})")
++    return jsonify({"kid": kid.to_dict()}), 200
++
++
++# ---------------------------------------------------------------------------
+ # Schedule items
+ # ---------------------------------------------------------------------------
+ 
+@@ -272,7 +377,7 @@
+ 
+ @kidz_corner_bp.route("/budget", methods=["GET"])
+ @jwt_required()
+-@require_page_permission(PAGE_KEY, "read")
++@require_page_permission(BUDGET_PAGE_KEY, "read")
+ def list_budget():
+     rows = KidzCornerBudgetItem.query.order_by(
+         KidzCornerBudgetItem.order_index.asc(), KidzCornerBudgetItem.id.asc()
+@@ -282,7 +387,7 @@
+ 
+ @kidz_corner_bp.route("/budget", methods=["POST"])
+ @jwt_required()
+-@require_page_permission(PAGE_KEY, "edit")
++@require_page_permission(BUDGET_PAGE_KEY, "edit")
+ def create_budget_item():
+     data = request.get_json() or {}
+     row = KidzCornerBudgetItem(
+@@ -302,7 +407,7 @@
+ 
+ @kidz_corner_bp.route("/budget/<int:row_id>", methods=["PUT"])
+ @jwt_required()
+-@require_page_permission(PAGE_KEY, "edit")
++@require_page_permission(BUDGET_PAGE_KEY, "edit")
+ def update_budget_item(row_id):
+     row = KidzCornerBudgetItem.query.get_or_404(row_id)
+     data = request.get_json() or {}
+@@ -318,7 +423,7 @@
+ 
+ @kidz_corner_bp.route("/budget/<int:row_id>", methods=["DELETE"])
+ @jwt_required()
+-@require_page_permission(PAGE_KEY, "edit")
++@require_page_permission(BUDGET_PAGE_KEY, "edit")
+ def delete_budget_item(row_id):
+     row = KidzCornerBudgetItem.query.get_or_404(row_id)
+     db.session.delete(row)
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/backend/routes/permissions.py b/backend/routes/permissions.py
+--- a/backend/routes/permissions.py	2026-08-05 06:07:13.179688890 +0000
++++ b/backend/routes/permissions.py	2026-08-05 06:07:13.201655600 +0000
+@@ -24,7 +24,9 @@
+         "camp_info": "edit",
+         "retreat_ops": "edit",
+         "registration_config": "edit",
+-        "kidz_corner": "edit"
++        "kidz_corner": "edit",
++        "kidz_corner_checkin": "edit",
++        "kidz_corner_budget": "edit"
+     },
+     "admin": {
+         "dashboard": "read",
+@@ -43,7 +45,9 @@
+         "camp_info": "read",
+         "retreat_ops": "edit",
+         "registration_config": "edit",
+-        "kidz_corner": "edit"
++        "kidz_corner": "edit",
++        "kidz_corner_checkin": "edit",
++        "kidz_corner_budget": "edit"
+     },
+     "director": {
+         "dashboard": "read",
+@@ -62,7 +66,9 @@
+         "camp_info": "read",
+         "retreat_ops": "edit",
+         "registration_config": "hide",
+-        "kidz_corner": "edit"
++        "kidz_corner": "edit",
++        "kidz_corner_checkin": "edit",
++        "kidz_corner_budget": "edit"
+     },
+     "user": {
+         "dashboard": "read",
+@@ -81,7 +87,9 @@
+         "camp_info": "read",
+         "retreat_ops": "hide",
+         "registration_config": "hide",
+-        "kidz_corner": "read"
++        "kidz_corner": "read",
++        "kidz_corner_checkin": "edit",
++        "kidz_corner_budget": "hide"
+     },
+     "finance": {
+         "dashboard": "read",
+@@ -100,7 +108,9 @@
+         "camp_info": "read",
+         "retreat_ops": "hide",
+         "registration_config": "hide",
+-        "kidz_corner": "hide"
++        "kidz_corner": "hide",
++        "kidz_corner_checkin": "hide",
++        "kidz_corner_budget": "hide"
+     }
+ }
+ 
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/AuditLogsPage.js b/frontend/src/pages/AuditLogsPage.js
+--- a/frontend/src/pages/AuditLogsPage.js	2026-08-05 06:07:13.190436516 +0000
++++ b/frontend/src/pages/AuditLogsPage.js	2026-08-05 06:07:13.213353974 +0000
+@@ -25,6 +25,7 @@
+   const [total, setTotal] = useState(0);
+   const [error, setError] = useState("");
+   const [clearing, setClearing] = useState(false);
++  const [exporting, setExporting] = useState(false);
+   const [operatorSearch, setOperatorSearch] = useState("");
+   const [availableOperators, setAvailableOperators] = useState([]);
+ 
+@@ -106,6 +107,42 @@
+     }
+   };
+ 
++  const handleExportLogs = async () => {
++    setExporting(true);
++    try {
++      const query = new URLSearchParams({
++        page: 1,
++        per_page: 100000,
++        ...(operatorSearch.trim() ? { operator: operatorSearch.trim() } : {})
++      });
++      const res = await api.get(`/api/users/audit-logs?${query.toString()}`);
++      const allLogs = res.data.logs || [];
++      const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++      const headers = ["Timestamp", "Operator", "Action", "Details", "IP Address"];
++      const rows = allLogs.map(log => [
++        formatTimestamp(log.timestamp),
++        log.username || "System",
++        log.action,
++        log.details || "",
++        log.ip_address || "",
++      ]);
++      const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement("a");
++      link.setAttribute("href", url);
++      link.setAttribute("download", `gca_audit_logs_${new Date().toISOString().split("T")[0]}.csv`);
++      document.body.appendChild(link);
++      link.click();
++      document.body.removeChild(link);
++      URL.revokeObjectURL(url);
++    } catch (err) {
++      setError("Failed to export activity logs.");
++    } finally {
++      setExporting(false);
++    }
++  };
++
+   return (
+     <>
+       <div className="top-bar">
+@@ -178,7 +215,17 @@
+               )}
+             </div>
+ 
+-            <span className="text-muted" style={{ fontSize: "0.85rem" }}>Total events: {total}</span>
++            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
++              <span className="text-muted" style={{ fontSize: "0.85rem" }}>Total events: {total}</span>
++              <button
++                className="btn btn-outline btn-sm"
++                onClick={handleExportLogs}
++                disabled={exporting || total === 0}
++                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
++              >
++                📥 {exporting ? "Exporting..." : "Export Excel"}
++              </button>
++            </div>
+           </div>
+ 
+           <div className="table-wrap" style={{ margin: 0, border: "none", borderRadius: 0 }}>
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/CheckInPage.js b/frontend/src/pages/CheckInPage.js
+--- a/frontend/src/pages/CheckInPage.js	2026-08-05 06:07:13.191384700 +0000
++++ b/frontend/src/pages/CheckInPage.js	2026-08-05 06:07:13.214147608 +0000
+@@ -45,6 +45,28 @@
+     setTimeout(() => setMessage(null), 4000);
+   };
+ 
++  const handleExportOnSite = () => {
++    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++    const headers = ["Camper Name", "Family Group", "Checked In At", "Checked In By", "Notes"];
++    const rows = activeCheckins.map(ci => [
++      ci.camper_name || "",
++      ci.family_group || "",
++      ci.checked_in_at ? new Date(ci.checked_in_at).toLocaleString() : "",
++      ci.checked_in_by || "",
++      ci.notes || "",
++    ]);
++    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.setAttribute("href", url);
++    link.setAttribute("download", `gca_currently_on_site_${new Date().toISOString().split("T")[0]}.csv`);
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  };
++
+   const toggleGroupExpand = (fg) => {
+     setExpandedGroups(prev => ({
+       ...prev,
+@@ -502,9 +524,20 @@
+           {/* Right: Currently Checked In */}
+           <div>
+             <div className="card">
+-              <h3 style={{ color: "var(--forest)", fontSize: "1rem", marginBottom: 16 }}>
+-                🏕️ Currently On Site ({activeCheckins.length})
+-              </h3>
++              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
++                <h3 style={{ color: "var(--forest)", fontSize: "1rem", margin: 0 }}>
++                  🏕️ Currently On Site ({activeCheckins.length})
++                </h3>
++                {activeCheckins.length > 0 && (
++                  <button
++                    className="btn btn-outline btn-sm"
++                    onClick={handleExportOnSite}
++                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
++                  >
++                    📥 Export Excel
++                  </button>
++                )}
++              </div>
+ 
+               {loadingActive ? (
+                 <p className="text-muted">Loading…</p>
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/KidzCornerPage.js b/frontend/src/pages/KidzCornerPage.js
+--- a/frontend/src/pages/KidzCornerPage.js	2026-08-05 06:07:13.192455267 +0000
++++ b/frontend/src/pages/KidzCornerPage.js	2026-08-05 06:07:13.217138736 +0000
+@@ -62,11 +62,40 @@
+   </div>
+ );
+ 
++const ExportBtn = ({ onClick, label = "Export Excel" }) => (
++  <button
++    className="btn btn-outline"
++    style={{ padding: "0 14px", height: 38, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: 6 }}
++    onClick={onClick}
++  >
++    📥 {label}
++  </button>
++);
++
++function exportToExcel(filename, headers, rows) {
++  const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++  const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++  const url = URL.createObjectURL(blob);
++  const link = document.createElement("a");
++  link.setAttribute("href", url);
++  link.setAttribute("download", filename);
++  document.body.appendChild(link);
++  link.click();
++  document.body.removeChild(link);
++  URL.revokeObjectURL(url);
++}
++
++const todayStamp = () => new Date().toISOString().split("T")[0];
++
+ export default function KidzCornerPage() {
+   const { hasPermission } = useAuth();
+   const canEdit = hasPermission("kidz_corner", "edit");
++  const canCheckIn = hasPermission("kidz_corner_checkin", "edit");
++  const canViewBudget = hasPermission("kidz_corner_budget", "read");
++  const canEditBudget = hasPermission("kidz_corner_budget", "edit");
+ 
+-  const [tab, setTab] = useState("people");
++  const [tab, setTab] = useState(() => (canEdit ? "overview" : "checkin"));
+   const [scheduleDay, setScheduleDay] = useState("Friday Night");
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState("");
+@@ -74,11 +103,17 @@
+ 
+   const [volunteers, setVolunteers] = useState([]);
+   const [kids, setKids] = useState([]);
++  const [checkins, setCheckins] = useState([]);
+   const [scheduleItems, setScheduleItems] = useState([]);
+   const [crafts, setCrafts] = useState([]);
+   const [budgetItems, setBudgetItems] = useState([]);
+   const [avLinks, setAvLinks] = useState([]);
+ 
++  const [checkinSearch, setCheckinSearch] = useState("");
++  const [checkinBusyId, setCheckinBusyId] = useState(null);
++  const [editAllergyKidId, setEditAllergyKidId] = useState(null);
++  const [editAllergyDraft, setEditAllergyDraft] = useState("");
++
+   const [newVolunteer, setNewVolunteer] = useState(null);
+   const [editVolunteerId, setEditVolunteerId] = useState(null);
+   const [editVolunteerDraft, setEditVolunteerDraft] = useState(null);
+@@ -111,21 +146,27 @@
+   const fetchAll = () => {
+     setLoading(true);
+     setError("");
++    const budgetCall = canViewBudget
++      ? api.get("/api/kidz-corner/budget")
++      : Promise.resolve({ data: { items: [] } });
++
+     Promise.all([
+       api.get("/api/kidz-corner/volunteers"),
+       api.get("/api/kidz-corner/kids"),
++      api.get("/api/kidz-corner/checkins"),
+       api.get("/api/kidz-corner/schedule"),
+       api.get("/api/kidz-corner/crafts"),
+-      api.get("/api/kidz-corner/budget"),
++      budgetCall,
+       api.get("/api/kidz-corner/av-links"),
+     ])
+-      .then(([a, b, c, d, e, f]) => {
++      .then(([a, b, c, d, e, f, g]) => {
+         setVolunteers(a.data.volunteers || []);
+         setKids(b.data.kids || []);
+-        setScheduleItems(c.data.items || []);
+-        setCrafts(d.data.crafts || []);
+-        setBudgetItems(e.data.items || []);
+-        setAvLinks(f.data.links || []);
++        setCheckins(c.data.checkins || []);
++        setScheduleItems(d.data.items || []);
++        setCrafts(e.data.crafts || []);
++        setBudgetItems(f.data.items || []);
++        setAvLinks(g.data.links || []);
+       })
+       .catch(() => setError("Failed to load Kidz Corner data."))
+       .finally(() => setLoading(false));
+@@ -207,6 +248,135 @@
+     }
+   };
+ 
++  // ---- VBS Check-In ----
++  const checkInKid = async (kidId, kidName) => {
++    setCheckinBusyId(kidId);
++    try {
++      await api.post("/api/kidz-corner/checkins", { kid_id: kidId });
++      showFlash("success", `✅ ${kidName} checked in.`);
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to check in.");
++    } finally {
++      setCheckinBusyId(null);
++    }
++  };
++
++  const checkOutKid = async (checkinId, kidName) => {
++    setCheckinBusyId(checkinId);
++    try {
++      await api.post(`/api/kidz-corner/checkins/${checkinId}/checkout`);
++      showFlash("success", `👋 ${kidName} checked out.`);
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to check out.");
++    } finally {
++      setCheckinBusyId(null);
++    }
++  };
++
++  const resetKidCheckin = async (checkinId) => {
++    if (!await window.confirm("Reset this check-in record? This cannot be undone.")) return;
++    try {
++      await api.delete(`/api/kidz-corner/checkins/${checkinId}`);
++      showFlash("success", "Check-in reset.");
++      fetchAll();
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to reset check-in.");
++    }
++  };
++
++  const startEditAllergy = (kid) => {
++    setEditAllergyKidId(kid.id);
++    setEditAllergyDraft(kid.allergies || "");
++  };
++
++  const cancelEditAllergy = () => {
++    setEditAllergyKidId(null);
++    setEditAllergyDraft("");
++  };
++
++  const saveAllergy = async (kidId) => {
++    try {
++      const res = await api.put(`/api/kidz-corner/kids/${kidId}/allergies`, { allergies: editAllergyDraft });
++      setKids(prev => prev.map(k => (k.id === kidId ? res.data.kid : k)));
++      setEditAllergyKidId(null);
++      setEditAllergyDraft("");
++      showFlash("success", "Allergies / notes updated.");
++    } catch (err) {
++      showFlash("error", err.response?.data?.error || "Failed to update allergies.");
++    }
++  };
++
++  // ---- Excel exports ----
++  const exportVolunteers = () => exportToExcel(
++    `kidz_corner_volunteers_${todayStamp()}.csv`,
++    ["Name", "Assignment"],
++    volunteers.map(v => [v.name, v.assignment || ""])
++  );
++
++  const exportKids = () => exportToExcel(
++    `kidz_corner_kids_${todayStamp()}.csv`,
++    ["Name", "Age", "Allergies / Notes"],
++    kids.map(k => [k.name, k.age ?? "", k.allergies || ""])
++  );
++
++  const exportCheckinStatus = () => exportToExcel(
++    `kidz_corner_checkin_status_${todayStamp()}.csv`,
++    ["Name", "Age", "Allergies / Notes", "Status", "Checked In At", "Checked In By"],
++    visibleKidsForCheckin.map(k => {
++      const active = activeCheckinByKidId[k.id];
++      return [
++        k.name, k.age ?? "", k.allergies || "",
++        active ? "Checked In" : "Not Checked In",
++        active ? new Date(active.checked_in_at).toLocaleString() : "",
++        active ? (active.checked_in_by || "") : "",
++      ];
++    })
++  );
++
++  const exportRecentActivity = () => exportToExcel(
++    `kidz_corner_checkin_activity_${todayStamp()}.csv`,
++    ["Kid", "Checked In At", "Checked In By", "Checked Out At", "Checked Out By"],
++    recentCheckins.map(c => [
++      c.kid_name || "",
++      c.checked_in_at ? new Date(c.checked_in_at).toLocaleString() : "",
++      c.checked_in_by || "",
++      c.checked_out_at ? new Date(c.checked_out_at).toLocaleString() : "",
++      c.checked_out_by || "",
++    ])
++  );
++
++  const exportAllergyList = () => exportToExcel(
++    `kidz_corner_allergy_list_${todayStamp()}.csv`,
++    ["Name", "Allergy / Medical Note"],
++    kidsWithAllergies.map(k => [k.name, k.allergies])
++  );
++
++  const exportSchedule = () => exportToExcel(
++    `kidz_corner_schedule_${todayStamp()}.csv`,
++    ["Day", "Date", "Time", "Activity", "Volunteers Needed", "Items Needed", "Notes"],
++    scheduleItems.map(i => [i.day, i.date || "", i.time || "", i.activity, i.volunteers_needed || "", i.items_needed || "", i.notes || ""])
++  );
++
++  const exportCrafts = () => exportToExcel(
++    `kidz_corner_crafts_${todayStamp()}.csv`,
++    ["Day", "Title", "Materials", "How To", "Ages", "Things To Bring"],
++    crafts.map(c => [c.day, c.title || "", c.materials || "", c.how_to || "", c.ages || "", c.things_to_bring || ""])
++  );
++
++  const exportBudget = () => exportToExcel(
++    `kidz_corner_budget_${todayStamp()}.csv`,
++    ["Month", "Income (Actual)", "Expenses (Actual)", "Expenses (Projected)", "Related Files", "Notes"],
++    budgetItems.map(b => [b.month || "", b.income_actual ?? "", b.expenses_actual ?? "", b.expenses_projected ?? "", b.related_files || "", b.notes || ""])
++  );
++
++  const exportAvLinks = () => exportToExcel(
++    `kidz_corner_av_links_${todayStamp()}.csv`,
++    ["Category", "Label", "URL"],
++    avLinks.map(l => [l.category || "", l.label, l.url || ""])
++  );
++
+   // ---- Schedule ----
+   const blankScheduleItem = (day) => ({
+     day: day || scheduleDay, date: "", time: "", activity: "",
+@@ -363,12 +533,31 @@
+   };
+ 
+   const tabs = [
++    { key: "overview", label: "📊 Overview" },
+     { key: "people", label: "👥 People" },
++    { key: "checkin", label: "✅ Check-In" },
+     { key: "schedule", label: "🗓️ Schedule" },
+-    { key: "budget", label: "💰 Budget" },
++    ...(canViewBudget ? [{ key: "budget", label: "💰 Budget" }] : []),
+     { key: "av", label: "🎬 Audio/Video" },
+   ];
+ 
++  // Map kid_id -> active (not checked out) checkin record, if any
++  const activeCheckinByKidId = checkins.reduce((acc, c) => {
++    if (!c.checked_out_at) acc[c.kid_id] = c;
++    return acc;
++  }, {});
++
++  const checkinSearchLower = checkinSearch.trim().toLowerCase();
++  const visibleKidsForCheckin = kids
++    .filter(k => !checkinSearchLower || k.name.toLowerCase().includes(checkinSearchLower))
++    .sort((a, b) => a.name.localeCompare(b.name));
++
++  const checkedInCount = kids.filter(k => activeCheckinByKidId[k.id]).length;
++
++  const recentCheckins = [...checkins]
++    .sort((a, b) => new Date(b.checked_in_at) - new Date(a.checked_in_at))
++    .slice(0, 10);
++
+   const scheduleForDay = scheduleItems
+     .filter(i => i.day === scheduleDay)
+     .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+@@ -390,11 +579,17 @@
+     return acc;
+   }, {});
+ 
++  // ---- Overview / dashboard derived data ----
++  const kidsWithAllergies = kids.filter(k => (k.allergies || "").trim().length > 0);
++  const activeCheckinsSorted = checkins
++    .filter(c => !c.checked_out_at)
++    .sort((a, b) => new Date(b.checked_in_at) - new Date(a.checked_in_at));
++
+   return (
+     <>
+       <div className="top-bar">
+         <h1>🧸 Kidz Corner</h1>
+-        <span className="text-muted">Volunteers, kids, session schedule, budget &amp; audio/video for Kidz Corner</span>
++        <span className="text-muted">Overview, volunteers, kids, check-in, session schedule, budget &amp; audio/video for Kidz Corner</span>
+       </div>
+ 
+       <div className="page-body">
+@@ -422,16 +617,140 @@
+           <p className="text-muted">Loading Kidz Corner data...</p>
+         ) : (
+           <>
++            {/* ---------------- OVERVIEW ---------------- */}
++            {tab === "overview" && (
++              <>
++                <Section title="At a Glance">
++                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
++                    <Chip label="Kids Registered" value={kids.length} />
++                    <Chip label="Currently Checked In" value={checkedInCount} />
++                    <Chip label="Volunteers on Roster" value={volunteers.length} />
++                    <Chip label="Allergy / Medical Notes" value={kidsWithAllergies.length} />
++                  </div>
++                </Section>
++
++                <Section
++                  title="⚠️ Allergy & Medical Notes"
++                  action={
++                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                      {kidsWithAllergies.length > 0 && <ExportBtn onClick={exportAllergyList} />}
++                      <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={() => setTab("checkin")}>
++                        Manage in Check-In →
++                      </button>
++                    </div>
++                  }
++                >
++                  {kidsWithAllergies.length === 0 ? (
++                    <p className="text-muted">No allergies or medical notes on file.</p>
++                  ) : (
++                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
++                      {kidsWithAllergies.map(k => (
++                        <div key={k.id} style={{
++                          display: "flex", justifyContent: "space-between", alignItems: "center",
++                          padding: "8px 14px", borderRadius: 8, background: "rgba(176, 42, 42, 0.06)",
++                          border: "1px solid rgba(176, 42, 42, 0.2)",
++                        }}>
++                          <strong>{k.name}</strong>
++                          <span style={{ color: "#B02A2A", fontSize: "0.85rem" }}>⚠️ {k.allergies}</span>
++                        </div>
++                      ))}
++                    </div>
++                  )}
++                </Section>
++
++                <Section
++                  title="Who's Checked In Right Now"
++                  action={
++                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 34, fontSize: "0.8rem" }} onClick={() => setTab("checkin")}>
++                      Go to Check-In →
++                    </button>
++                  }
++                >
++                  {activeCheckinsSorted.length === 0 ? (
++                    <p className="text-muted">No kids are currently checked in.</p>
++                  ) : (
++                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
++                      {activeCheckinsSorted.map(c => (
++                        <span key={c.id} className="badge badge-green" style={{ fontSize: "0.8rem" }}>
++                          {c.kid_name} · {new Date(c.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
++                        </span>
++                      ))}
++                    </div>
++                  )}
++                </Section>
++
++                <Section
++                  title={`🗓️ ${scheduleDay} — Schedule Preview`}
++                  action={
++                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 34, fontSize: "0.8rem" }} onClick={() => setTab("schedule")}>
++                      Full Schedule →
++                    </button>
++                  }
++                >
++                  <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
++                    {DAY_OPTIONS.map(day => (
++                      <button
++                        key={day}
++                        onClick={() => setScheduleDay(day)}
++                        className={scheduleDay === day ? "btn btn-primary" : "btn btn-outline"}
++                        style={{ padding: "5px 12px", fontSize: "0.78rem" }}
++                      >
++                        {day}
++                      </button>
++                    ))}
++                  </div>
++                  {scheduleForDay.length === 0 ? (
++                    <p className="text-muted">No schedule items planned for {scheduleDay} yet.</p>
++                  ) : (
++                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
++                      {scheduleForDay.map(item => (
++                        <div key={item.id} style={{
++                          display: "flex", justifyContent: "space-between", gap: 12,
++                          padding: "8px 12px", borderRadius: 8, background: "var(--cream)",
++                          border: "1px solid var(--border)", fontSize: "0.85rem", flexWrap: "wrap",
++                        }}>
++                          <span><strong>{item.time || "—"}</strong> &nbsp; {item.activity}</span>
++                          {item.volunteers_needed && <span className="text-muted">👥 {item.volunteers_needed}</span>}
++                        </div>
++                      ))}
++                    </div>
++                  )}
++                </Section>
++
++                {canViewBudget && (
++                  <Section
++                    title="💰 Budget Snapshot"
++                    action={
++                      <button className="btn btn-outline" style={{ padding: "0 14px", height: 34, fontSize: "0.8rem" }} onClick={() => setTab("budget")}>
++                        Full Budget →
++                      </button>
++                    }
++                  >
++                    <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
++                      <Chip label="Total Income" value={`$${budgetTotals.income.toFixed(2)}`} />
++                      <Chip label="Total Expenses (Actual)" value={`$${budgetTotals.actual.toFixed(2)}`} />
++                      <Chip label="Total Expenses (Projected)" value={`$${budgetTotals.projected.toFixed(2)}`} />
++                    </div>
++                  </Section>
++                )}
++              </>
++            )}
++
+             {/* ---------------- PEOPLE ---------------- */}
+             {tab === "people" && (
+               <>
+                 <Section
+                   title="Volunteers"
+-                  action={canEdit && (
+-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewVolunteer(blankVolunteer())}>
+-                      ➕ Add Volunteer
+-                    </button>
+-                  )}
++                  action={
++                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                      <ExportBtn onClick={exportVolunteers} />
++                      {canEdit && (
++                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewVolunteer(blankVolunteer())}>
++                          ➕ Add Volunteer
++                        </button>
++                      )}
++                    </div>
++                  }
+                 >
+                   {newVolunteer && (
+                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+@@ -481,11 +800,16 @@
+ 
+                 <Section
+                   title="Kids"
+-                  action={canEdit && (
+-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewKid(blankKid())}>
+-                      ➕ Add Kid
+-                    </button>
+-                  )}
++                  action={
++                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                      <ExportBtn onClick={exportKids} />
++                      {canEdit && (
++                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewKid(blankKid())}>
++                          ➕ Add Kid
++                        </button>
++                      )}
++                    </div>
++                  }
+                 >
+                   {newKid && (
+                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+@@ -538,6 +862,147 @@
+               </>
+             )}
+ 
++            {/* ---------------- VBS CHECK-IN ---------------- */}
++            {tab === "checkin" && (
++              <>
++                <Section
++                  title="VBS Check-In Status"
++                  action={<ExportBtn onClick={exportCheckinStatus} />}
++                >
++                  <div style={{ display: "flex", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
++                    <Chip label="Registered Kids" value={kids.length} />
++                    <Chip label="Currently Checked In" value={checkedInCount} />
++                  </div>
++
++                  <div style={{ marginBottom: 16, maxWidth: 340 }}>
++                    <Field label="Search Kids">
++                      <input
++                        style={inputStyle}
++                        placeholder="Search by name..."
++                        value={checkinSearch}
++                        onChange={e => setCheckinSearch(e.target.value)}
++                      />
++                    </Field>
++                  </div>
++
++                  <table className="table" style={{ width: "100%" }}>
++                    <thead>
++                      <tr>
++                        <th>Name</th><th>Age</th><th>Allergies / Notes</th><th>Status</th><th style={{ width: 140 }}></th>
++                      </tr>
++                    </thead>
++                    <tbody>
++                      {visibleKidsForCheckin.map(k => {
++                        const active = activeCheckinByKidId[k.id];
++                        const busy = checkinBusyId === k.id || (active && checkinBusyId === active.id);
++                        const editingAllergy = editAllergyKidId === k.id;
++                        return (
++                          <tr key={k.id}>
++                            <td>{k.name}</td>
++                            <td>{k.age ?? "—"}</td>
++                            <td style={{ minWidth: 200 }}>
++                              {editingAllergy ? (
++                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
++                                  <input
++                                    style={inputStyle}
++                                    autoFocus
++                                    placeholder="e.g. peanut allergy"
++                                    value={editAllergyDraft}
++                                    onChange={e => setEditAllergyDraft(e.target.value)}
++                                  />
++                                  <IconBtn title="Save" onClick={() => saveAllergy(k.id)}>✔️</IconBtn>
++                                  <IconBtn title="Cancel" onClick={cancelEditAllergy}>✖️</IconBtn>
++                                </div>
++                              ) : (
++                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
++                                  <span style={k.allergies ? { color: "#B02A2A", fontWeight: 600 } : undefined}>
++                                    {k.allergies ? `⚠️ ${k.allergies}` : "—"}
++                                  </span>
++                                  {canCheckIn && (
++                                    <IconBtn title="Add / edit allergy note" onClick={() => startEditAllergy(k)}>✏️</IconBtn>
++                                  )}
++                                </div>
++                              )}
++                            </td>
++                            <td>
++                              {active ? (
++                                <span className="badge badge-green" style={{ fontSize: "0.75rem" }}>
++                                  ✅ Checked in {new Date(active.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
++                                  {active.checked_in_by ? ` by ${active.checked_in_by}` : ""}
++                                </span>
++                              ) : (
++                                <span className="text-muted" style={{ fontSize: "0.8rem" }}>Not checked in</span>
++                              )}
++                            </td>
++                            <td>
++                              {canCheckIn && (
++                                active ? (
++                                  <button
++                                    className="btn btn-outline"
++                                    disabled={busy}
++                                    style={{ padding: "5px 12px", fontSize: "0.8rem" }}
++                                    onClick={() => checkOutKid(active.id, k.name)}
++                                  >
++                                    Check Out
++                                  </button>
++                                ) : (
++                                  <button
++                                    className="btn btn-primary"
++                                    disabled={busy}
++                                    style={{ padding: "5px 12px", fontSize: "0.8rem" }}
++                                    onClick={() => checkInKid(k.id, k.name)}
++                                  >
++                                    Check In
++                                  </button>
++                                )
++                              )}
++                            </td>
++                          </tr>
++                        );
++                      })}
++                      {visibleKidsForCheckin.length === 0 && (
++                        <tr><td colSpan={5} className="text-muted">
++                          {kids.length === 0 ? "No kids registered yet. Add them under the People tab." : "No kids match your search."}
++                        </td></tr>
++                      )}
++                    </tbody>
++                  </table>
++                </Section>
++
++                <Section
++                  title="Recent Activity"
++                  action={<ExportBtn onClick={exportRecentActivity} />}
++                >
++                  <table className="table" style={{ width: "100%" }}>
++                    <thead>
++                      <tr>
++                        <th>Kid</th><th>Checked In</th><th>By</th><th>Checked Out</th><th>By</th>{canEdit && <th style={{ width: 50 }}></th>}
++                      </tr>
++                    </thead>
++                    <tbody>
++                      {recentCheckins.map(c => (
++                        <tr key={c.id}>
++                          <td>{c.kid_name || "—"}</td>
++                          <td>{c.checked_in_at ? new Date(c.checked_in_at).toLocaleString() : "—"}</td>
++                          <td>{c.checked_in_by || "—"}</td>
++                          <td>{c.checked_out_at ? new Date(c.checked_out_at).toLocaleString() : "—"}</td>
++                          <td>{c.checked_out_by || "—"}</td>
++                          {canEdit && (
++                            <td>
++                              <IconBtn title="Reset check-in" danger onClick={() => resetKidCheckin(c.id)}>🗑️</IconBtn>
++                            </td>
++                          )}
++                        </tr>
++                      ))}
++                      {recentCheckins.length === 0 && (
++                        <tr><td colSpan={6} className="text-muted">No check-in activity yet.</td></tr>
++                      )}
++                    </tbody>
++                  </table>
++                </Section>
++              </>
++            )}
++
+             {/* ---------------- SCHEDULE ---------------- */}
+             {tab === "schedule" && (
+               <>
+@@ -556,11 +1021,16 @@
+ 
+                 <Section
+                   title={`${scheduleDay} — Run of Show`}
+-                  action={canEdit && (
+-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewScheduleItem(blankScheduleItem(scheduleDay))}>
+-                      ➕ Add Item
+-                    </button>
+-                  )}
++                  action={
++                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                      <ExportBtn onClick={exportSchedule} label="Export All Days" />
++                      {canEdit && (
++                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewScheduleItem(blankScheduleItem(scheduleDay))}>
++                          ➕ Add Item
++                        </button>
++                      )}
++                    </div>
++                  }
+                 >
+                   {newScheduleItem && (
+                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+@@ -640,11 +1110,16 @@
+ 
+                 <Section
+                   title={`${scheduleDay} — Craft / Activity`}
+-                  action={canEdit && (
+-                    <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewCraft(blankCraft(scheduleDay))}>
+-                      ➕ Add Craft
+-                    </button>
+-                  )}
++                  action={
++                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                      <ExportBtn onClick={exportCrafts} label="Export All Days" />
++                      {canEdit && (
++                        <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewCraft(blankCraft(scheduleDay))}>
++                          ➕ Add Craft
++                        </button>
++                      )}
++                    </div>
++                  }
+                 >
+                   {newCraft && (
+                     <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+@@ -709,14 +1184,19 @@
+             )}
+ 
+             {/* ---------------- BUDGET ---------------- */}
+-            {tab === "budget" && (
++            {tab === "budget" && canViewBudget && (
+               <Section
+                 title="Budget & Expenses"
+-                action={canEdit && (
+-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBudgetItem(blankBudgetItem())}>
+-                    ➕ Add Line
+-                  </button>
+-                )}
++                action={
++                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                    <ExportBtn onClick={exportBudget} />
++                    {canEditBudget && (
++                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBudgetItem(blankBudgetItem())}>
++                        ➕ Add Line
++                      </button>
++                    )}
++                  </div>
++                }
+               >
+                 <div style={{ display: "flex", gap: 24, marginBottom: 16, flexWrap: "wrap" }}>
+                   <Chip label="Total Income" value={`$${budgetTotals.income.toFixed(2)}`} />
+@@ -744,7 +1224,7 @@
+                   <thead>
+                     <tr>
+                       <th>Month</th><th>Income (actual)</th><th>Expenses (actual)</th><th>Expenses (projected)</th>
+-                      <th>Related Files</th><th>Notes</th>{canEdit && <th style={{ width: 90 }}></th>}
++                      <th>Related Files</th><th>Notes</th>{canEditBudget && <th style={{ width: 90 }}></th>}
+                     </tr>
+                   </thead>
+                   <tbody>
+@@ -772,7 +1252,7 @@
+                           <td>{b.expenses_projected != null ? `$${Number(b.expenses_projected).toFixed(2)}` : "—"}</td>
+                           <td>{b.related_files || "—"}</td>
+                           <td>{b.notes || "—"}</td>
+-                          {canEdit && (
++                          {canEditBudget && (
+                             <td>
+                               <div style={{ display: "flex", gap: 6 }}>
+                                 <IconBtn title="Edit" onClick={() => { setEditBudgetId(b.id); setEditBudgetDraft(b); }}>✏️</IconBtn>
+@@ -793,11 +1273,16 @@
+             {tab === "av" && (
+               <Section
+                 title="Audio / Video Links"
+-                action={canEdit && (
+-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewAvLink(blankAvLink())}>
+-                    ➕ Add Link
+-                  </button>
+-                )}
++                action={
++                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                    <ExportBtn onClick={exportAvLinks} />
++                    {canEdit && (
++                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewAvLink(blankAvLink())}>
++                        ➕ Add Link
++                      </button>
++                    )}
++                  </div>
++                }
+               >
+                 {newAvLink && (
+                   <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/OutdoorPage.js b/frontend/src/pages/OutdoorPage.js
+--- a/frontend/src/pages/OutdoorPage.js	2026-08-05 06:07:13.192688965 +0000
++++ b/frontend/src/pages/OutdoorPage.js	2026-08-05 06:07:13.215296791 +0000
+@@ -283,6 +283,31 @@
+     return nameMatch || famMatch;
+   });
+ 
++  const handleExportExcel = () => {
++    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++    const headers = ["Camper Name", "Family Group", ...activityNames];
++    const rows = filteredCampers.map(c => {
++      const customActs = parseCustomActivities(c.notes);
++      const spots = activityNames.map((name, idx) => {
++        if (idx === 0) return c.activity_1 || c.kayaking || 0;
++        if (idx === 1) return c.activity_2 || c.boat_tour || 0;
++        if (idx === 2) return c.activity_3 || 0;
++        return customActs[name] || 0;
++      });
++      return [c.full_name, c.family_group || "", ...spots];
++    });
++    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.setAttribute("href", url);
++    link.setAttribute("download", `gca_outdoor_activities_${new Date().toISOString().split("T")[0]}.csv`);
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  };
++
+   return (
+     <>
+       <div className="top-bar">
+@@ -385,6 +410,13 @@
+                   onChange={e => setSearch(e.target.value)}
+                 />
+               </div>
++              <button
++                className="btn btn-outline"
++                onClick={handleExportExcel}
++                style={{ padding: "0 16px", height: "38px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600 }}
++              >
++                📥 Export Excel
++              </button>
+               {isOwner && (
+                 <button
+                   className="btn btn-outline"
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/RetreatOpsPage.js b/frontend/src/pages/RetreatOpsPage.js
+--- a/frontend/src/pages/RetreatOpsPage.js	2026-08-05 06:07:13.193002587 +0000
++++ b/frontend/src/pages/RetreatOpsPage.js	2026-08-05 06:07:13.215603951 +0000
+@@ -416,6 +416,44 @@
+     { key: "contingency", label: "⚠️ Contingency" },
+   ];
+ 
++  const exportCSV = (filename, headers, rows) => {
++    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.setAttribute("href", url);
++    link.setAttribute("download", filename);
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  };
++
++  const exportRunOfShow = () => exportCSV(
++    `gca_retreat_run_of_show_${new Date().toISOString().split("T")[0]}.csv`,
++    ["Day", "Start Time", "End Time", "Block Title", "Location", "Point Person", "Supporting Teams", "Status"],
++    blocks.map(b => [b.day, b.start_time || "", b.end_time || "", b.block_title, b.location || "", b.point_person || "", b.supporting_teams || "", b.status])
++  );
++
++  const exportRoster = () => exportCSV(
++    `gca_retreat_team_roster_${new Date().toISOString().split("T")[0]}.csv`,
++    ["Team", "Lead", "Phone", "Members", "Owns Blocks", "Notes"],
++    teams.map(t => [t.name, t.lead || "", t.phone || "", t.members || "", t.owns_blocks || "", t.notes || ""])
++  );
++
++  const exportSetupTasks = () => exportCSV(
++    `gca_retreat_setup_tasks_${new Date().toISOString().split("T")[0]}.csv`,
++    ["Item", "For Block", "Owner", "Deadline", "Qty / Detail", "Done"],
++    sortedTasks.map(t => [t.item, t.for_block || "", t.owner || "", t.deadline || "", t.qty_detail || "", t.done ? "Yes" : "No"])
++  );
++
++  const exportContingency = () => exportCSV(
++    `gca_retreat_contingency_plans_${new Date().toISOString().split("T")[0]}.csv`,
++    ["Scenario", "Trigger", "Action", "Who Decides"],
++    plans.map(p => [p.scenario, p.trigger || "", p.action || "", p.who_decides || ""])
++  );
++
+   return (
+     <>
+       <div className="top-bar">
+@@ -451,11 +489,16 @@
+             {tab === "run_of_show" && (
+               <Section
+                 title="Internal Run of Show"
+-                action={canEdit && (
+-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBlock(blankBlock())}>
+-                    ➕ Add Block
+-                  </button>
+-                )}
++                action={
++                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportRunOfShow}>📥 Export Excel</button>
++                    {canEdit && (
++                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewBlock(blankBlock())}>
++                        ➕ Add Block
++                      </button>
++                    )}
++                  </div>
++                }
+               >
+                 {newBlock && (
+                   <BlockForm block={newBlock} setBlock={setNewBlock} onSave={saveNewBlock} onCancel={() => setNewBlock(null)} />
+@@ -573,11 +616,16 @@
+             {tab === "roster" && (
+               <Section
+                 title="Team Roster & Contacts"
+-                action={canEdit && (
+-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTeam(blankTeam())}>
+-                    ➕ Add Team
+-                  </button>
+-                )}
++                action={
++                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportRoster}>📥 Export Excel</button>
++                    {canEdit && (
++                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTeam(blankTeam())}>
++                        ➕ Add Team
++                      </button>
++                    )}
++                  </div>
++                }
+               >
+                 {newTeam && <TeamForm team={newTeam} setTeam={setNewTeam} onSave={saveNewTeam} onCancel={() => setNewTeam(null)} />}
+                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+@@ -632,11 +680,16 @@
+             {tab === "setup" && (
+               <Section
+                 title={`Setup & Supplies Checklist  (${doneCount}/${tasks.length} done)`}
+-                action={canEdit && (
+-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTask(blankTask())}>
+-                    ➕ Add Task
+-                  </button>
+-                )}
++                action={
++                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportSetupTasks}>📥 Export Excel</button>
++                    {canEdit && (
++                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewTask(blankTask())}>
++                        ➕ Add Task
++                      </button>
++                    )}
++                  </div>
++                }
+               >
+                 {newTask && <TaskForm task={newTask} setTask={setNewTask} onSave={saveNewTask} onCancel={() => setNewTask(null)} />}
+                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+@@ -672,11 +725,16 @@
+             {tab === "contingency" && (
+               <Section
+                 title="Contingency & Safety Protocols"
+-                action={canEdit && (
+-                  <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewPlan(blankPlan())}>
+-                    ➕ Add Scenario
+-                  </button>
+-                )}
++                action={
++                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
++                    <button className="btn btn-outline" style={{ padding: "0 14px", height: 38, fontSize: "0.8rem" }} onClick={exportContingency}>📥 Export Excel</button>
++                    {canEdit && (
++                      <button className="btn btn-primary" style={{ padding: "0 16px", height: 38 }} onClick={() => setNewPlan(blankPlan())}>
++                        ➕ Add Scenario
++                      </button>
++                    )}
++                  </div>
++                }
+               >
+                 {newPlan && <PlanForm plan={newPlan} setPlan={setNewPlan} onSave={saveNewPlan} onCancel={() => setNewPlan(null)} />}
+                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/RoleAssignerPage.js b/frontend/src/pages/RoleAssignerPage.js
+--- a/frontend/src/pages/RoleAssignerPage.js	2026-08-05 06:07:13.193189260 +0000
++++ b/frontend/src/pages/RoleAssignerPage.js	2026-08-05 06:07:13.215803882 +0000
+@@ -17,7 +17,9 @@
+   { key: "camp_info", label: "ℹ️ Camp Info" },
+   { key: "retreat_ops", label: "📋 Retreat Operations" },
+   { key: "registration_config", label: "📝 Registration Config" },
+-  { key: "kidz_corner", label: "🧸 Kidz Corner" }
++  { key: "kidz_corner", label: "🧸 Kidz Corner" },
++  { key: "kidz_corner_checkin", label: "✅ VBS Check-In" },
++  { key: "kidz_corner_budget", label: "💰 Kidz Corner Budget" }
+ ];
+ 
+ const getRoleLabel = (roleKey) => {
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/TShirtsPage.js b/frontend/src/pages/TShirtsPage.js
+--- a/frontend/src/pages/TShirtsPage.js	2026-08-05 06:07:13.193738372 +0000
++++ b/frontend/src/pages/TShirtsPage.js	2026-08-05 06:07:13.216500253 +0000
+@@ -328,6 +328,27 @@
+     });
+   })();
+ 
++  const handleExportExcel = () => {
++    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++    const headers = ["Camper Name", "Family Group", "US Size", "Indian Size"];
++    const rows = filteredCampers.map(c => [
++      c.full_name || "",
++      c.family_group || "",
++      c.tshirt_size || "",
++      c.indian_size || "",
++    ]);
++    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.setAttribute("href", url);
++    link.setAttribute("download", `gca_apparel_orders_${new Date().toISOString().split("T")[0]}.csv`);
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  };
++
+   // Group campers by family
+   const families = {};
+   const individuals = [];
+@@ -407,6 +428,13 @@
+               <option key={y} value={String(y)}>{y}</option>
+             ))}
+           </select>
++          <button
++            className="btn btn-outline"
++            onClick={handleExportExcel}
++            style={{ marginLeft: 10, height: 38, padding: "0 16px", display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", fontWeight: 600, whiteSpace: "nowrap" }}
++          >
++            📥 Export Excel
++          </button>
+         </div>
+ 
+         {/* T-Shirt Inventory & Stock Tracking Widget */}
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/TeamsPage.js b/frontend/src/pages/TeamsPage.js
+--- a/frontend/src/pages/TeamsPage.js	2026-08-05 06:07:13.193991739 +0000
++++ b/frontend/src/pages/TeamsPage.js	2026-08-05 06:07:13.216788990 +0000
+@@ -7,6 +7,26 @@
+   const [error, setError] = useState("");
+   const [search, setSearch] = useState("");
+ 
++  const handleExportExcel = () => {
++    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++    const headers = ["Team", "Camper Name", "Age"];
++    const rows = [
++      ...team1Members.map(c => [team1Name, `${c.first_name || ""} ${c.last_name || ""}`.trim(), c.age ?? ""]),
++      ...team2Members.map(c => [team2Name, `${c.first_name || ""} ${c.last_name || ""}`.trim(), c.age ?? ""]),
++      ...unassignedMembers.map(c => ["Unassigned", `${c.first_name || ""} ${c.last_name || ""}`.trim(), c.age ?? ""]),
++    ];
++    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.setAttribute("href", url);
++    link.setAttribute("download", `gca_team_assignments_${new Date().toISOString().split("T")[0]}.csv`);
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  };
++
+   const fetchTeamsData = () => {
+     setLoading(true);
+     setError("");
+@@ -81,6 +101,9 @@
+       <div className="top-bar">
+         <h1>🏆 Team Assignments</h1>
+         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
++          <button onClick={handleExportExcel} className="btn btn-secondary btn-sm" disabled={loading}>
++            📥 Export Excel
++          </button>
+           <button onClick={fetchTeamsData} className="btn btn-secondary btn-sm" disabled={loading}>
+             🔄 Refresh
+           </button>
+diff -ruN '--exclude=node_modules' '--exclude=uploads' '--exclude=__pycache__' a/frontend/src/pages/UsersPage.js b/frontend/src/pages/UsersPage.js
+--- a/frontend/src/pages/UsersPage.js	2026-08-05 06:07:13.194071212 +0000
++++ b/frontend/src/pages/UsersPage.js	2026-08-05 06:07:13.216841434 +0000
+@@ -209,11 +209,36 @@
+     }
+   };
+ 
++  const handleExportUsers = () => {
++    const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
++    const headers = ["Username", "Full Name", "Email", "Role", "Status"];
++    const rows = users.map(u => [
++      u.username,
++      u.full_name || "",
++      u.email || "",
++      getRoleLabel(u.role),
++      u.is_active ? "Active" : "Disabled",
++    ]);
++    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
++    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
++    const url = URL.createObjectURL(blob);
++    const link = document.createElement("a");
++    link.setAttribute("href", url);
++    link.setAttribute("download", `gca_users_${new Date().toISOString().split("T")[0]}.csv`);
++    document.body.appendChild(link);
++    link.click();
++    document.body.removeChild(link);
++    URL.revokeObjectURL(url);
++  };
++
+   return (
+     <>
+       <div className="top-bar">
+         <h1>Registration Team Users</h1>
+-        {canEdit && <button className="btn btn-primary" onClick={() => setModal("add")}>➕ Add User</button>}
++        <div style={{ display: "flex", gap: 10 }}>
++          <button className="btn btn-outline" onClick={handleExportUsers}>📥 Export Excel</button>
++          {canEdit && <button className="btn btn-primary" onClick={() => setModal("add")}>➕ Add User</button>}
++        </div>
+       </div>
+ 
+       <div className="page-body">
