@@ -88,7 +88,7 @@ export default function FinancePage() {
   const [reminderTemplates, setReminderTemplates] = useState({
     balance: `Hi {first_name} {last_name},
 
-This is a friendly reminder from GCA Church Camp regarding your camp fee balance of \${balance}. We'd greatly appreciate it if you could arrange payment at your earliest convenience.
+This is a friendly reminder from GCA Church Camp regarding your camp fee balance. Your apparel (T-shirt) fee total comes to \${apparel_fee}, and your total outstanding balance — including registration and apparel fees — is \${balance}. We'd greatly appreciate it if you could arrange payment at your earliest convenience.
 
 If you've already taken care of this, please disregard this message — and thank you for your prompt attention!
 
@@ -112,6 +112,10 @@ GCA Church Camp Team`
   const [activityNames, setActivityNames] = useState(["Kayaking", "Boat Tour"]);
   const [activityPrices, setActivityPrices] = useState([10.0, 20.0]);
   const [actPricesForm, setActPricesForm] = useState(["10.0", "20.0"]);
+
+  // Apparel (T-shirt) Fee Config
+  const [apparelPrice, setApparelPrice] = useState(10.0);
+  const [apparelPriceForm, setApparelPriceForm] = useState("10.0");
 
   // Expenses State
   const [expenses, setExpenses] = useState([]);
@@ -199,6 +203,9 @@ GCA Church Camp Team`
         if (feesRes.data.activity_prices) {
           setActivityPrices(feesRes.data.activity_prices);
         }
+        if (feesRes.data.apparel_price !== undefined) {
+          setApparelPrice(feesRes.data.apparel_price);
+        }
       }
     } catch (err) {
       flashError(err.response?.data?.error || "Failed to load financial records.");
@@ -225,6 +232,7 @@ GCA Church Camp Team`
   const buildReminderMessage = (family) => {
     const balance = ((family.total_expected_fee || 0) - (family.amount_paid || 0)).toFixed(2);
     const activityFee = (family.activity_fee || 0).toFixed(2);
+    const apparelFee = (family.apparel_fee || 0).toFixed(2);
     const template = reminderTemplates[reminderMode];
 
     return template
@@ -233,7 +241,8 @@ GCA Church Camp Team`
       .replaceAll("{name}", family.head_full_name || family.display_name || "there")
       .replaceAll("{family}", family.family_group)
       .replaceAll("{balance}", balance)
-      .replaceAll("{activity_fee}", activityFee);
+      .replaceAll("{activity_fee}", activityFee)
+      .replaceAll("{apparel_fee}", apparelFee);
   };
 
   // Normalize a stored phone number into digits-only, assuming US numbers by
@@ -520,6 +529,7 @@ GCA Church Camp Team`
         return activityPrices[idx] !== undefined ? String(activityPrices[idx]) : "15.0";
       })
     );
+    setApparelPriceForm(apparelPrice !== undefined ? String(apparelPrice) : "10.0");
     setIsRatesModalOpen(true);
   };
 
@@ -541,6 +551,7 @@ GCA Church Camp Team`
         activityNames.forEach((name, idx) => {
           payload[`activity_${idx + 1}_price`] = actPricesForm[idx] || "15.0";
         });
+        payload["apparel_price"] = apparelPriceForm || "10.0";
         await api.post("/api/settings/", payload);
       }
       flashSuccess("Pricing rates saved successfully!");
@@ -593,6 +604,7 @@ GCA Church Camp Team`
 
     const totalReg = families.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
     const totalAct = families.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
+    const totalApparel = families.reduce((sum, f) => sum + (f.apparel_fee || 0), 0);
     const totalExp = families.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
     const totalPaid = families.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
 
@@ -602,6 +614,7 @@ GCA Church Camp Team`
         <td>${f.eligible_count}</td>
         <td>$${(f.calculated_fee || 0).toFixed(2)}</td>
         <td>$${(f.activity_fee || 0).toFixed(2)}</td>
+        <td>$${(f.apparel_fee || 0).toFixed(2)}</td>
         <td>$${(f.total_expected_fee || 0).toFixed(2)}</td>
         <td>$${(f.amount_paid || 0).toFixed(2)}</td>
         <td>${escapeHtml(f.status.toUpperCase())}</td>
@@ -612,6 +625,7 @@ GCA Church Camp Team`
         <td></td>
         <td>$${totalReg.toFixed(2)}</td>
         <td>$${totalAct.toFixed(2)}</td>
+        <td>$${totalApparel.toFixed(2)}</td>
         <td>$${totalExp.toFixed(2)}</td>
         <td>$${totalPaid.toFixed(2)}</td>
         <td></td>
@@ -668,6 +682,7 @@ GCA Church Camp Team`
                 <th>Eligible Members</th>
                 <th>Registration Fee</th>
                 <th>Activity Fee</th>
+                <th>Apparel Fee</th>
                 <th>Total expected</th>
                 <th>Amount Paid</th>
                 <th>Status</th>
@@ -712,16 +727,17 @@ GCA Church Camp Team`
 
     // 2. Family Camp Fees Table
     csvContent += "CAMP REGISTRATION FEES\n";
-    csvContent += "Family Group,Display Name,Eligible Member Count,Registration Fee,Church Discount,Activity Fee,Total Expected Fee,Paid Amount,Payment Status,Notes\n";
+    csvContent += "Family Group,Display Name,Eligible Member Count,Registration Fee,Church Discount,Activity Fee,Apparel Fee,Total Expected Fee,Paid Amount,Payment Status,Notes\n";
     families.forEach(f => {
-      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${(f.calculated_fee || 0).toFixed(2)}","${(f.discount || 0).toFixed(2)}","${(f.activity_fee || 0).toFixed(2)}","${(f.total_expected_fee || 0).toFixed(2)}","${(f.amount_paid || 0).toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
+      csvContent += `"${f.family_group}","${f.display_name}","${f.eligible_count}","${(f.calculated_fee || 0).toFixed(2)}","${(f.discount || 0).toFixed(2)}","${(f.activity_fee || 0).toFixed(2)}","${(f.apparel_fee || 0).toFixed(2)}","${(f.total_expected_fee || 0).toFixed(2)}","${(f.amount_paid || 0).toFixed(2)}","${f.status}","${(f.notes || "").replace(/"/g, '""')}"\n`;
     });
     const totalReg = families.reduce((sum, f) => sum + (f.calculated_fee || 0), 0);
     const totalDisc = families.reduce((sum, f) => sum + (f.discount || 0), 0);
     const totalAct = families.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
+    const totalApparel = families.reduce((sum, f) => sum + (f.apparel_fee || 0), 0);
     const totalExp = families.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
     const totalPaid = families.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
-    csvContent += `"Total","","","${totalReg.toFixed(2)}","${totalDisc.toFixed(2)}","${totalAct.toFixed(2)}","${totalExp.toFixed(2)}","${totalPaid.toFixed(2)}","",""\n`;
+    csvContent += `"Total","","","${totalReg.toFixed(2)}","${totalDisc.toFixed(2)}","${totalAct.toFixed(2)}","${totalApparel.toFixed(2)}","${totalExp.toFixed(2)}","${totalPaid.toFixed(2)}","",""\n`;
     csvContent += "\n";
 
     // 3. Expenses Table
@@ -1085,6 +1101,7 @@ GCA Church Camp Team`
                   <th>Registration Fee</th>
                   <th>Church Discount</th>
                   <th>Activity Fee</th>
+                  <th>Apparel Fee</th>
                   <th>Total expected</th>
                   <th>Amount Paid</th>
                   <th>Status</th>
@@ -1095,7 +1112,7 @@ GCA Church Camp Team`
               <tbody>
                 {filteredFamilies.length === 0 ? (
                   <tr>
-                    <td colSpan="10" style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
+                    <td colSpan="11" style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
                       No matching family fee records found.
                     </td>
                   </tr>
@@ -1167,6 +1184,15 @@ GCA Church Camp Team`
                                   ].filter(Boolean).join(", ")}
                                 </span>
                               </div>
+                            ) : (
+                              <span style={{ color: "var(--text-secondary)" }}>$0.00</span>
+                            )}
+                          </td>
+                          <td>
+                            {f.apparel_count > 0 ? (
+                              <strong style={{ color: "var(--forest-mid)" }}>
+                                ${(f.apparel_price ?? apparelPrice ?? 0).toFixed(2)} x {f.apparel_count} = ${(f.apparel_fee || 0).toFixed(2)}
+                              </strong>
                             ) : (
                               <span style={{ color: "var(--text-secondary)" }}>$0.00</span>
                             )}
@@ -1355,7 +1381,7 @@ GCA Church Camp Team`
               }}
             />
             <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
-              Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>
+              Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>, <code>{"{apparel_fee}"}</code>
             </div>
           </div>
 
@@ -1728,6 +1754,9 @@ GCA Church Camp Team`
               {activeFamily.activity_fee > 0 && (
                 <div>Activity Surcharge: <strong>${(activeFamily.activity_fee || 0).toFixed(2)}</strong></div>
               )}
+              {activeFamily.apparel_fee > 0 && (
+                <div>Apparel Fee: <strong>${(activeFamily.apparel_fee || 0).toFixed(2)}</strong></div>
+              )}
               <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed var(--border-color)", fontWeight: 700 }}>
                 Total Expected: <span>${(activeFamily.total_expected_fee || 0).toFixed(2)}</span>
               </div>
@@ -1897,7 +1926,24 @@ GCA Church Camp Team`
                 </div>
               ))}
 
-
+              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border-color)", paddingTop: 16, color: "var(--forest)", fontWeight: 700 }}>
+                👕 Apparel Pricing
+              </h3>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label className="form-label">
+                  Apparel Fee (T-shirt Price) ($) * {user?.role !== "owner" && "(Owner Only)"}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-input"
+                  value={apparelPriceForm}
+                  onChange={e => setApparelPriceForm(e.target.value)}
+                  required
+                  disabled={user?.role !== "owner"}
+                />
+              </div>
 
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsRatesModalOpen(false)}>
