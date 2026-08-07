@@ -29,6 +29,8 @@ const getRoleLabel = (roleKey) => {
     case "finance": return "Finance Dept";
     case "admin": return "Camp Admin";
     case "owner": return "Camp Owner";
+    case "vbslead": return "VBS Lead";
+    case "volunteer": return "VBS Volunteer";
     default: return `${roleKey.charAt(0).toUpperCase() + roleKey.slice(1)} (Custom)`;
   }
 };
@@ -111,7 +113,9 @@ export default function RoleAssignerPage() {
             { key: "user", label: "Registration Team (user)" },
             { key: "director", label: "Camp Director" },
             { key: "finance", label: "Finance Dept" },
-            { key: "admin", label: "Camp Admin" }
+            { key: "admin", label: "Camp Admin" },
+            { key: "vbslead", label: "VBS Lead" },
+            { key: "volunteer", label: "VBS Volunteer" }
           ]);
         }
       })

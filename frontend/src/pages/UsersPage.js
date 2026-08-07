@@ -11,6 +11,8 @@ const getRoleLabel = (roleKey) => {
     case "finance": return "Finance Dept";
     case "admin": return "Camp Admin";
     case "owner": return "Camp Owner";
+    case "vbslead": return "VBS Lead";
+    case "volunteer": return "VBS Volunteer";
     default: return `${roleKey.charAt(0).toUpperCase() + roleKey.slice(1)} (Custom)`;
   }
 };

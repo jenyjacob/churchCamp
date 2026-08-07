@@ -43,16 +43,20 @@ function RequireFinanceOrReceiptPermission({ children }) {
 
 function AppRoutes() {
   const { user } = useAuth();
+  const isVbsUser = user && ["vbslead", "volunteer"].includes(user.role);
+
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/login" element={user ? <Navigate to={isVbsUser ? "/kidz-corner" : "/"} replace /> : <LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       
       {/* Public Schedule Path - Redirects to /app/schedule if logged in */}
       <Route path="/schedule" element={user ? <Navigate to="/app/schedule" replace /> : <SchedulePage />} />
       
       <Route path="/" element={<RequireAuth><AppShell /></RequireAuth>}>
-        <Route index element={<RequirePermission pageKey="dashboard"><HomePage /></RequirePermission>} />
+        <Route index element={
+          isVbsUser ? <Navigate to="/kidz-corner" replace /> : <RequirePermission pageKey="dashboard"><HomePage /></RequirePermission>
+        } />
         <Route path="campers" element={<RequirePermission pageKey="campers"><CampersPage /></RequirePermission>} />
         <Route path="teams" element={<RequirePermission pageKey="teams"><TeamsPage /></RequirePermission>} />
         <Route path="checkin" element={<RequirePermission pageKey="checkin"><CheckInPage /></RequirePermission>} />

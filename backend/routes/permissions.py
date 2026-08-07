@@ -111,6 +111,48 @@ DEFAULT_PERMISSIONS = {
         "kidz_corner": "hide",
         "kidz_corner_checkin": "hide",
         "kidz_corner_budget": "hide"
+    },
+    "vbslead": {
+        "dashboard": "hide",
+        "campers": "hide",
+        "teams": "hide",
+        "checkin": "hide",
+        "cabins": "hide",
+        "schedule": "hide",
+        "outdoor": "hide",
+        "apparel": "hide",
+        "users": "hide",
+        "logs": "hide",
+        "role_assigner": "hide",
+        "finance": "hide",
+        "receipt_upload": "hide",
+        "camp_info": "read",
+        "retreat_ops": "hide",
+        "registration_config": "hide",
+        "kidz_corner": "edit",
+        "kidz_corner_checkin": "edit",
+        "kidz_corner_budget": "read"
+    },
+    "volunteer": {
+        "dashboard": "hide",
+        "campers": "hide",
+        "teams": "hide",
+        "checkin": "hide",
+        "cabins": "hide",
+        "schedule": "hide",
+        "outdoor": "hide",
+        "apparel": "hide",
+        "users": "hide",
+        "logs": "hide",
+        "role_assigner": "hide",
+        "finance": "hide",
+        "receipt_upload": "hide",
+        "camp_info": "read",
+        "retreat_ops": "hide",
+        "registration_config": "hide",
+        "kidz_corner": "read",
+        "kidz_corner_checkin": "edit",
+        "kidz_corner_budget": "hide"
     }
 }
 
@@ -282,9 +324,10 @@ def create_new_role():
             db.session.rollback()
             return jsonify({"error": f"Failed to alter database users role column schema: {str(e)}"}), 500
 
-    # Populate default PagePermission values for this new role (similar to 'user' defaults)
+    # Populate default PagePermission values for this new role (predefined defaults or fallback to 'user' defaults)
+    role_defaults = DEFAULT_PERMISSIONS.get(new_role, DEFAULT_PERMISSIONS["user"])
     for page_key in DEFAULT_PERMISSIONS["user"].keys():
-        level = DEFAULT_PERMISSIONS["user"].get(page_key, "hide")
+        level = role_defaults.get(page_key, "hide")
         p = PagePermission(role=new_role, page_key=page_key, access_level=level)
         db.session.add(p)
 

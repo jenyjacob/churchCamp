@@ -40,6 +40,16 @@ def app():
             regular.set_password("RegularPass123!")
             _db.session.add(regular)
 
+        if not User.query.filter_by(username="vbslead_user").first():
+            vbslead = User(username="vbslead_user", role="vbslead")
+            vbslead.set_password("VbsLeadPass123!")
+            _db.session.add(vbslead)
+
+        if not User.query.filter_by(username="volunteer_user").first():
+            volunteer = User(username="volunteer_user", role="volunteer")
+            volunteer.set_password("VolunteerPass123!")
+            _db.session.add(volunteer)
+
         # Create a camper if database is empty/fresh
         if not Camper.query.first():
             camper = Camper(
@@ -128,3 +138,30 @@ def test_camper_update_field_restrictions(client):
     assert res.status_code == 200
     data = json.loads(res.data)
     assert data["camper"]["first_name"] == "Jane"
+
+def test_vbs_lead_and_volunteer_access(client):
+    vbslead_token = get_token(client, "vbslead_user", "VbsLeadPass123!")
+    volunteer_token = get_token(client, "volunteer_user", "VolunteerPass123!")
+
+    # 1. Neither vbslead nor volunteer can view campers list (should get 403)
+    res = client.get('/api/campers/', headers={"Authorization": f"Bearer {vbslead_token}"})
+    assert res.status_code == 403
+
+    res = client.get('/api/campers/', headers={"Authorization": f"Bearer {volunteer_token}"})
+    assert res.status_code == 403
+
+    # 2. Both can view my-permissions
+    res = client.get('/api/permissions/my-permissions', headers={"Authorization": f"Bearer {vbslead_token}"})
+    assert res.status_code == 200
+    perms = json.loads(res.data)["permissions"]
+    assert perms["kidz_corner"] == "edit"
+    assert perms["camp_info"] == "read"
+    assert perms["campers"] == "hide"
+
+    res = client.get('/api/permissions/my-permissions', headers={"Authorization": f"Bearer {volunteer_token}"})
+    assert res.status_code == 200
+    perms = json.loads(res.data)["permissions"]
+    assert perms["kidz_corner"] == "read"
+    assert perms["camp_info"] == "read"
+    assert perms["campers"] == "hide"
+
