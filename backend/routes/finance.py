@@ -112,6 +112,12 @@ def get_fees():
             price = 15.0
         activity_prices.append(price)
 
+    # Load apparel (T-shirt) price
+    try:
+        apparel_price = float(settings_dict.get("apparel_price", "10.0"))
+    except Exception:
+        apparel_price = 10.0
+
     # 2. Group campers by family_group
     families = {}
     for camper in campers:
@@ -128,7 +134,8 @@ def get_fees():
                 "activity_1_spots": 0,
                 "activity_2_spots": 0,
                 "activity_3_spots": 0,
-                "custom_spots": {}
+                "custom_spots": {},
+                "apparel_count": 0
             }
 
         # Check eligibility: must be registered status and (age >= 5 or age is null)
@@ -159,6 +166,8 @@ def get_fees():
         families[fg]["activity_1_spots"] += camper.activity_1 or 0
         families[fg]["activity_2_spots"] += camper.activity_2 or 0
         families[fg]["activity_3_spots"] += camper.activity_3 or 0
+        if len(camper.tshirts) > 0:
+            families[fg]["apparel_count"] += 1
         for i in range(3, len(activity_list)):
             act_name = activity_list[i]
             spots = int(custom_acts.get(act_name, 0))
@@ -210,7 +219,10 @@ def get_fees():
             if len(activity_prices) > i:
                 activity_fee += spots * activity_prices[i]
 
-        total_expected += (calculated_fee + activity_fee)
+        apparel_count = family["apparel_count"]
+        apparel_fee = apparel_count * apparel_price
+
+        total_expected += (calculated_fee + activity_fee + apparel_fee)
         total_collected += amount_paid
 
         # Resolve Head of Family
@@ -267,7 +279,10 @@ def get_fees():
             "kayaking_spots": family["activity_1_spots"],
             "boat_tour_spots": family["activity_2_spots"],
             "custom_spots": family["custom_spots"],
-            "total_expected_fee": calculated_fee + activity_fee,
+            "apparel_count": apparel_count,
+            "apparel_fee": apparel_fee,
+            "apparel_price": apparel_price,
+            "total_expected_fee": calculated_fee + activity_fee + apparel_fee,
             "amount_paid": amount_paid,
             "status": status,
             "notes": notes,
@@ -287,7 +302,8 @@ def get_fees():
         "total_collected_fees": total_collected,
         "total_discounts_given": total_discounts,
         "activity_names": activity_list,
-        "activity_prices": activity_prices
+        "activity_prices": activity_prices,
+        "apparel_price": apparel_price
     }), 200
 
 @finance_bp.route("/fees", methods=["POST"])
@@ -796,6 +812,12 @@ def get_finance_stats():
             price = 15.0
         activity_prices.append(price)
 
+    # Load apparel (T-shirt) price
+    try:
+        apparel_price = float(settings_dict.get("apparel_price", "10.0"))
+    except Exception:
+        apparel_price = 10.0
+
     families = {}
     for camper in campers:
         fg = camper.family_group
@@ -807,7 +829,8 @@ def get_finance_stats():
                 "activity_1_spots": 0,
                 "activity_2_spots": 0,
                 "activity_3_spots": 0,
-                "custom_spots": {}
+                "custom_spots": {},
+                "apparel_count": 0
             }
         is_eligible = (camper.registration_status == "registered") and ((camper.age is None) or (camper.age >= 5))
         if is_eligible:
@@ -815,6 +838,8 @@ def get_finance_stats():
         families[fg]["activity_1_spots"] += camper.activity_1 or 0
         families[fg]["activity_2_spots"] += camper.activity_2 or 0
         families[fg]["activity_3_spots"] += camper.activity_3 or 0
+        if len(camper.tshirts) > 0:
+            families[fg]["apparel_count"] += 1
 
         custom_acts = parse_custom_activities(camper.notes)
         for i in range(3, len(activity_list)):
@@ -847,8 +872,10 @@ def get_finance_stats():
             spots = info["custom_spots"].get(i, 0)
             if len(activity_prices) > i:
                 activity_fee += spots * activity_prices[i]
-        
-        total_expected += (base_fee + activity_fee)
+
+        apparel_fee = info["apparel_count"] * apparel_price
+
+        total_expected += (base_fee + activity_fee + apparel_fee)
 
     if current_year_fgs:
         total_collected = db.session.query(db.func.sum(FamilyPayment.amount_paid)).filter(FamilyPayment.family_group.in_(current_year_fgs)).scalar() or 0.0
