@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Camper, CheckIn
 from db import db
 from datetime import datetime
+from sqlalchemy.orm import joinedload, contains_eager
 from utils.permissions import require_page_permission
 
 checkin_bp = Blueprint("checkin", __name__)
@@ -75,7 +76,11 @@ def get_checkins():
     current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
     current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
-    query = CheckIn.query.join(Camper).filter(Camper.camp_year == current_year)
+    query = CheckIn.query.join(Camper).options(
+        contains_eager(CheckIn.camper),
+        joinedload(CheckIn.staff_in),
+        joinedload(CheckIn.staff_out),
+    ).filter(Camper.camp_year == current_year)
     if active_only:
         query = query.filter(CheckIn.checked_out_at.is_(None))
 
@@ -94,7 +99,11 @@ def get_checkins():
 @jwt_required()
 @require_page_permission("checkin", "read")
 def get_camper_checkins(camper_id):
-    checkins = CheckIn.query.filter_by(camper_id=camper_id).order_by(
+    checkins = CheckIn.query.options(
+        joinedload(CheckIn.camper),
+        joinedload(CheckIn.staff_in),
+        joinedload(CheckIn.staff_out),
+    ).filter_by(camper_id=camper_id).order_by(
         CheckIn.checked_in_at.desc()
     ).all()
     return jsonify({"checkins": [c.to_dict() for c in checkins]}), 200

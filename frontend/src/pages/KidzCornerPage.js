@@ -103,7 +103,14 @@ export default function KidzCornerPage() {
 
   const [volunteers, setVolunteers] = useState([]);
   const [kids, setKids] = useState([]);
+  // Only currently-checked-in (not yet checked out) records — used to know who's
+  // checked in right now. Scoped server-side via active_only=true so this stays
+  // small regardless of how much check-in history has accumulated over the years.
   const [checkins, setCheckins] = useState([]);
+  // A small, bounded slice of the most recent check-in activity (checked in or
+  // out) for the "Recent Activity" list/export — fetched via limit=10 rather
+  // than pulling the entire history table.
+  const [recentCheckins, setRecentCheckins] = useState([]);
   const [scheduleItems, setScheduleItems] = useState([]);
   const [crafts, setCrafts] = useState([]);
   const [budgetItems, setBudgetItems] = useState([]);
@@ -153,16 +160,18 @@ export default function KidzCornerPage() {
     Promise.all([
       api.get("/api/kidz-corner/volunteers"),
       api.get("/api/kidz-corner/kids"),
-      api.get("/api/kidz-corner/checkins"),
+      api.get("/api/kidz-corner/checkins?active_only=true"),
+      api.get("/api/kidz-corner/checkins?limit=10"),
       api.get("/api/kidz-corner/schedule"),
       api.get("/api/kidz-corner/crafts"),
       budgetCall,
       api.get("/api/kidz-corner/av-links"),
     ])
-      .then(([a, b, c, d, e, f, g]) => {
+      .then(([a, b, c, r, d, e, f, g]) => {
         setVolunteers(a.data.volunteers || []);
         setKids(b.data.kids || []);
         setCheckins(c.data.checkins || []);
+        setRecentCheckins(r.data.checkins || []);
         setScheduleItems(d.data.items || []);
         setCrafts(e.data.crafts || []);
         setBudgetItems(f.data.items || []);
@@ -553,10 +562,6 @@ export default function KidzCornerPage() {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const checkedInCount = kids.filter(k => activeCheckinByKidId[k.id]).length;
-
-  const recentCheckins = [...checkins]
-    .sort((a, b) => new Date(b.checked_in_at) - new Date(a.checked_in_at))
-    .slice(0, 10);
 
   const scheduleForDay = scheduleItems
     .filter(i => i.day === scheduleDay)

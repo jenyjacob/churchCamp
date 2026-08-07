@@ -41,30 +41,36 @@ export function AuthProvider({ children }) {
     const { access_token, user: userData } = res.data;
     localStorage.setItem("token", access_token);
     api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-    setUser(userData);
-    
+
+    // Fetch permissions BEFORE setting user. Route guards (RequirePermission)
+    // treat permissions === null as "no access" - if user were set first,
+    // there's a render in between where the app thinks you're logged in but
+    // not yet permitted anywhere, which bounces you to "/" before the real
+    // permissions arrive (visible as a blank page until a manual nav click).
     try {
       const permRes = await api.get("/api/permissions/my-permissions");
       setPermissions(permRes.data.permissions);
     } catch (e) {
       console.error("Failed to load permissions during login", e);
     }
-    
+
+    setUser(userData);
     return userData;
   };
 
   const loginPasskey = async (access_token, userData) => {
     localStorage.setItem("token", access_token);
     api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-    setUser(userData);
-    
+
+    // Same ordering fix as login() above - permissions before user.
     try {
       const permRes = await api.get("/api/permissions/my-permissions");
       setPermissions(permRes.data.permissions);
     } catch (e) {
       console.error("Failed to load permissions during passkey login", e);
     }
-    
+
+    setUser(userData);
     return userData;
   };
 

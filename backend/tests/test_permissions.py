@@ -165,3 +165,41 @@ def test_vbs_lead_and_volunteer_access(client):
     assert perms["camp_info"] == "read"
     assert perms["campers"] == "hide"
 
+
+def test_get_all_permissions_applies_custom_overrides_per_role(client):
+    """
+    GET /api/permissions/ (owner-only "Role Assigner" grid) batches its
+    per-role PagePermission lookups into a single query instead of one
+    query per role. Verify custom overrides for different roles still land
+    on the correct role and don't leak into other roles' grids.
+    """
+    owner_token = get_token(client, "owner_user", "OwnerPass123!")
+
+    # Give vbslead a custom "edit" on finance (normally "hide"), and give
+    # volunteer a custom "read" on campers (normally "hide").
+    res = client.post('/api/permissions/',
+        data=json.dumps({"role": "vbslead", "page_key": "finance", "access_level": "edit"}),
+        content_type='application/json',
+        headers={"Authorization": f"Bearer {owner_token}"})
+    assert res.status_code == 200, res.data
+
+    res = client.post('/api/permissions/',
+        data=json.dumps({"role": "volunteer", "page_key": "campers", "access_level": "read"}),
+        content_type='application/json',
+        headers={"Authorization": f"Bearer {owner_token}"})
+    assert res.status_code == 200, res.data
+
+    res = client.get('/api/permissions/', headers={"Authorization": f"Bearer {owner_token}"})
+    assert res.status_code == 200
+    grid = json.loads(res.data)["permissions"]
+
+    # Overrides landed on the correct role...
+    assert grid["vbslead"]["finance"] == "edit"
+    assert grid["volunteer"]["campers"] == "read"
+
+    # ...and didn't leak into other roles or other pages for the same role.
+    assert grid["vbslead"]["campers"] == "hide"
+    assert grid["volunteer"]["finance"] == "hide"
+    assert grid["finance"]["finance"] == "edit"  # untouched default for the "finance" role
+    assert grid["user"]["campers"] == "edit"  # untouched default for "user" role
+

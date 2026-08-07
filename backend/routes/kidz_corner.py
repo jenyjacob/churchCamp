@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 from models import (
     KidzCornerVolunteer,
     KidzCornerKid,
@@ -151,10 +152,23 @@ def delete_kid(row_id):
 @require_page_permission(CHECKIN_PAGE_KEY, "read")
 def list_kidz_corner_checkins():
     active_only = request.args.get("active_only", "false").lower() == "true"
-    query = KidzCornerCheckIn.query
+
+    limit = request.args.get("limit", type=int)
+    if limit is not None:
+        # Guard against absurd/negative values from a malformed query string
+        limit = max(1, min(limit, 500))
+
+    query = KidzCornerCheckIn.query.options(
+        joinedload(KidzCornerCheckIn.kid),
+        joinedload(KidzCornerCheckIn.staff_in),
+        joinedload(KidzCornerCheckIn.staff_out),
+    )
     if active_only:
         query = query.filter(KidzCornerCheckIn.checked_out_at.is_(None))
-    rows = query.order_by(KidzCornerCheckIn.checked_in_at.desc()).all()
+    query = query.order_by(KidzCornerCheckIn.checked_in_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    rows = query.all()
     return jsonify({"checkins": [r.to_dict() for r in rows]}), 200
 
 

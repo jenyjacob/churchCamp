@@ -51,10 +51,10 @@ class KidzCornerCheckIn(db.Model):
     __tablename__ = "kidz_corner_checkins"
 
     id = db.Column(db.Integer, primary_key=True)
-    kid_id = db.Column(db.Integer, db.ForeignKey("kidz_corner_kids.id"), nullable=False)
+    kid_id = db.Column(db.Integer, db.ForeignKey("kidz_corner_kids.id"), nullable=False, index=True)
     checked_in_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    checked_in_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    checked_out_at = db.Column(db.DateTime, nullable=True)
+    checked_in_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    checked_out_at = db.Column(db.DateTime, nullable=True, index=True)
     checked_out_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     notes = db.Column(db.Text, nullable=True)
 

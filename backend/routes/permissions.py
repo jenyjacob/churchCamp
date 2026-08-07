@@ -210,15 +210,25 @@ def get_all_permissions():
         return jsonify({"error": "Owner access required"}), 403
 
     roles = get_dynamic_roles()
-    
+
+    # Fetch all custom overrides in a single query instead of one query per
+    # role, then group them in Python.
+    non_owner_roles = [r for r in roles if r != "owner"]
+    all_db_perms = (
+        PagePermission.query.filter(PagePermission.role.in_(non_owner_roles)).all()
+        if non_owner_roles else []
+    )
+    db_perms_by_role = {}
+    for p in all_db_perms:
+        db_perms_by_role.setdefault(p.role, []).append(p)
+
     # Build the full grid containing default settings and custom overrides
     grid = {}
     for target_role in roles:
         if target_role == "owner":
             continue
         grid[target_role] = dict(DEFAULT_PERMISSIONS.get(target_role, DEFAULT_PERMISSIONS["user"]))
-        db_perms = PagePermission.query.filter_by(role=target_role).all()
-        for p in db_perms:
+        for p in db_perms_by_role.get(target_role, []):
             grid[target_role][p.page_key] = p.access_level
             
     return jsonify({

@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
-from models import Camper, Tshirt
+from models import Camper, Tshirt, CheckIn
 from db import db
+from sqlalchemy.orm import selectinload
 from utils.limiter import rate_limit
 
 from utils.permissions import require_page_permission
@@ -45,7 +46,10 @@ def get_campers():
     current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
     current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
-    query = Camper.query
+    query = Camper.query.options(
+        selectinload(Camper.checkins),
+        selectinload(Camper.tshirts),
+    )
 
     if year_arg == "current":
         query = query.filter(Camper.camp_year == current_year)
@@ -551,10 +555,15 @@ def get_stats():
 
     total = Camper.query.filter_by(camp_year=current_year).count()
     registered = Camper.query.filter_by(registration_status="registered", camp_year=current_year).count()
-    checked_in = sum(
-        1 for c in Camper.query.filter_by(camp_year=current_year).all()
-        if any(ci.checked_out_at is None for ci in c.checkins)
-    )
+    # Count campers with an active (not checked out) check-in via a DB-side
+    # join/distinct instead of loading every camper and its full checkins
+    # collection into Python just to test truthiness.
+    checked_in = db.session.query(Camper.id).join(
+        CheckIn, CheckIn.camper_id == Camper.id
+    ).filter(
+        Camper.camp_year == current_year,
+        CheckIn.checked_out_at.is_(None)
+    ).distinct().count()
     waivers_submitted = Camper.query.filter_by(waiver_submitted=True, camp_year=current_year).count()
     total_families = db.session.query(Camper.family_group).filter(
         Camper.camp_year == current_year,
@@ -589,7 +598,10 @@ def get_outdoor_activities():
     current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
     current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
-    raw_campers = Camper.query.filter(
+    raw_campers = Camper.query.options(
+        selectinload(Camper.checkins),
+        selectinload(Camper.tshirts),
+    ).filter(
         Camper.camp_year == current_year,
         ((Camper.activity_1 > 0) | 
          (Camper.activity_2 > 0) |
