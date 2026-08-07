@@ -250,6 +250,33 @@ def create_app(config_override=None):
                 db.session.rollback()
                 print(f"Database migration for activity columns failed: {str(migration_ex)}")
 
+        # Self-healing database migration: add indexes on frequently-filtered/
+        # sorted columns that were missing them. Without these, queries that
+        # scope by camp_year/family_group or filter/sort check-in history by
+        # checked_in_at/checked_out_at require a full table scan, which gets
+        # slower every year as check-in and camper history accumulates -
+        # independent of how few rows a given query ultimately returns.
+        index_migrations = [
+            ("idx_campers_camp_year", "campers", "camp_year"),
+            ("idx_campers_family_group", "campers", "family_group"),
+            ("idx_campers_registration_status", "campers", "registration_status"),
+            ("idx_checkins_camper_id", "checkins", "camper_id"),
+            ("idx_checkins_checked_in_at", "checkins", "checked_in_at"),
+            ("idx_checkins_checked_out_at", "checkins", "checked_out_at"),
+            ("idx_kidz_corner_checkins_kid_id", "kidz_corner_checkins", "kid_id"),
+            ("idx_kidz_corner_checkins_checked_in_at", "kidz_corner_checkins", "checked_in_at"),
+            ("idx_kidz_corner_checkins_checked_out_at", "kidz_corner_checkins", "checked_out_at"),
+        ]
+        for index_name, table_name, column_name in index_migrations:
+            try:
+                db.session.execute(text(f"CREATE INDEX {index_name} ON {table_name} ({column_name})"))
+                db.session.commit()
+                print(f"Database migrated: added index {index_name} on {table_name}.{column_name}.")
+            except Exception:
+                # Already exists (most common case on a re-run) or table not
+                # yet created in this environment - safe to skip either way.
+                db.session.rollback()
+
         from utils.seed import seed_admin
         seed_admin()
 
