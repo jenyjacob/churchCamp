@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Camper, CheckIn
 from db import db
 from datetime import datetime
-from sqlalchemy.orm import joinedload, contains_eager
+from sqlalchemy.orm import joinedload
 from utils.permissions import require_page_permission
 
 checkin_bp = Blueprint("checkin", __name__)
@@ -77,7 +77,7 @@ def get_checkins():
     current_year = int(current_year_setting.value) if (current_year_setting and current_year_setting.value.isdigit()) else 2027
 
     query = CheckIn.query.join(Camper).options(
-        contains_eager(CheckIn.camper),
+        joinedload(CheckIn.camper),
         joinedload(CheckIn.staff_in),
         joinedload(CheckIn.staff_out),
     ).filter(Camper.camp_year == current_year)
