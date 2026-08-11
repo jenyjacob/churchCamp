@@ -11,9 +11,9 @@ class Camper(db.Model):
     age = db.Column(db.Integer, nullable=True)
     gender = db.Column(db.Enum("male", "female", "other"), nullable=True)
     cabin_group = db.Column(db.String(100), nullable=True)
-    family_group = db.Column(db.String(100), nullable=True)
+    family_group = db.Column(db.String(100), nullable=True, index=True)
     team_name = db.Column(db.String(100), nullable=True)
-    camp_year = db.Column(db.Integer, nullable=True)
+    camp_year = db.Column(db.Integer, nullable=True, index=True)
 
     # Guardian info
     guardian_name = db.Column(db.String(150), nullable=True)
@@ -27,7 +27,8 @@ class Camper(db.Model):
     registration_status = db.Column(
         db.Enum("registered", "waitlist", "cancelled"),
         default="registered",
-        nullable=False
+        nullable=False,
+        index=True
     )
     notes = db.Column(db.Text, nullable=True)
     activity_1 = db.Column(db.Integer, default=0, nullable=False)
