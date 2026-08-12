@@ -792,6 +792,7 @@ GCA Church Camp Team`
     const totalActivityFees = filteredFamilies.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
     const totalExpectedCombined = filteredFamilies.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
     const totalPaidCombined = filteredFamilies.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
+    const totalApparelFees = filteredFamilies.reduce((sum, f) => sum + (f.apparel_fee || 0), 0);
 
     if (!canReadFinance && !canUploadReceipts) {
       return (
@@ -1253,7 +1254,9 @@ GCA Church Camp Team`
                   <td>Total Summary</td>
                   <td></td>
                   <td>${totalRegistrationBase.toFixed(2)}</td>
+                  <td>${totalDiscounts.toFixed(2)}</td>
                   <td>${totalActivityFees.toFixed(2)}</td>
+                  <td>${totalApparelFees.toFixed(2)}</td>
                   <td>${totalExpectedCombined.toFixed(2)}</td>
                   <td>${totalPaidCombined.toFixed(2)}</td>
                   <td colSpan="3"></td>
@@ -1657,15 +1660,35 @@ GCA Church Camp Team`
               )}
               <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">Payment Amount Paid ($) *</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.01"
                   min="0"
-                  className="form-input" 
+                  className="form-input"
                   value={paymentForm.amount_paid}
                   onChange={e => setPaymentForm(prev => ({ ...prev, amount_paid: e.target.value }))}
                   required
                 />
+                {(() => {
+                  const expected = activeFamily.total_expected_fee || 0;
+                  const paid = parseFloat(paymentForm.amount_paid) || 0;
+                  const remaining = expected - paid;
+                  return (
+                    <span style={{
+                      fontSize: "0.75rem",
+                      display: "block",
+                      marginTop: 4,
+                      fontWeight: 600,
+                      color: remaining > 0 ? "var(--danger)" : "var(--forest-lt)"
+                    }}>
+                      {remaining > 0
+                        ? `Balance remaining: $${remaining.toFixed(2)}`
+                        : remaining < 0
+                        ? `Overpaid by $${Math.abs(remaining).toFixed(2)}`
+                        : "Paid in full ✓"}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">Payment Status *</label>
