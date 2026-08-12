@@ -5,10 +5,10 @@ class CheckIn(db.Model):
     __tablename__ = "checkins"
 
     id = db.Column(db.Integer, primary_key=True)
-    camper_id = db.Column(db.Integer, db.ForeignKey("campers.id"), nullable=False)
+    camper_id = db.Column(db.Integer, db.ForeignKey("campers.id"), nullable=False, index=True)
     checked_in_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    checked_in_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    checked_out_at = db.Column(db.DateTime, nullable=True)
+    checked_in_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    checked_out_at = db.Column(db.DateTime, nullable=True, index=True)
     checked_out_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     notes = db.Column(db.Text, nullable=True)
 

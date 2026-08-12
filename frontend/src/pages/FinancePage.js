@@ -792,6 +792,7 @@ GCA Church Camp Team`
     const totalActivityFees = filteredFamilies.reduce((sum, f) => sum + (f.activity_fee || 0), 0);
     const totalExpectedCombined = filteredFamilies.reduce((sum, f) => sum + (f.total_expected_fee || 0), 0);
     const totalPaidCombined = filteredFamilies.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
+    const totalApparelFees = filteredFamilies.reduce((sum, f) => sum + (f.apparel_fee || 0), 0);
 
     if (!canReadFinance && !canUploadReceipts) {
       return (
@@ -830,7 +831,7 @@ GCA Church Camp Team`
           <h1 style={{ margin: 0, fontSize: "1.75rem", fontWeight: 600 }}>
             {canReadFinance ? "💰 Finance Manager" : "🧾 Expense & Receipt Submitter"}
           </h1>
-          <p style={{ margin: "4px 0 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+          <p style={{ margin: "4px 0 0 0", color: "var(--muted)", fontSize: "0.875rem" }}>
             {canReadFinance 
               ? "Track itemized camp expenses and collection of tiered family registration fees." 
               : "Submit camp expenses and upload vendor receipt images or documents."}
@@ -855,10 +856,10 @@ GCA Church Camp Team`
                   <option key={y} value={String(y)}>{y}</option>
                 ))}
               </select>
-              <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handlePrintPDF}>
+              <button className="btn btn-outline" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handlePrintPDF}>
                 📄 Print Report (PDF)
               </button>
-              <button className="btn btn-secondary" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleExportCSV}>
+              <button className="btn btn-outline" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleExportCSV}>
                 📊 Export CSV (Excel)
               </button>
             </>
@@ -866,14 +867,14 @@ GCA Church Camp Team`
           {activeTab === "expenses" && (user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
             <>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-outline" 
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} 
                 onClick={() => setIsGalleryOpen(true)}
               >
                 🖼️ View Receipts
               </button>
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-outline" 
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", fontSize: "0.85rem" }} 
                 onClick={handleDownloadReceiptsZip}
               >
@@ -883,10 +884,10 @@ GCA Church Camp Team`
           )}
           {activeTab === "fees" && hasPermission("finance", "edit") && (
             <>
-              <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenMergeModal()}>
+              <button className="btn btn-outline" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={() => handleOpenMergeModal()}>
                 🔗 Group Families
               </button>
-              <button className="btn btn-secondary" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
+              <button className="btn btn-outline" style={{ padding: "8px 12px", fontSize: "0.85rem" }} onClick={handleOpenRatesModal}>
                 ⚙️ Configure Pricing
               </button>
             </>
@@ -905,194 +906,145 @@ GCA Church Camp Team`
 
       {/* Summary KPI Grid */}
       {canReadFinance && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-          marginBottom: 24
-        }}>
-          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid var(--forest)" }}>
-            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Expected Fees</span>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0" }}>${(stats.total_expected_fees || 0).toFixed(2)}</span>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 3, marginTop: 4, borderTop: "1px solid var(--border-color)", paddingTop: 6 }}>
+        <div className="stat-grid">
+          <div className="stat-card" style={{ borderTop: "3px solid var(--forest)" }}>
+            <div className="label">Expected Fees</div>
+            <div className="value" style={{ fontSize: "1.7rem" }}>${(stats.total_expected_fees || 0).toFixed(2)}</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted)", display: "flex", flexDirection: "column", gap: 3, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Base Registration:</span>
+                <span>Base Registration</span>
                 <strong style={{ color: "var(--charcoal)" }}>${grossRegistrationBase.toFixed(2)}</strong>
               </div>
               {totalDiscounts > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", color: "#d97706" }}>
-                  <span>Church Discounts:</span>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "var(--gold)" }}>
+                  <span>Church Discounts</span>
                   <strong>-${totalDiscounts.toFixed(2)}</strong>
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Activity Fees:</span>
+                <span>Activity Fees</span>
                 <strong style={{ color: "var(--forest-mid)" }}>${totalActivityFees.toFixed(2)}</strong>
               </div>
             </div>
           </div>
-          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #2ecc71" }}>
-            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Collected Fees</span>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#2ecc71" }}>${(stats.total_collected_fees || 0).toFixed(2)}</span>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-              {stats.total_expected_fees > 0 
-                ? `${(((stats.total_collected_fees || 0) / stats.total_expected_fees) * 100).toFixed(1)}% of expectation` 
+
+          <div className="stat-card green-accent">
+            <div className="label">Collected Fees</div>
+            <div className="value" style={{ fontSize: "1.7rem", color: "var(--forest-lt)" }}>${(stats.total_collected_fees || 0).toFixed(2)}</div>
+            <div className="sub">
+              {stats.total_expected_fees > 0
+                ? `${(((stats.total_collected_fees || 0) / stats.total_expected_fees) * 100).toFixed(1)}% of expectation`
                 : "0% of expectation"}
-            </span>
+            </div>
           </div>
-          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", borderLeft: "4px solid #f59e0b" }}>
-            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Church Discounts</span>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, margin: "8px 0", color: "#d97706" }}>${(stats.total_discounts || 0).toFixed(2)}</span>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Total discounts granted</span>
+
+          <div className="stat-card gold-accent">
+            <div className="label">Church Discounts</div>
+            <div className="value" style={{ fontSize: "1.7rem", color: "var(--gold)" }}>${(stats.total_discounts || 0).toFixed(2)}</div>
+            <div className="sub">Total discounts granted</div>
           </div>
-          <div className="card" style={{ 
-            padding: 16, 
-            display: "flex", 
-            flexDirection: "column", 
-            borderLeft: `4px solid ${stats.total_expenses < 0 ? "var(--forest)" : "var(--danger)"}` 
-          }}>
-            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Total Expenses</span>
-            <span style={{ 
-              fontSize: "1.5rem", 
-              fontWeight: 700, 
-              margin: "8px 0", 
-              color: stats.total_expenses < 0 ? "var(--forest)" : "var(--danger)" 
-            }}>
+
+          <div className="stat-card" style={{ borderTop: `3px solid ${stats.total_expenses < 0 ? "var(--forest)" : "var(--danger)"}` }}>
+            <div className="label">Total Expenses</div>
+            <div className="value" style={{ fontSize: "1.7rem", color: stats.total_expenses < 0 ? "var(--forest)" : "var(--danger)" }}>
               {stats.total_expenses < 0 ? `-$${Math.abs(stats.total_expenses).toFixed(2)}` : `$${(stats.total_expenses || 0).toFixed(2)}`}
-            </span>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Outflow items registered</span>
+            </div>
+            <div className="sub">Outflow items registered</div>
           </div>
-          <div className="card" style={{ 
-            padding: 16, 
-            display: "flex", 
-            flexDirection: "column", 
-            borderLeft: `4px solid ${stats.net_balance >= 0 ? "#3498db" : "var(--danger)"}` 
-          }}>
-            <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--text-secondary)", fontWeight: 600 }}>Net Balance</span>
-            <span style={{ 
-              fontSize: "1.5rem", 
-              fontWeight: 700, 
-              margin: "8px 0", 
-              color: stats.net_balance >= 0 ? "#3498db" : "var(--danger)" 
-            }}>${(stats.net_balance || 0).toFixed(2)}</span>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Collected Fees minus Expenses</span>
+
+          <div className="stat-card" style={{ borderTop: `3px solid ${stats.net_balance >= 0 ? "var(--forest-mid)" : "var(--danger)"}` }}>
+            <div className="label">Net Balance</div>
+            <div className="value" style={{ fontSize: "1.7rem", color: stats.net_balance >= 0 ? "var(--forest-mid)" : "var(--danger)" }}>
+              ${(stats.net_balance || 0).toFixed(2)}
+            </div>
+            <div className="sub">Collected fees minus expenses</div>
           </div>
         </div>
       )}
 
-      {/* Premium Segmented Card Tabs */}
+      {/* Section Tabs */}
       {canReadFinance && (
-        <div style={{ 
-          display: "flex", 
-          gap: "12px", 
-          marginBottom: "24px",
+        <div style={{
+          display: "flex",
+          gap: 4,
+          marginBottom: 24,
+          borderBottom: "1px solid var(--border)",
           flexWrap: "wrap"
         }}>
-          <button 
-            style={{
-              padding: "12px 20px",
-              background: activeTab === "fees" ? "#ffffff" : "rgba(0,0,0,0.02)",
-              border: "1px solid var(--border-color)",
-              borderLeft: "4px solid var(--forest)",
-              borderRadius: "10px",
-              color: activeTab === "fees" ? "var(--forest)" : "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              boxShadow: activeTab === "fees" ? "0 4px 12px rgba(30, 77, 43, 0.06)" : "none",
-              transform: activeTab === "fees" ? "translateY(-1px)" : "none",
-              transition: "all 0.2s ease"
-            }}
-            onClick={() => setActiveTab("fees")}
-          >
-            <span style={{ fontSize: "1.25rem" }}>🏷️</span>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Family Camp Fees</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Collections</div>
-            </div>
-          </button>
-          <button 
-            style={{
-              padding: "12px 20px",
-              background: activeTab === "expenses" ? "#ffffff" : "rgba(0,0,0,0.02)",
-              border: "1px solid var(--border-color)",
-              borderLeft: "4px solid var(--danger)",
-              borderRadius: "10px",
-              color: activeTab === "expenses" ? "var(--danger)" : "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              boxShadow: activeTab === "expenses" ? "0 4px 12px rgba(192, 57, 43, 0.06)" : "none",
-              transform: activeTab === "expenses" ? "translateY(-1px)" : "none",
-              transition: "all 0.2s ease"
-            }}
-            onClick={() => setActiveTab("expenses")}
-          >
-            <span style={{ fontSize: "1.25rem" }}>🧾</span>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Itemized Expenses</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Track Outflow</div>
-            </div>
-          </button>
-          <button
-            style={{
-              padding: "12px 20px",
-              background: activeTab === "reminders" ? "#ffffff" : "rgba(0,0,0,0.02)",
-              border: "1px solid var(--border-color)",
-              borderLeft: "4px solid #3498db",
-              borderRadius: "10px",
-              color: activeTab === "reminders" ? "#3498db" : "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              boxShadow: activeTab === "reminders" ? "0 4px 12px rgba(52, 152, 219, 0.06)" : "none",
-              transform: activeTab === "reminders" ? "translateY(-1px)" : "none",
-              transition: "all 0.2s ease"
-            }}
-            onClick={() => setActiveTab("reminders")}
-          >
-            <span style={{ fontSize: "1.25rem" }}>📱</span>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 700, fontSize: "0.875rem", lineHeight: "1.2" }}>Send Reminders</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>Text Families Free</div>
-            </div>
-          </button>
+          {[
+            { key: "fees", icon: "🏷️", label: "Family Camp Fees", accent: "var(--forest)" },
+            { key: "expenses", icon: "🧾", label: "Itemized Expenses", accent: "var(--danger)" },
+            { key: "reminders", icon: "📱", label: "Send Reminders", accent: "var(--gold)" }
+          ].map(tab => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: "10px 18px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: isActive ? `2.5px solid ${tab.accent}` : "2.5px solid transparent",
+                  marginBottom: "-1px",
+                  color: isActive ? tab.accent : "var(--muted)",
+                  fontWeight: isActive ? 700 : 600,
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  transition: "color 0.15s, border-color 0.15s"
+                }}
+              >
+                <span style={{ fontSize: "1rem" }}>{tab.icon}</span>
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>Loading finance records...</div>}
+      {loading && (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
+          <span className="spinner" style={{ borderTopColor: "var(--forest-mid)", borderColor: "rgba(30,77,43,0.15)" }}></span>
+          <div style={{ marginTop: 10, fontSize: "0.875rem" }}>Loading finance records…</div>
+        </div>
+      )}
 
       {!loading && activeTab === "fees" && (
         <div>
           {/* Family Filters Panel */}
-          <div className="card" style={{ padding: 12, marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Search family group or camper name..." 
-              value={familySearch} 
-              onChange={e => setFamilySearch(e.target.value)}
-              style={{ flex: 1, minWidth: 200 }}
-            />
-            <select 
-              className="form-input" 
-              value={familyFilter} 
+          <div className="search-bar">
+            <div className="search-input-wrap">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Search family group or camper name…"
+                value={familySearch}
+                onChange={e => setFamilySearch(e.target.value)}
+              />
+            </div>
+            <select
+              className="form-select"
+              value={familyFilter}
               onChange={e => setFamilyFilter(e.target.value)}
-              style={{ width: 160 }}
+              style={{ width: 180 }}
             >
               <option value="all">All Payment Statuses</option>
               <option value="unpaid">❌ Unpaid</option>
               <option value="partial">⚠️ Partial Paid</option>
               <option value="paid">✅ Fully Paid</option>
             </select>
+            <span className="text-muted" style={{ whiteSpace: "nowrap" }}>
+              {filteredFamilies.length} of {families.length} {families.length === 1 ? "family" : "families"}
+            </span>
           </div>
 
           {/* Families Table */}
-          <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-            <table className="table" style={{ margin: 0 }}>
+          <div className="table-wrap">
+            <table style={{ margin: 0 }}>
               <thead>
                 <tr>
                   <th style={{ width: "30px" }}></th>
@@ -1112,7 +1064,7 @@ GCA Church Camp Team`
               <tbody>
                 {filteredFamilies.length === 0 ? (
                   <tr>
-                    <td colSpan="11" style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
+                    <td colSpan="11" style={{ textAlign: "center", padding: 20, color: "var(--muted)" }}>
                       No matching family fee records found.
                     </td>
                   </tr>
@@ -1121,7 +1073,7 @@ GCA Church Camp Team`
                     const isExpanded = !!expandedFamilies[f.family_group];
                     return (
                       <React.Fragment key={f.family_group}>
-                        <tr style={{ borderBottom: isExpanded ? "none" : "1px solid var(--border-color)" }}>
+                        <tr style={{ borderBottom: isExpanded ? "none" : "1px solid var(--border)" }}>
                           <td>
                             <button 
                               style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", padding: 4 }} 
@@ -1137,14 +1089,14 @@ GCA Church Camp Team`
                             <div style={{ fontSize: "0.8rem", color: "var(--forest-mid)", fontWeight: 500 }}>
                               {f.family_group && !f.family_group.startsWith("single-") ? `(Family #${f.family_group})` : "(Single Registration)"}
                             </div>
-                            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                            <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
                               {f.members.length} {f.members.length === 1 ? "member" : "members"} total
                             </span>
                           </td>
                           <td>
                             <span style={{ fontWeight: 600 }}>{f.eligible_count}</span>
                             {f.members.length - f.eligible_count > 0 && (
-                              <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: 6 }}>
+                              <span style={{ fontSize: "0.75rem", color: "var(--muted)", marginLeft: 6 }}>
                                 (Excluded: {f.members.length - f.eligible_count} under age 5)
                               </span>
                             )}
@@ -1156,7 +1108,7 @@ GCA Church Camp Team`
                                 <span style={{ 
                                   display: "block", 
                                   fontSize: "0.675rem", 
-                                  color: "var(--text-secondary)", 
+                                  color: "var(--muted)", 
                                   textDecoration: "line-through" 
                                 }}>
                                   Tier: ${(f.tiered_fee || 0).toFixed(2)}
@@ -1170,14 +1122,14 @@ GCA Church Camp Team`
                             {f.discount > 0 ? (
                               <strong style={{ color: "#d97706" }}>${(f.discount || 0).toFixed(2)}</strong>
                             ) : (
-                              <span style={{ color: "var(--text-secondary)" }}>—</span>
+                              <span style={{ color: "var(--muted)" }}>—</span>
                             )}
                           </td>
                           <td>
                             {f.activity_fee > 0 ? (
                               <div>
                                 <strong style={{ color: "var(--forest-mid)" }}>${(f.activity_fee || 0).toFixed(2)}</strong>
-                                <span style={{ display: "block", fontSize: "0.65rem", color: "var(--text-secondary)" }}>
+                                <span style={{ display: "block", fontSize: "0.65rem", color: "var(--muted)" }}>
                                   {[
                                     f.activity_1_spots > 0 && `${f.activity_1_spots}x ${activityNames[0] || "Kayaking"}`,
                                     f.activity_2_spots > 0 && `${f.activity_2_spots}x ${activityNames[1] || "Boat Tour"}`
@@ -1185,7 +1137,7 @@ GCA Church Camp Team`
                                 </span>
                               </div>
                             ) : (
-                              <span style={{ color: "var(--text-secondary)" }}>$0.00</span>
+                              <span style={{ color: "var(--muted)" }}>$0.00</span>
                             )}
                           </td>
                           <td>
@@ -1194,7 +1146,7 @@ GCA Church Camp Team`
                                 ${(f.apparel_price ?? apparelPrice ?? 0).toFixed(2)} x {f.apparel_count} = ${(f.apparel_fee || 0).toFixed(2)}
                               </strong>
                             ) : (
-                              <span style={{ color: "var(--text-secondary)" }}>$0.00</span>
+                              <span style={{ color: "var(--muted)" }}>$0.00</span>
                             )}
                           </td>
                           <td>
@@ -1205,19 +1157,19 @@ GCA Church Camp Team`
                           </td>
                           <td>
                             <span className={`badge ${
-                              f.status === "paid" ? "badge-success" : f.status === "partial" ? "badge-warning" : "badge-danger"
+                              f.status === "paid" ? "badge-green" : f.status === "partial" ? "badge-gold" : "badge-red"
                             }`}>
                               {f.status === "paid" ? "Fully Paid" : f.status === "partial" ? "Partial" : "Unpaid"}
                             </span>
                           </td>
-                          <td style={{ fontSize: "0.825rem", color: "var(--text-secondary)", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <td style={{ fontSize: "0.825rem", color: "var(--muted)", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {f.notes || "—"}
                           </td>
                           <td style={{ textAlign: "right" }}>
                             {hasPermission("finance", "edit") && (
                               <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                                 <button 
-                                  className="btn btn-secondary" 
+                                  className="btn btn-outline" 
                                   style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
                                   onClick={() => handleOpenMergeModal(f)}
                                   title="Group this family into another family group"
@@ -1225,7 +1177,7 @@ GCA Church Camp Team`
                                   🔗 Group
                                 </button>
                                 <button 
-                                  className="btn btn-secondary" 
+                                  className="btn btn-outline" 
                                   style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
                                   onClick={() => handleOpenPaymentModal(f)}
                                 >
@@ -1239,13 +1191,13 @@ GCA Church Camp Team`
                           <tr style={{ background: "rgba(0,0,0,0.02)" }}>
                             <td></td>
                             <td colSpan="9" style={{ padding: "8px 16px" }}>
-                              <h5 style={{ margin: "0 0 8px 0", fontSize: "0.825rem", color: "var(--text-secondary)" }}>Family Members Roster:</h5>
+                              <h5 style={{ margin: "0 0 8px 0", fontSize: "0.825rem", color: "var(--muted)" }}>Family Members Roster:</h5>
                               <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "600px" }}>
                                 {f.members.map(m => (
                                   <div key={m.id} style={{ 
                                     padding: "6px 12px", 
                                     background: "#fff", 
-                                    border: "1px solid var(--border-color)", 
+                                    border: "1px solid var(--border)", 
                                     borderRadius: 6,
                                     fontSize: "0.825rem",
                                     display: "flex",
@@ -1256,14 +1208,14 @@ GCA Church Camp Team`
                                       <span style={{ fontWeight: 600 }}>{m.full_name}</span>
                                       {user?.role === "owner" && (
                                         m.id === f.head_camper_id ? (
-                                          <span className="badge badge-warning" style={{ marginLeft: 8, fontSize: "0.7rem", padding: "2px 6px" }}>
+                                          <span className="badge badge-gold" style={{ marginLeft: 8, fontSize: "0.7rem", padding: "2px 6px" }}>
                                             👑 Head of Family
                                           </span>
                                         ) : (
                                           <button 
                                             className="btn btn-ghost" 
                                             onClick={() => handleSetHeadOfFamily(f.family_group, m.id)}
-                                            style={{ marginLeft: 8, fontSize: "0.7rem", padding: "2px 6px", border: "1px dashed var(--border-color)", cursor: "pointer" }}
+                                            style={{ marginLeft: 8, fontSize: "0.7rem", padding: "2px 6px", border: "1px dashed var(--border)", cursor: "pointer" }}
                                             title="Designate as Head of Family (Owner Only)"
                                           >
                                             👑 Make Head
@@ -1271,7 +1223,7 @@ GCA Church Camp Team`
                                         )
                                       )}
                                       {(m.kayaking > 0 || m.boat_tour > 0) && (
-                                        <span style={{ marginLeft: 10, fontSize: "0.75rem", background: "var(--light-bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border-color)", color: "var(--forest)" }}>
+                                        <span style={{ marginLeft: 10, fontSize: "0.75rem", background: "var(--parchment)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)", color: "var(--forest)" }}>
                                           {[
                                             m.kayaking > 0 && `${m.kayaking}x ${activityNames[0] || "Kayaking"}`,
                                             m.boat_tour > 0 && `${m.boat_tour}x ${activityNames[1] || "Boat Tour"}`
@@ -1279,7 +1231,7 @@ GCA Church Camp Team`
                                         </span>
                                       )}
                                     </div>
-                                    <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span style={{ fontSize: "0.75rem", color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
                                       <span>Age: {m.age !== null ? m.age : "Unknown"}</span>
                                       <span title={m.is_eligible ? "Eligible (Age 5+ or unknown)" : "Under Age 5 (Excluded from fee count)"}>
                                         {m.is_eligible ? "✅" : "👶"}
@@ -1297,12 +1249,14 @@ GCA Church Camp Team`
                 )}
               </tbody>
               <tfoot>
-                <tr style={{ background: "var(--light-bg)", fontWeight: "bold", borderTop: "2px solid var(--border-color)" }}>
+                <tr style={{ background: "var(--parchment)", fontWeight: "bold", borderTop: "2px solid var(--border)" }}>
                   <td></td>
                   <td>Total Summary</td>
                   <td></td>
                   <td>${totalRegistrationBase.toFixed(2)}</td>
+                  <td>${totalDiscounts.toFixed(2)}</td>
                   <td>${totalActivityFees.toFixed(2)}</td>
+                  <td>${totalApparelFees.toFixed(2)}</td>
                   <td>${totalExpectedCombined.toFixed(2)}</td>
                   <td>${totalPaidCombined.toFixed(2)}</td>
                   <td colSpan="3"></td>
@@ -1315,104 +1269,50 @@ GCA Church Camp Team`
 
       {!loading && activeTab === "reminders" && (
         <div>
-          <div style={{
-            background: "#eef6fc",
-            border: "1px solid #cfe6f5",
-            borderRadius: "10px",
-            padding: "16px",
-            marginBottom: "20px",
-            fontSize: "0.875rem",
-            color: "var(--text-secondary)"
-          }}>
-            This opens your own phone's SMS or WhatsApp app with the message pre-filled — nothing is sent
-            automatically and there's no per-message charge. Tap Send for each family, then Send in your
-            messaging app to actually deliver it.
+          <div className="alert" style={{ background: "#EAF4FB", color: "#1B4965", border: "1px solid #CFE6F5" }}>
+            💬 <span>This opens your own phone's SMS or WhatsApp app with the message pre-filled — nothing is sent automatically and there's no per-message charge. Tap a button for each family, then hit Send in your messaging app to actually deliver it.</span>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
             <button
+              className={`btn ${reminderMode === "balance" ? "btn-primary" : "btn-outline"}`}
               onClick={() => { setReminderMode("balance"); setReminderFilter("due"); }}
-              style={{
-                padding: "10px 18px",
-                borderRadius: "8px",
-                border: "1px solid var(--border-color)",
-                background: reminderMode === "balance" ? "var(--forest)" : "#fff",
-                color: reminderMode === "balance" ? "#fff" : "var(--text-secondary)",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: 700
-              }}
             >
               💰 Fee Balance Reminder
             </button>
             <button
+              className={`btn ${reminderMode === "activity" ? "btn-primary" : "btn-outline"}`}
               onClick={() => { setReminderMode("activity"); setReminderFilter("all"); }}
-              style={{
-                padding: "10px 18px",
-                borderRadius: "8px",
-                border: "1px solid var(--border-color)",
-                background: reminderMode === "activity" ? "#3498db" : "#fff",
-                color: reminderMode === "activity" ? "#fff" : "var(--text-secondary)",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: 700
-              }}
             >
               🚣 Outdoor Activity Fee Notice
             </button>
           </div>
 
-          <div style={{ marginBottom: "20px" }}>
-            <label style={{ fontWeight: 600, fontSize: "0.875rem", display: "block", marginBottom: 6 }}>
+          <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+            <label className="form-label" style={{ display: "block", marginBottom: 8 }}>
               Message template — {reminderMode === "balance" ? "Fee Balance Reminder" : "Outdoor Activity Fee Notice"}
             </label>
             <textarea
+              className="form-textarea"
               value={reminderTemplates[reminderMode]}
               onChange={(e) => setReminderTemplates(prev => ({ ...prev, [reminderMode]: e.target.value }))}
               rows={3}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid var(--border-color)",
-                borderRadius: "8px",
-                fontFamily: "inherit",
-                fontSize: "0.9rem",
-                resize: "vertical"
-              }}
             />
-            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
+            <div className="text-muted" style={{ marginTop: 8 }}>
               Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>, <code>{"{apparel_fee}"}</code>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
             <button
+              className={`btn btn-sm ${reminderFilter === "due" ? "btn-primary" : "btn-outline"}`}
               onClick={() => setReminderFilter("due")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "1px solid var(--border-color)",
-                background: reminderFilter === "due" ? "var(--forest)" : "#fff",
-                color: reminderFilter === "due" ? "#fff" : "var(--text-secondary)",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: 600
-              }}
             >
               Balance Due Only
             </button>
             <button
+              className={`btn btn-sm ${reminderFilter === "all" ? "btn-primary" : "btn-outline"}`}
               onClick={() => setReminderFilter("all")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "1px solid var(--border-color)",
-                background: reminderFilter === "all" ? "var(--forest)" : "#fff",
-                color: reminderFilter === "all" ? "#fff" : "var(--text-secondary)",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: 600
-              }}
             >
               All Families
             </button>
@@ -1426,14 +1326,14 @@ GCA Church Camp Team`
 
             if (list.length === 0) {
               return (
-                <div style={{ textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>
+                <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
                   No families with an outstanding balance. 🎉
                 </div>
               );
             }
 
             return (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {list.map((family) => {
                   const balance = (family.total_expected_fee || 0) - (family.amount_paid || 0);
                   const message = buildReminderMessage(family);
@@ -1442,46 +1342,40 @@ GCA Church Camp Team`
                   const alreadySent = !!family.reminder_sent_at;
 
                   return (
-                    <div key={family.family_group} style={{
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "10px",
-                      padding: "14px 16px",
-                      background: "#fff",
+                    <div key={family.family_group} className="card" style={{
+                      padding: "14px 18px",
                       display: "flex",
                       flexWrap: "wrap",
                       alignItems: "center",
-                      gap: "12px",
+                      gap: 14,
                       justifyContent: "space-between"
                     }}>
-                      <div style={{ minWidth: "220px", flex: "1 1 260px" }}>
+                      <div style={{ minWidth: 220, flex: "1 1 260px" }}>
                         <div style={{ fontWeight: 700 }}>{family.display_name}</div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: 2 }}>
                           {family.contact_phone ? family.contact_phone : "⚠️ No phone on file"}
-                          {"  ·  "}Balance: <strong style={{ color: balance > 0 ? "var(--danger)" : "#2e7d32" }}>${balance.toFixed(2)}</strong>
+                          {"  ·  "}Balance:{" "}
+                          <span className={`badge ${balance > 0 ? "badge-red" : "badge-green"}`}>${balance.toFixed(2)}</span>
                         </div>
                         {alreadySent && (
-                          <div style={{ fontSize: "0.75rem", color: "#2e7d32", marginTop: 2 }}>
+                          <div style={{ fontSize: "0.75rem", color: "var(--forest-lt)", marginTop: 4 }}>
                             ✓ Reminder sent {new Date(family.reminder_sent_at).toLocaleString()}
                           </div>
                         )}
                       </div>
 
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", flex: "2 1 320px", fontStyle: "italic" }}>
+                      <div style={{ fontSize: "0.8rem", color: "var(--muted)", flex: "2 1 320px", fontStyle: "italic" }}>
                         "{message}"
                       </div>
 
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <a
                           href={smsHref || "#"}
                           onClick={(e) => { if (!smsHref) e.preventDefault(); }}
+                          className="btn btn-sm"
                           style={{
-                            padding: "8px 14px",
-                            borderRadius: "8px",
-                            background: smsHref ? "var(--forest)" : "#ccc",
+                            background: smsHref ? "var(--forest)" : "var(--border)",
                             color: "#fff",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            textDecoration: "none",
                             cursor: smsHref ? "pointer" : "not-allowed"
                           }}
                         >
@@ -1492,14 +1386,10 @@ GCA Church Camp Team`
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => { if (!waHref) e.preventDefault(); }}
+                          className="btn btn-sm"
                           style={{
-                            padding: "8px 14px",
-                            borderRadius: "8px",
-                            background: waHref ? "#25D366" : "#ccc",
+                            background: waHref ? "#25D366" : "var(--border)",
                             color: "#fff",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            textDecoration: "none",
                             cursor: waHref ? "pointer" : "not-allowed"
                           }}
                         >
@@ -1508,16 +1398,7 @@ GCA Church Camp Team`
                         <button
                           onClick={() => handleMarkReminderSent(family.family_group)}
                           disabled={markingReminder === family.family_group}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: "8px",
-                            border: "1px solid var(--border-color)",
-                            background: alreadySent ? "#f0f0f0" : "#fff",
-                            color: "var(--text-secondary)",
-                            fontSize: "0.8rem",
-                            fontWeight: 600,
-                            cursor: "pointer"
-                          }}
+                          className="btn btn-sm btn-outline"
                         >
                           {markingReminder === family.family_group ? "..." : alreadySent ? "Mark Sent Again" : "Mark Sent"}
                         </button>
@@ -1534,18 +1415,20 @@ GCA Church Camp Team`
       {!loading && activeTab === "expenses" && (
         <div>
           {/* Expenses Filter Panel */}
-          <div className="card" style={{ padding: 12, marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Search expenses by description..." 
-              value={expenseSearch} 
-              onChange={e => setExpenseSearch(e.target.value)}
-              style={{ flex: 1, minWidth: 200 }}
-            />
-            <select 
-              className="form-input" 
-              value={expenseCategoryFilter} 
+          <div className="search-bar">
+            <div className="search-input-wrap">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Search expenses by description…"
+                value={expenseSearch}
+                onChange={e => setExpenseSearch(e.target.value)}
+              />
+            </div>
+            <select
+              className="form-select"
+              value={expenseCategoryFilter}
               onChange={e => setExpenseCategoryFilter(e.target.value)}
               style={{ width: 180 }}
             >
@@ -1554,11 +1437,14 @@ GCA Church Camp Team`
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
+            <span className="text-muted" style={{ whiteSpace: "nowrap" }}>
+              {filteredExpenses.length} of {expenses.length} {expenses.length === 1 ? "expense" : "expenses"}
+            </span>
           </div>
 
           {/* Expenses Table */}
-          <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-            <table className="table" style={{ margin: 0 }}>
+          <div className="table-wrap">
+            <table style={{ margin: 0 }}>
               <thead>
                 <tr>
                   <th>Description</th>
@@ -1571,7 +1457,7 @@ GCA Church Camp Team`
               <tbody>
                 {filteredExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: "center", padding: 20, color: "var(--text-secondary)" }}>
+                    <td colSpan="5" style={{ textAlign: "center", padding: 32, color: "var(--muted)" }}>
                       No expenses registered yet. Click "Add Expense" to create one.
                     </td>
                   </tr>
@@ -1580,16 +1466,7 @@ GCA Church Camp Team`
                     <tr key={e.id}>
                       <td><strong>{e.description}</strong></td>
                       <td>
-                        <span style={{
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                          background: "var(--border-color)",
-                          color: "var(--text-primary)"
-                        }}>
-                          {e.category}
-                        </span>
+                        <span className="badge badge-gray">{e.category}</span>
                       </td>
                       <td style={{ 
                         color: e.amount < 0 ? "var(--forest)" : "var(--danger)", 
@@ -1601,7 +1478,7 @@ GCA Church Camp Team`
                       <td style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
                         {e.receipt_filename && (user?.role === "owner" || user?.role === "finance" || user?.role === "admin") && (
                           <button 
-                            className="btn btn-secondary" 
+                            className="btn btn-outline" 
                             style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
                             onClick={() => handleDownloadReceipt(e.id, e.receipt_filename)}
                             title="Download Attached Receipt"
@@ -1611,7 +1488,7 @@ GCA Church Camp Team`
                         )}
                         {hasPermission("finance", "edit") && (
                           <button 
-                            className="btn btn-secondary" 
+                            className="btn btn-outline" 
                             style={{ padding: "4px 8px", fontSize: "0.75rem" }} 
                             onClick={() => handleOpenExpenseModal(e)}
                           >
@@ -1620,7 +1497,7 @@ GCA Church Camp Team`
                         )}
                         {hasPermission("finance", "edit") && (
                           <button 
-                            className="btn btn-secondary" 
+                            className="btn btn-outline" 
                             style={{ padding: "4px 8px", fontSize: "0.75rem", color: "var(--danger)" }} 
                             onClick={() => handleDeleteExpense(e.id)}
                           >
@@ -1727,8 +1604,8 @@ GCA Church Camp Team`
                   </span>
                 </div>
               )}
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsExpenseModalOpen(false)}>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsExpenseModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
@@ -1748,7 +1625,7 @@ GCA Church Camp Team`
               <h2>Record Payment</h2>
               <button className="modal-close" onClick={() => setIsPaymentModalOpen(false)}>×</button>
             </div>
-            <div style={{ fontSize: "0.875rem", margin: "0 0 16px 0", padding: "10px 12px", background: "var(--light-bg)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+            <div style={{ fontSize: "0.875rem", margin: "0 0 16px 0", padding: "10px 12px", background: "var(--parchment)", borderRadius: 8, border: "1px solid var(--border)" }}>
               <div style={{ marginBottom: 4 }}>Family: <strong>{activeFamily.display_name}</strong></div>
               <div>Registration Fee: <strong>${(activeFamily.calculated_fee || 0).toFixed(2)}</strong> ({activeFamily.eligible_count} members)</div>
               {activeFamily.activity_fee > 0 && (
@@ -1757,7 +1634,7 @@ GCA Church Camp Team`
               {activeFamily.apparel_fee > 0 && (
                 <div>Apparel Fee: <strong>${(activeFamily.apparel_fee || 0).toFixed(2)}</strong></div>
               )}
-              <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed var(--border-color)", fontWeight: 700 }}>
+              <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed var(--border)", fontWeight: 700 }}>
                 Total Expected: <span>${(activeFamily.total_expected_fee || 0).toFixed(2)}</span>
               </div>
             </div>
@@ -1776,22 +1653,42 @@ GCA Church Camp Team`
                       </option>
                     ))}
                   </select>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginTop: 4 }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--muted)", display: "block", marginTop: 4 }}>
                     Designate which member is the official Head of Family.
                   </span>
                 </div>
               )}
               <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">Payment Amount Paid ($) *</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.01"
                   min="0"
-                  className="form-input" 
+                  className="form-input"
                   value={paymentForm.amount_paid}
                   onChange={e => setPaymentForm(prev => ({ ...prev, amount_paid: e.target.value }))}
                   required
                 />
+                {(() => {
+                  const expected = activeFamily.total_expected_fee || 0;
+                  const paid = parseFloat(paymentForm.amount_paid) || 0;
+                  const remaining = expected - paid;
+                  return (
+                    <span style={{
+                      fontSize: "0.75rem",
+                      display: "block",
+                      marginTop: 4,
+                      fontWeight: 600,
+                      color: remaining > 0 ? "var(--danger)" : "var(--forest-lt)"
+                    }}>
+                      {remaining > 0
+                        ? `Balance remaining: $${remaining.toFixed(2)}`
+                        : remaining < 0
+                        ? `Overpaid by $${Math.abs(remaining).toFixed(2)}`
+                        : "Paid in full ✓"}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="form-group" style={{ marginBottom: 12 }}>
                 <label className="form-label">Payment Status *</label>
@@ -1817,7 +1714,7 @@ GCA Church Camp Team`
                   onChange={e => setPaymentForm(prev => ({ ...prev, discount: e.target.value }))}
                   placeholder="e.g. 50.00"
                 />
-                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginTop: 4 }}>
+                <span style={{ fontSize: "0.75rem", color: "var(--muted)", display: "block", marginTop: 4 }}>
                   Discount applied to reduce the family registration fee.
                 </span>
               </div>
@@ -1836,7 +1733,7 @@ GCA Church Camp Team`
                   disabled={!(user?.role === "owner" || user?.role === "finance")}
                 />
                 {(user?.role === "owner" || user?.role === "finance") && (
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", display: "block", marginTop: 4 }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--muted)", display: "block", marginTop: 4 }}>
                     Ignores the default tiered rates for this family if set. Leave blank to reset.
                   </span>
                 )}
@@ -1851,8 +1748,8 @@ GCA Church Camp Team`
                   placeholder="e.g. Check #402, paid in full on Sunday"
                 />
               </div>
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsPaymentModalOpen(false)}>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsPaymentModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
@@ -1872,7 +1769,7 @@ GCA Church Camp Team`
               <h2>Configure Fee Rates</h2>
               <button className="modal-close" onClick={() => setIsRatesModalOpen(false)}>×</button>
             </div>
-            <p style={{ fontSize: "0.875rem", margin: "0 0 16px 0", color: "var(--text-secondary)" }}>
+            <p style={{ fontSize: "0.875rem", margin: "0 0 16px 0", color: "var(--muted)" }}>
               Customize tiered camp registration fees. Changing these rates will automatically recalculate total expected fees.
             </p>
             <form onSubmit={handleSaveRates}>
@@ -1898,7 +1795,7 @@ GCA Church Camp Team`
                 );
               })}
 
-              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border-color)", paddingTop: 16, color: "var(--forest)", fontWeight: 700 }}>
+              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border)", paddingTop: 16, color: "var(--forest)", fontWeight: 700 }}>
                 🚴 Activity Prices per Spot
               </h3>
               {activityNames.map((name, idx) => (
@@ -1926,7 +1823,7 @@ GCA Church Camp Team`
                 </div>
               ))}
 
-              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border-color)", paddingTop: 16, color: "var(--forest)", fontWeight: 700 }}>
+              <h3 style={{ fontSize: "0.95rem", margin: "20px 0 12px 0", borderTop: "1px solid var(--border)", paddingTop: 16, color: "var(--forest)", fontWeight: 700 }}>
                 👕 Apparel Pricing
               </h3>
               <div className="form-group" style={{ marginBottom: 12 }}>
@@ -1945,8 +1842,8 @@ GCA Church Camp Team`
                 />
               </div>
 
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsRatesModalOpen(false)}>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsRatesModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
@@ -2035,8 +1932,8 @@ GCA Church Camp Team`
                               borderRadius: 12,
                               fontSize: "0.7rem",
                               fontWeight: 600,
-                              background: "var(--border-color)",
-                              color: "var(--text-primary)"
+                              background: "var(--border)",
+                              color: "var(--charcoal)"
                             }}>
                               {e.category}
                             </span>
@@ -2070,7 +1967,7 @@ GCA Church Camp Team`
                         background: "rgba(0,0,0,0.01)", 
                         borderRadius: 6, 
                         overflow: "hidden",
-                        border: "1px solid var(--border-color)"
+                        border: "1px solid var(--border)"
                       }}>
                         <ReceiptPreview expenseId={e.id} filename={e.receipt_filename} />
                       </div>
@@ -2079,8 +1976,8 @@ GCA Church Camp Team`
                 </div>
               )}
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: 16, marginTop: 16 }}>
-              <button className="btn btn-secondary" onClick={() => setIsGalleryOpen(false)}>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setIsGalleryOpen(false)}>
                 Close
               </button>
             </div>
@@ -2089,75 +1986,67 @@ GCA Church Camp Team`
       )}
       {/* Merge / Group Families Modal */}
       {isMergeModalOpen && (
-        <div className="modal-overlay" style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0, 0, 0, 0.5)", display: "flex",
-          justifyContent: "center", alignItems: "center", zIndex: 1000
-        }}>
-          <div className="modal-card" style={{
-            background: "#fff", padding: 24, borderRadius: 12,
-            width: "90%", maxWidth: 500, boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
-          }}>
-            <h3 style={{ margin: "0 0 12px 0", color: "var(--forest)" }}>🔗 Group Two Families Together</h3>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: 16 }}>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 500 }}>
+            <div className="modal-header">
+              <h2>🔗 Group Two Families Together</h2>
+              <button className="modal-close" onClick={() => setIsMergeModalOpen(false)}>×</button>
+            </div>
+
+            <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: 18 }}>
               Select two families to combine. All members from the secondary family will be reassigned to the primary family group. This reduces the total family count by 1 and automatically recalculates tiered fees for the combined family size.
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div className="form-group">
-                <label className="form-label">Primary Family Group (Target) *</label>
-                <select 
-                  className="form-input" 
-                  value={mergeTargetFg} 
-                  onChange={e => setMergeTargetFg(e.target.value)}
-                >
-                  <option value="">-- Select Primary Family --</option>
-                  {families.map(f => (
-                    <option key={f.family_group} value={f.family_group} disabled={f.family_group === mergeSourceFg}>
-                      {f.display_name} ({f.members.length} {f.members.length === 1 ? 'member' : 'members'})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-group">
+              <label className="form-label">Primary Family Group (Target) *</label>
+              <select
+                className="form-select"
+                value={mergeTargetFg}
+                onChange={e => setMergeTargetFg(e.target.value)}
+              >
+                <option value="">-- Select Primary Family --</option>
+                {families.map(f => (
+                  <option key={f.family_group} value={f.family_group} disabled={f.family_group === mergeSourceFg}>
+                    {f.display_name} ({f.members.length} {f.members.length === 1 ? 'member' : 'members'})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div className="form-group">
-                <label className="form-label">Secondary Family to Merge (Source) *</label>
-                <select 
-                  className="form-input" 
-                  value={mergeSourceFg} 
-                  onChange={e => setMergeSourceFg(e.target.value)}
-                >
-                  <option value="">-- Select Family to Merge --</option>
-                  {families.map(f => (
-                    <option key={f.family_group} value={f.family_group} disabled={f.family_group === mergeTargetFg}>
-                      {f.display_name} ({f.members.length} {f.members.length === 1 ? 'member' : 'members'})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-group">
+              <label className="form-label">Secondary Family to Merge (Source) *</label>
+              <select
+                className="form-select"
+                value={mergeSourceFg}
+                onChange={e => setMergeSourceFg(e.target.value)}
+              >
+                <option value="">-- Select Family to Merge --</option>
+                {families.map(f => (
+                  <option key={f.family_group} value={f.family_group} disabled={f.family_group === mergeTargetFg}>
+                    {f.display_name} ({f.members.length} {f.members.length === 1 ? 'member' : 'members'})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {mergeTargetFg && mergeSourceFg && (
-                <div style={{
-                  padding: 12, background: "rgba(34, 76, 56, 0.05)",
-                  borderRadius: 6, fontSize: "0.825rem", color: "var(--forest)", borderLeft: "3px solid var(--forest)"
-                }}>
-                  💡 <strong>Summary:</strong> Members from <strong>{families.find(f => f.family_group === mergeSourceFg)?.display_name}</strong> will join <strong>{families.find(f => f.family_group === mergeTargetFg)?.display_name}</strong>.
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsMergeModalOpen(false)}>
-                  Cancel
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-primary" 
-                  disabled={!mergeTargetFg || !mergeSourceFg || mergeTargetFg === mergeSourceFg || merging}
-                  onClick={handleExecuteMerge}
-                >
-                  {merging ? "Grouping..." : "🔗 Group Families Together"}
-                </button>
+            {mergeTargetFg && mergeSourceFg && (
+              <div className="alert" style={{ background: "rgba(30,77,43,0.06)", color: "var(--forest)", border: "1px solid rgba(30,77,43,0.15)" }}>
+                💡 <span><strong>Summary:</strong> Members from <strong>{families.find(f => f.family_group === mergeSourceFg)?.display_name}</strong> will join <strong>{families.find(f => f.family_group === mergeTargetFg)?.display_name}</strong>.</span>
               </div>
+            )}
+
+            <div className="modal-footer">
+              <button type="button" className="btn btn-outline" onClick={() => setIsMergeModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!mergeTargetFg || !mergeSourceFg || mergeTargetFg === mergeSourceFg || merging}
+                onClick={handleExecuteMerge}
+              >
+                {merging ? "Grouping..." : "🔗 Group Families Together"}
+              </button>
             </div>
           </div>
         </div>
