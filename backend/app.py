@@ -279,6 +279,23 @@ def create_app(config_override=None):
                 # yet created in this environment - safe to skip either way.
                 db.session.rollback()
 
+        # Self-healing one-time cleanup: cancelled campers shouldn't be left
+        # holding a cabin bed or team slot from before this was enforced on
+        # every update. Safe to run on every startup - once cleared, the
+        # UPDATE simply matches 0 rows.
+        try:
+            result = db.session.execute(text(
+                "UPDATE campers SET cabin_group = NULL, team_name = NULL "
+                "WHERE registration_status = 'cancelled' "
+                "AND (cabin_group IS NOT NULL OR team_name IS NOT NULL)"
+            ))
+            db.session.commit()
+            if result.rowcount:
+                print(f"Database migrated: cleared cabin/team assignment for {result.rowcount} already-cancelled camper(s).")
+        except Exception as migration_ex:
+            db.session.rollback()
+            print(f"Database migration for cancelled camper cleanup skipped/failed: {str(migration_ex)}")
+
         from utils.seed import seed_admin
         seed_admin()
 

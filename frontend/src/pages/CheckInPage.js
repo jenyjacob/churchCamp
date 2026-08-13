@@ -101,7 +101,7 @@ export default function CheckInPage() {
   }, []);
 
   const fetchAllCampers = useCallback(() => {
-    api.get("/api/campers/?page=1&per_page=-1")
+    api.get("/api/campers/?page=1&per_page=-1&exclude_cancelled=true")
       .then(r => setAllCampers(r.data.campers || []))
       .catch(() => {});
   }, []);
@@ -228,7 +228,7 @@ export default function CheckInPage() {
       return;
     }
     setSearching(true);
-    api.get(`/api/campers/?search=${encodeURIComponent(search)}&per_page=15`)
+    api.get(`/api/campers/?search=${encodeURIComponent(search)}&per_page=15&exclude_cancelled=true`)
       .then(r => setCampers(r.data.campers))
       .catch(() => {})
       .finally(() => setSearching(false));

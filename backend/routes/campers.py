@@ -37,6 +37,7 @@ def get_campers():
         return jsonify({"error": "Access denied"}), 403
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
+    exclude_cancelled = request.args.get("exclude_cancelled", "").strip().lower() == "true"
     year_arg = request.args.get("year", "current").strip()
     age_filter = request.args.get("age_filter", "").strip().lower()
     page = int(request.args.get("page", 1))
@@ -97,6 +98,8 @@ def get_campers():
             )
     if status:
         query = query.filter(Camper.registration_status == status)
+    elif exclude_cancelled:
+        query = query.filter(Camper.registration_status != "cancelled")
 
     if age_filter == "child":
         query = query.filter(Camper.age < 18)
@@ -517,6 +520,16 @@ def update_camper(camper_id):
             from utils.logging import log_action
             log_action("UPDATE_FAMILY_WAIVER", f"Synchronized waiver submission status ({camper.waiver_submitted}) for Family Group #{camper.family_group}")
 
+        # A cancelled camper shouldn't keep holding a cabin bed or team slot —
+        # whether they're cancelled individually or as part of a family being
+        # cancelled member-by-member, free up their assignment so it can be
+        # reassigned to someone still attending.
+        if camper.registration_status == "cancelled" and (camper.cabin_group or camper.team_name):
+            camper.cabin_group = None
+            camper.team_name = None
+            from utils.logging import log_action
+            log_action("UNASSIGN_CANCELLED_CAMPER", f"Cleared cabin/team assignment for cancelled camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
+
     db.session.commit()
     from utils.logging import log_action
     log_action("UPDATE_CAMPER", f"Updated camper {camper.first_name} {camper.last_name} (ID: {camper.id})")
@@ -565,10 +578,14 @@ def get_stats():
         CheckIn.checked_out_at.is_(None)
     ).distinct().count()
     waivers_submitted = Camper.query.filter_by(waiver_submitted=True, camp_year=current_year).count()
+    # Only count families that still have at least one non-cancelled member —
+    # a family that registered and later fully cancelled shouldn't still be
+    # counted as an active family group.
     total_families = db.session.query(Camper.family_group).filter(
         Camper.camp_year == current_year,
         Camper.family_group.isnot(None),
-        Camper.family_group != ""
+        Camper.family_group != "",
+        Camper.registration_status != "cancelled"
     ).distinct().count()
 
     return jsonify({
