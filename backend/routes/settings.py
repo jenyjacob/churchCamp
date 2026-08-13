@@ -14,6 +14,9 @@ settings_bp = Blueprint("settings", __name__)
 DEFAULT_SETTINGS = {
     "team_1_name": "Team Peter",
     "team_2_name": "Team Paul",
+    "require_waiver_confirmation": "true",
+    "show_breakfast_option": "true",
+    "breakfast_menu_items": '["Pancakes", "Eggs", "Cereal", "Fruit"]',
     "signup_title": "GCA 2027 Church Camp Registration",
     "signup_dates": "August 13–15, 2027",
     "signup_location": "Camp Prothro",

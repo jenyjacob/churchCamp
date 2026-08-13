@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Camper, CheckIn
+from models import Camper, CheckIn, Setting
 from db import db
 from datetime import datetime
 from sqlalchemy.orm import joinedload
@@ -35,8 +35,15 @@ def check_in():
     )
     db.session.add(checkin)
 
-    # Automatically set waiver as submitted upon check-in
-    if not camper.waiver_submitted:
+    # Automatically set waiver as submitted upon check-in — but only when
+    # staff are actually being asked to confirm it (see Role Assigner ->
+    # Check-In Configurations). If that confirmation step is turned off,
+    # checking someone in shouldn't silently claim their waiver was
+    # submitted when nobody was ever asked.
+    waiver_setting = Setting.query.filter_by(key="require_waiver_confirmation").first()
+    require_waiver_confirmation = (waiver_setting.value != "false") if waiver_setting else True
+
+    if require_waiver_confirmation and not camper.waiver_submitted:
         camper.waiver_submitted = True
         if camper.family_group:
             Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": True})
