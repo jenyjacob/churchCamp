@@ -38,6 +38,44 @@ const normalizeRoom = (r) => {
   };
 };
 
+// Dropdown for assigning campers to a cabin/room without drag-and-drop.
+// Defined at module scope (not inside CabinsPage) so its identity stays
+// stable across renders - previously it was declared inside the page
+// component, which meant React tore down and rebuilt this <select> from
+// scratch on every single re-render (search typing, drag-hover, etc.),
+// which is what showed up as lag/jank when using the dropdown.
+const CabinRoomSelector = React.memo(function CabinRoomSelector({ camperIds, currentCabin, currentRoom, isAdmin, cabinsConfig, onAssign }) {
+  if (!isAdmin) return null;
+  return (
+    <select
+      className="form-select selector-box"
+      value=""
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val) {
+          const [cab, rm] = val.split(" | ");
+          onAssign(camperIds, cab, rm);
+        }
+      }}
+    >
+      <option value="" disabled>Move occupants to...</option>
+      {cabinsConfig.map(cb => (
+        <optgroup key={cb.name} label={cb.name}>
+          {cb.rooms.map(rm => {
+            const rmName = typeof rm === "string" ? rm : rm.name;
+            if (cb.name === currentCabin && rmName === currentRoom) return null;
+            return (
+              <option key={`${cb.name} | ${rmName}`} value={`${cb.name} | ${rmName}`}>
+                {cb.name} — {rmName}
+              </option>
+            );
+          })}
+        </optgroup>
+      ))}
+    </select>
+  );
+});
+
 export default function CabinsPage() {
   const { user, hasPermission } = useAuth();
   const isAdmin = hasPermission("cabins", "edit");
@@ -120,6 +158,22 @@ export default function CabinsPage() {
   });
 
   const [dragOverBox, setDragOverBox] = useState(null); // e.g., "Cabin A | Room 1"
+  const [showVacantRooms, setShowVacantRooms] = useState(false);
+  const [highlightedBoxId, setHighlightedBoxId] = useState(null);
+
+  // Stable DOM id for a room's card, so the vacant-rooms panel can jump to it.
+  const roomAnchorId = (cabinName, roomName) =>
+    `room-anchor-${cabinName}-${roomName}`.replace(/[^a-zA-Z0-9_-]+/g, "-");
+
+  const jumpToRoom = (cabinName, roomName) => {
+    const el = document.getElementById(roomAnchorId(cabinName, roomName));
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const boxId = `${cabinName} | ${roomName}`;
+    setHighlightedBoxId(boxId);
+    setTimeout(() => setHighlightedBoxId(prev => (prev === boxId ? null : prev)), 2200);
+  };
 
   // Success/error flash helper
   const flash = (type, text) => {
@@ -311,6 +365,16 @@ export default function CabinsPage() {
       }));
       flash("error", "Failed to assign family group.");
     }
+  };
+
+  // Shared onAssign handler passed to every CabinRoomSelector instance.
+  // Deliberately not wrapped in useCallback: assignCabin/assignFamily are
+  // redefined each render closing over the current `campers` state, and
+  // memoizing this with an empty dep array would permanently capture the
+  // first render's (stale) versions of them.
+  const handleSelectorAssign = (camperIds, cabinName, roomName) => {
+    if (camperIds.length === 1) assignCabin(camperIds[0], cabinName, roomName);
+    else assignFamily(camperIds, cabinName, roomName);
   };
 
   // Unassign all campers in a specific room
@@ -590,39 +654,19 @@ export default function CabinsPage() {
     return { label: "Shared", class: "badge-mixed" };
   };
 
-  // Helper selector dropdown for assigning campers without drag-and-drop
-  const CabinRoomSelector = ({ camperIds, currentCabin, currentRoom }) => {
-    if (!isAdmin) return null;
-    return (
-      <select 
-        className="form-select selector-box"
-        value=""
-        onChange={(e) => {
-          const val = e.target.value;
-          if (val) {
-            const [cab, rm] = val.split(" | ");
-            if (camperIds.length === 1) assignCabin(camperIds[0], cab, rm);
-            else assignFamily(camperIds, cab, rm);
-          }
-        }}
-      >
-        <option value="" disabled>Move occupants to...</option>
-        {cabinsConfig.map(cb => (
-          <optgroup key={cb.name} label={cb.name}>
-            {cb.rooms.map(rm => {
-              const rmName = typeof rm === "string" ? rm : rm.name;
-              if (cb.name === currentCabin && rmName === currentRoom) return null;
-              return (
-                <option key={`${cb.name} | ${rmName}`} value={`${cb.name} | ${rmName}`}>
-                  {cb.name} — {rmName}
-                </option>
-              );
-            })}
-          </optgroup>
-        ))}
-      </select>
-    );
-  };
+  // Rooms with zero occupants, across every cabin - used for the "vacant
+  // rooms" summary stat and its description list. Grouped by cabin so the
+  // panel reads as a scannable list rather than one long flat list.
+  const vacantRoomsByCabin = cabinsConfig
+    .map(cabin => ({
+      cabinName: cabin.name,
+      rooms: cabin.rooms
+        .map(normalizeRoom)
+        .filter(roomObj => getRoomOccupants(cabin.name, roomObj.name).length === 0)
+    }))
+    .filter(group => group.rooms.length > 0);
+
+  const vacantRoomsCount = vacantRoomsByCabin.reduce((sum, g) => sum + g.rooms.length, 0);
 
   // Injected CSS Styles for premium look and feel
   const customStyles = `
@@ -717,6 +761,59 @@ export default function CabinsPage() {
       background: rgba(47, 82, 51, 0.08);
       transform: scale(1.015);
       box-shadow: 0 4px 12px rgba(47, 82, 51, 0.1);
+    }
+
+    .room-box.room-highlighted {
+      border: 2px solid var(--gold, #b4975a);
+      box-shadow: 0 0 0 4px rgba(180, 151, 90, 0.2);
+      animation: room-flash 1.1s ease-in-out 2;
+    }
+
+    @keyframes room-flash {
+      0%, 100% { background: var(--cream); }
+      50% { background: rgba(180, 151, 90, 0.15); }
+    }
+
+    .vacant-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+      width: 100%;
+      font-family: inherit;
+    }
+
+    .vacant-chip:hover {
+      border-color: var(--gold, #b4975a);
+      background: rgba(180, 151, 90, 0.06);
+      transform: translateY(-1px);
+    }
+
+    .vacant-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .vacant-toggle-btn:hover {
+      background: rgba(37, 99, 235, 0.14);
     }
 
     .room-header {
@@ -867,9 +964,58 @@ export default function CabinsPage() {
             <span style={{ color: "#16a34a" }}>🏠 <strong>{campers.filter(c => c.cabin_group).length}</strong> assigned</span>
             <span style={{ color: "#ccc" }}>|</span>
             <span style={{ color: "#d97706" }}>⚠️ <strong>{campers.filter(c => !c.cabin_group).length}</strong> unassigned</span>
+            <span style={{ color: "#ccc" }}>|</span>
+            <button
+              className="vacant-toggle-btn"
+              onClick={() => setShowVacantRooms(v => !v)}
+              title="Show/hide the list of completely empty rooms"
+            >
+              🚪 {vacantRoomsCount} Vacant {vacantRoomsCount === 1 ? "Room" : "Rooms"}
+              <span style={{ fontSize: "0.7rem" }}>{showVacantRooms ? "▲" : "▼"}</span>
+            </button>
           </div>
+
+          {showVacantRooms && (
+            <div style={{
+              marginTop: 10, padding: 14, background: "#f7f8f4",
+              border: "1px solid var(--border)", borderRadius: 10,
+              maxWidth: 480, fontSize: "0.85rem"
+            }}>
+              {vacantRoomsByCabin.length === 0 ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--muted)" }}>
+                  🎉 No completely empty rooms right now — every room has at least one camper assigned.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {vacantRoomsByCabin.map(group => (
+                    <div key={group.cabinName}>
+                      <div style={{ fontWeight: 700, color: "var(--forest)", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>
+                        ⛺ {group.cabinName} <span style={{ fontWeight: 400, color: "var(--muted)", textTransform: "none" }}>({group.rooms.length} vacant)</span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {group.rooms.map(r => (
+                          <button
+                            key={r.name}
+                            className="vacant-chip"
+                            onClick={() => jumpToRoom(group.cabinName, r.name)}
+                            title="Click to jump to this room"
+                          >
+                            <span>
+                              🚪 <strong>{r.name}</strong>
+                              {r.handicap_accessible && <span title="Handicap Accessible" style={{ marginLeft: 6 }}>♿</span>}
+                            </span>
+                            <span className="text-muted" style={{ fontSize: "0.78rem" }}>{r.location} · capacity {r.max_occupancy}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        
+
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {canExport && (
             <button 
@@ -997,7 +1143,7 @@ export default function CabinsPage() {
                               </div>
                             ))}
                           </div>
-                          <CabinRoomSelector camperIds={ids} currentCabin="" currentRoom="" />
+                          <CabinRoomSelector camperIds={ids} currentCabin="" currentRoom="" isAdmin={isAdmin} cabinsConfig={cabinsConfig} onAssign={handleSelectorAssign} />
                         </div>
                       );
                     } else {
@@ -1024,7 +1170,7 @@ export default function CabinsPage() {
                               ⚠️ Allergies: {c.allergies}
                             </span>
                           )}
-                          <CabinRoomSelector camperIds={[c.id]} currentCabin="" currentRoom="" />
+                          <CabinRoomSelector camperIds={[c.id]} currentCabin="" currentRoom="" isAdmin={isAdmin} cabinsConfig={cabinsConfig} onAssign={handleSelectorAssign} />
                         </div>
                       );
                     }
@@ -1088,11 +1234,13 @@ export default function CabinsPage() {
                           const status = getRoomStatus(occupants);
                           const boxId = `${cabin.name} | ${roomName}`;
                           const isOver = dragOverBox === boxId;
+                          const isHighlighted = highlightedBoxId === boxId;
 
                           return (
-                            <div 
+                            <div
                               key={roomName}
-                              className={`room-box ${isOver ? "drag-over" : ""}`}
+                              id={roomAnchorId(cabin.name, roomName)}
+                              className={`room-box ${isOver ? "drag-over" : ""} ${isHighlighted ? "room-highlighted" : ""}`}
                               onDragOver={e => handleDragOver(e, boxId)}
                               onDragLeave={handleDragLeave}
                               onDrop={e => handleDrop(e, cabin.name, roomName)}
@@ -1260,10 +1408,13 @@ export default function CabinsPage() {
                                     </button>
                                   )}
                                   <div style={{ flex: 1 }}>
-                                    <CabinRoomSelector 
-                                      camperIds={occupants.map(o => o.id)} 
-                                      currentCabin={cabin.name} 
-                                      currentRoom={roomName} 
+                                    <CabinRoomSelector
+                                      camperIds={occupants.map(o => o.id)}
+                                      currentCabin={cabin.name}
+                                      currentRoom={roomName}
+                                      isAdmin={isAdmin}
+                                      cabinsConfig={cabinsConfig}
+                                      onAssign={handleSelectorAssign}
                                     />
                                   </div>
                                 </div>
