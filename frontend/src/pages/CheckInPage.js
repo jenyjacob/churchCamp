@@ -14,9 +14,21 @@ export default function CheckInPage() {
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
   const [allCampers, setAllCampers] = useState([]);
   const [checkedInSummary, setCheckedInSummary] = useState(null); // array of campers recently checked in
-  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true", require_waiver_confirmation: "true", show_breakfast_option: "true" });
+  const [breakfastMenuItems, setBreakfastMenuItems] = useState(["Pancakes", "Eggs", "Cereal", "Fruit"]);
+  const [answeredBreakfastIds, setAnsweredBreakfastIds] = useState(new Set());
+  const [breakfastOrdersByCamperId, setBreakfastOrdersByCamperId] = useState({});
+  const [breakfastFlow, setBreakfastFlow] = useState({
+    isOpen: false,
+    members: [], // campers being asked together as one group
+    step: "ask", // "ask" | "items"
+    selectedCounts: {},
+    onAllDone: null
+  });
 
   const showTeams = settings.teams_published !== "false";
+  const requireWaiverConfirmation = settings.require_waiver_confirmation !== "false";
+  const breakfastOptionEnabled = settings.show_breakfast_option !== "false";
 
   const getDisplayTeamName = (rawTeam) => {
     if (!rawTeam) return null;
@@ -104,10 +116,111 @@ export default function CheckInPage() {
       .then(res => {
         if (res.data.settings) {
           setSettings(res.data.settings);
+          if (res.data.settings.breakfast_menu_items) {
+            try {
+              const parsed = JSON.parse(res.data.settings.breakfast_menu_items);
+              if (Array.isArray(parsed)) setBreakfastMenuItems(parsed);
+            } catch {
+              // keep default list if stored value is malformed
+            }
+          }
         }
       })
       .catch(() => {});
+
+    // Fetch campers who've already been asked about breakfast, so we don't re-prompt them
+    api.get("/api/breakfast/answered-camper-ids")
+      .then(res => setAnsweredBreakfastIds(new Set(res.data.camper_ids || [])))
+      .catch(() => {});
+
+    fetchBreakfastOrders();
   }, [fetchActive, fetchStats, fetchAllCampers]);
+
+  const fetchBreakfastOrders = () => {
+    api.get("/api/breakfast/orders")
+      .then(res => {
+        const map = {};
+        (res.data.orders || []).forEach(o => { map[o.camper_id] = o; });
+        setBreakfastOrdersByCamperId(map);
+      })
+      .catch(() => {});
+  };
+
+  const renderBreakfastBadge = (camperId) => {
+    const order = breakfastOrdersByCamperId[camperId];
+    if (!order || !order.wants_breakfast) return null;
+    const itemEntries = Object.entries(order.items || {});
+    return (
+      <span
+        className="badge badge-gold"
+        title={itemEntries.length > 0 ? itemEntries.map(([name, count]) => `${count}x ${name}`).join(", ") : "Wants breakfast"}
+        style={{ fontSize: "0.68rem", padding: "2px 6px", marginLeft: 8, whiteSpace: "nowrap" }}
+      >
+        🥞 {itemEntries.length > 0 ? itemEntries.map(([name, count]) => `${count}x ${name}`).join(", ") : "Breakfast"}
+      </span>
+    );
+  };
+
+  const startBreakfastFlow = (camperList, onAllDone) => {
+    const needsAsking = breakfastOptionEnabled
+      ? camperList.filter(c => c && !answeredBreakfastIds.has(c.id))
+      : [];
+
+    if (needsAsking.length === 0) {
+      onAllDone();
+      return;
+    }
+
+    setBreakfastFlow({
+      isOpen: true,
+      members: needsAsking,
+      step: "ask",
+      selectedCounts: {},
+      onAllDone
+    });
+  };
+
+  const finishBreakfastFlow = async (wantsBreakfast, items) => {
+    const { members, onAllDone } = breakfastFlow;
+    if (members.length > 0) {
+      try {
+        await api.post("/api/breakfast/orders", {
+          camper_ids: members.map(m => m.id),
+          wants_breakfast: wantsBreakfast,
+          items
+        });
+        setAnsweredBreakfastIds(prev => {
+          const next = new Set(prev);
+          members.forEach(m => next.add(m.id));
+          return next;
+        });
+        fetchBreakfastOrders();
+      } catch {
+        // Non-fatal — move on regardless so check-in flow isn't blocked
+      }
+    }
+    setBreakfastFlow({ isOpen: false, members: [], step: "ask", selectedCounts: {}, onAllDone: null });
+    if (onAllDone) onAllDone();
+  };
+
+  const submitBreakfastAnswer = (wantsBreakfast) => {
+    if (wantsBreakfast) {
+      setBreakfastFlow(prev => ({ ...prev, step: "items" }));
+      return;
+    }
+    finishBreakfastFlow(false, {});
+  };
+
+  const handleBreakfastCountChange = (itemName, count) => {
+    setBreakfastFlow(prev => ({
+      ...prev,
+      selectedCounts: { ...prev.selectedCounts, [itemName]: count }
+    }));
+  };
+
+  const submitBreakfastItems = () => {
+    finishBreakfastFlow(true, breakfastFlow.selectedCounts);
+  };
 
   const searchCampers = useCallback(() => {
     if (!search.trim()) {
@@ -133,7 +246,7 @@ export default function CheckInPage() {
       
       const camperDetails = allCampers.find(c => c.id === camperId);
       if (camperDetails) {
-        setCheckedInSummary([camperDetails]);
+        startBreakfastFlow([camperDetails], () => setCheckedInSummary([camperDetails]));
       }
 
       setSearch("");
@@ -148,7 +261,7 @@ export default function CheckInPage() {
   };
 
   const handleCheckIn = (camper) => {
-    if (camper.waiver_submitted) {
+    if (camper.waiver_submitted || !requireWaiverConfirmation) {
       performCheckIn(camper.id, camper.full_name);
       return;
     }
@@ -172,7 +285,7 @@ export default function CheckInPage() {
       
       const detailsList = uncheckedCampers.map(uc => allCampers.find(c => c.id === uc.id)).filter(Boolean);
       if (detailsList.length > 0) {
-        setCheckedInSummary(detailsList);
+        startBreakfastFlow(detailsList, () => setCheckedInSummary(detailsList));
       }
 
       setSearch("");
@@ -191,7 +304,7 @@ export default function CheckInPage() {
 
   const handleCheckInFamily = (familyGroup, uncheckedCampers) => {
     const isWaiverSubmitted = uncheckedCampers.some(c => c.waiver_submitted);
-    if (isWaiverSubmitted) {
+    if (isWaiverSubmitted || !requireWaiverConfirmation) {
       performCheckInFamily(familyGroup, uncheckedCampers);
       return;
     }
@@ -645,7 +758,10 @@ export default function CheckInPage() {
                                     alignItems: "center"
                                   }}>
                                     <div>
-                                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)" }}>{ci.camper_name}</div>
+                                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)", display: "flex", alignItems: "center" }}>
+                                        {ci.camper_name}
+                                        {renderBreakfastBadge(ci.camper_id)}
+                                      </div>
                                       <div className="text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
                                         In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                         {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
@@ -692,7 +808,10 @@ export default function CheckInPage() {
                           boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
                         }}>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)" }}>{ci.camper_name}</div>
+                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)", display: "flex", alignItems: "center" }}>
+                              {ci.camper_name}
+                              {renderBreakfastBadge(ci.camper_id)}
+                            </div>
                             <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
                               In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
@@ -797,6 +916,87 @@ export default function CheckInPage() {
                     style={{ padding: "8px 16px" }}
                   >
                     Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sunday Breakfast Prompt Modal */}
+      {breakfastFlow.isOpen && breakfastFlow.members.length > 0 && (
+        <div className="waiver-modal-overlay" style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1150,
+          backdropFilter: "blur(2px)"
+        }}>
+          <div className="waiver-modal-content" style={{
+            background: "#fff",
+            borderRadius: "12px",
+            padding: "24px",
+            maxWidth: "440px",
+            width: "90%",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+            borderTop: "5px solid var(--gold)"
+          }}>
+            {breakfastFlow.step === "ask" ? (
+              <>
+                <h3 style={{ margin: "0 0 16px 0", color: "var(--forest)", fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  🥞 Sunday Breakfast
+                </h3>
+                <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", margin: "0 0 20px 0", lineHeight: 1.5 }}>
+                  {breakfastFlow.members.length === 1 ? (
+                    <>Does <strong>{breakfastFlow.members[0].full_name}</strong> need breakfast on Sunday morning?</>
+                  ) : (
+                    <>Does anyone in this group need breakfast on Sunday morning? (<strong>{breakfastFlow.members.map(m => m.full_name).join(", ")}</strong>)</>
+                  )}
+                </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                  <button className="btn btn-outline" onClick={() => submitBreakfastAnswer(false)} style={{ padding: "10px 20px", fontWeight: 600 }}>
+                    No
+                  </button>
+                  <button className="btn btn-primary" onClick={() => submitBreakfastAnswer(true)} style={{ padding: "10px 20px", fontWeight: 600 }}>
+                    Yes
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ margin: "0 0 16px 0", color: "var(--forest)", fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  🍽️ Breakfast Selection
+                </h3>
+                <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", margin: "0 0 16px 0", lineHeight: 1.5 }}>
+                  {breakfastFlow.members.length === 1 ? (
+                    <>What would <strong>{breakfastFlow.members[0].full_name}</strong> like, and how many?</>
+                  ) : (
+                    <>Total counts needed for <strong>{breakfastFlow.members.map(m => m.full_name).join(", ")}</strong>:</>
+                  )}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+                  {breakfastMenuItems.map(item => (
+                    <div key={item} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>{item}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        className="form-input"
+                        style={{ width: 80, textAlign: "center" }}
+                        value={breakfastFlow.selectedCounts[item] || ""}
+                        placeholder="0"
+                        onChange={e => handleBreakfastCountChange(item, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button className="btn btn-primary" onClick={submitBreakfastItems} style={{ padding: "10px 24px", fontWeight: 600 }}>
+                    Confirm
                   </button>
                 </div>
               </>

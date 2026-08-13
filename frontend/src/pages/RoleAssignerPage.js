@@ -58,11 +58,29 @@ export default function RoleAssignerPage() {
   const [isRoleSettingsOpen, setIsRoleSettingsOpen] = useState(true);
 
   // Camp configuration settings
-  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true" });
+  const [settings, setSettings] = useState({ team_1_name: "Team Peter", team_2_name: "Team Paul", teams_published: "true", require_waiver_confirmation: "true", show_breakfast_option: "true" });
   const [updatingTeams, setUpdatingTeams] = useState(false);
   const [teamSuccess, setTeamSuccess] = useState("");
   const [teamError, setTeamError] = useState("");
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(true);
+
+  // Check-In configuration settings
+  const [updatingCheckinSettings, setUpdatingCheckinSettings] = useState(false);
+  const [checkinSettingsSuccess, setCheckinSettingsSuccess] = useState("");
+  const [checkinSettingsError, setCheckinSettingsError] = useState("");
+  const [isCheckinSettingsOpen, setIsCheckinSettingsOpen] = useState(true);
+
+  // Sunday Breakfast configuration
+  const [breakfastMenuItems, setBreakfastMenuItems] = useState(["Pancakes", "Eggs", "Cereal", "Fruit"]);
+  const [updatingBreakfastSettings, setUpdatingBreakfastSettings] = useState(false);
+  const [breakfastSettingsSuccess, setBreakfastSettingsSuccess] = useState("");
+  const [breakfastSettingsError, setBreakfastSettingsError] = useState("");
+  const [isBreakfastSettingsOpen, setIsBreakfastSettingsOpen] = useState(true);
+
+  // Breakfast Orders Summary
+  const [breakfastSummary, setBreakfastSummary] = useState(null);
+  const [loadingBreakfastSummary, setLoadingBreakfastSummary] = useState(false);
+  const [isBreakfastSummaryOpen, setIsBreakfastSummaryOpen] = useState(true);
 
   // Excel Upload State for Teams
   const [uploadFile, setUploadFile] = useState(null);
@@ -93,6 +111,93 @@ export default function RoleAssignerPage() {
     } finally {
       setUploadingExcel(false);
     }
+  };
+
+  const fetchBreakfastSummary = () => {
+    setLoadingBreakfastSummary(true);
+    api.get("/api/breakfast/summary")
+      .then(res => setBreakfastSummary(res.data))
+      .catch(() => {})
+      .finally(() => setLoadingBreakfastSummary(false));
+  };
+
+  const handleExportBreakfastPDF = () => {
+    if (!breakfastSummary) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print/export PDF.");
+      return;
+    }
+
+    const itemRows = Object.entries(breakfastSummary.item_totals || {}).map(([name, count]) => `
+      <tr>
+        <td>${name}</td>
+        <td style="text-align:right; font-weight:700;">${count}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="2" style="text-align:center; color:#7f8c8d;">No breakfast selections recorded yet.</td></tr>`;
+
+    const generatedAt = new Date().toLocaleString();
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Sunday Breakfast Orders Summary</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #2c3e50; padding: 20px; }
+            h1 { color: #1e4d2b; border-bottom: 2px solid #1e4d2b; padding-bottom: 10px; margin-bottom: 8px; }
+            .subtitle { color: #7f8c8d; font-size: 0.85rem; margin-bottom: 24px; }
+            .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px; max-width: 420px; }
+            .metric-card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; text-align: center; }
+            .metric-label { font-size: 0.75rem; text-transform: uppercase; color: #7f8c8d; font-weight: 600; margin-bottom: 5px; }
+            .metric-value { font-size: 1.5rem; font-weight: 700; color: #2c3e50; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; max-width: 500px; }
+            th, td { border: 1px solid #e0e0e0; padding: 10px 12px; text-align: left; }
+            th { background-color: #f5f5f5; font-weight: 600; }
+            tr:nth-child(even) { background-color: #fafafa; }
+            .print-btn-bar { margin-bottom: 20px; display: flex; gap: 10px; }
+            @media print {
+              .print-btn-bar { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-btn-bar">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #1e4d2b; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">🖨️ Print / Save as PDF</button>
+            <button onclick="window.close()" style="padding: 10px 20px; background: #e0e0e0; color: #333; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">Close</button>
+          </div>
+          <h1>🥞 Sunday Breakfast Orders Summary</h1>
+          <div class="subtitle">Generated ${generatedAt}</div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">Campers Asked</div>
+              <div class="metric-value">${breakfastSummary.total_answered}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Want Breakfast</div>
+              <div class="metric-value">${breakfastSummary.total_wants_breakfast}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Menu Item</th>
+                <th style="text-align:right;">Total Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   useEffect(() => {
@@ -127,9 +232,20 @@ export default function RoleAssignerPage() {
       .then(res => {
         if (res.data.settings) {
           setSettings(res.data.settings);
+          if (res.data.settings.breakfast_menu_items) {
+            try {
+              const parsed = JSON.parse(res.data.settings.breakfast_menu_items);
+              if (Array.isArray(parsed)) setBreakfastMenuItems(parsed);
+            } catch {
+              // keep default list if stored value is malformed
+            }
+          }
         }
       })
       .catch(() => {});
+
+    // Fetch breakfast orders summary
+    fetchBreakfastSummary();
 
     // Resize listener
     const handleResize = () => {
@@ -161,6 +277,71 @@ export default function RoleAssignerPage() {
       })
       .catch(() => setTeamError("Failed to update game teams configuration."))
       .finally(() => setUpdatingTeams(false));
+  };
+
+  const handleSaveCheckinSettings = (e) => {
+    e.preventDefault();
+    setUpdatingCheckinSettings(true);
+    setCheckinSettingsError("");
+    setCheckinSettingsSuccess("");
+
+    const payload = {
+      require_waiver_confirmation: settings.require_waiver_confirmation || "true"
+    };
+
+    api.post("/api/settings/", payload)
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(prev => ({ ...prev, ...res.data.settings }));
+          setCheckinSettingsSuccess("Check-in configuration saved successfully!");
+          setTimeout(() => setCheckinSettingsSuccess(""), 5000);
+        }
+      })
+      .catch(() => setCheckinSettingsError("Failed to update check-in configuration."))
+      .finally(() => setUpdatingCheckinSettings(false));
+  };
+
+  const handleBreakfastItemChange = (index, value) => {
+    setBreakfastMenuItems(prev => prev.map((item, i) => (i === index ? value : item)));
+  };
+
+  const handleAddBreakfastItem = () => {
+    setBreakfastMenuItems(prev => [...prev, ""]);
+  };
+
+  const handleRemoveBreakfastItem = (index) => {
+    setBreakfastMenuItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveBreakfastSettings = (e) => {
+    e.preventDefault();
+    setUpdatingBreakfastSettings(true);
+    setBreakfastSettingsError("");
+    setBreakfastSettingsSuccess("");
+
+    const cleanItems = breakfastMenuItems.map(i => i.trim()).filter(Boolean);
+    if (cleanItems.length === 0) {
+      setBreakfastSettingsError("Add at least one breakfast menu item.");
+      setUpdatingBreakfastSettings(false);
+      return;
+    }
+
+    const payload = {
+      show_breakfast_option: settings.show_breakfast_option || "true",
+      breakfast_menu_items: JSON.stringify(cleanItems)
+    };
+
+    api.post("/api/settings/", payload)
+      .then(res => {
+        if (res.data.settings) {
+          setSettings(prev => ({ ...prev, ...res.data.settings }));
+          setBreakfastMenuItems(cleanItems);
+          setBreakfastSettingsSuccess("Breakfast configuration saved successfully!");
+          setTimeout(() => setBreakfastSettingsSuccess(""), 5000);
+        }
+      })
+      .catch(() => setBreakfastSettingsError("Failed to update breakfast configuration."))
+      .finally(() => setUpdatingBreakfastSettings(false));
   };
 
   const handleCreateRole = async (e) => {
@@ -620,6 +801,268 @@ export default function RoleAssignerPage() {
                   </div>
                 </div>
               </form>
+            )}
+          </div>
+
+          {/* Card 2b: Check-In Configurations */}
+          <div className="card" style={{ padding: 0, overflow: "visible" }}>
+            <div
+              onClick={() => setIsCheckinSettingsOpen(!isCheckinSettingsOpen)}
+              style={{
+                padding: "16px 20px",
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "rgba(180, 151, 90, 0.04)",
+                borderBottom: isCheckinSettingsOpen ? "1px solid var(--border)" : "none",
+                borderTopLeftRadius: "8px",
+                borderTopRightRadius: "8px",
+                borderBottomLeftRadius: isCheckinSettingsOpen ? "0px" : "8px",
+                borderBottomRightRadius: isCheckinSettingsOpen ? "0px" : "8px",
+                userSelect: "none"
+              }}
+            >
+              <h3 style={{ fontSize: "1rem", color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+                ✅ Check-In Configurations
+              </h3>
+              <span style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>
+                {isCheckinSettingsOpen ? "▲ Collapse" : "▼ Expand"}
+              </span>
+            </div>
+
+            {isCheckinSettingsOpen && (
+              <form onSubmit={handleSaveCheckinSettings} className="config-card-form" style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+                <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 6, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
+                  📝 Waiver Form
+                </h4>
+
+                {checkinSettingsSuccess && <div className="alert alert-success" style={{ margin: "4px 0 8px" }}>🎉 {checkinSettingsSuccess}</div>}
+                {checkinSettingsError && <div className="alert alert-error" style={{ margin: "4px 0 8px" }}>⚠️ {checkinSettingsError}</div>}
+
+                <div className="form-group" style={{ margin: "8px 0", padding: "12px 14px", background: "rgba(180, 151, 90, 0.05)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 600, fontSize: "0.9rem", color: "var(--forest)" }}>
+                    <input
+                      type="checkbox"
+                      checked={settings.require_waiver_confirmation !== "false"}
+                      onChange={e => setSettings(prev => ({ ...prev, require_waiver_confirmation: e.target.checked ? "true" : "false" }))}
+                      style={{ width: 18, height: 18, accentColor: "var(--forest)" }}
+                    />
+                    <span>📝 Require Waiver Form Confirmation at Check-In</span>
+                  </label>
+                  <span className="text-muted" style={{ fontSize: "0.78rem", marginLeft: 28, marginTop: 4, display: "block" }}>
+                    When checked, staff must confirm a camper's waiver form was submitted (via a pop-up prompt) before they can be checked in. When unchecked, check-ins proceed immediately with no waiver prompt.
+                  </span>
+                </div>
+
+                <div className="form-actions-row" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={updatingCheckinSettings}
+                    style={{ padding: "8px 24px", fontSize: "0.85rem" }}
+                  >
+                    {updatingCheckinSettings ? "Saving…" : "Save Check-In Configuration"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Card 2c: Sunday Breakfast Configuration */}
+          <div className="card" style={{ padding: 0, overflow: "visible" }}>
+            <div
+              onClick={() => setIsBreakfastSettingsOpen(!isBreakfastSettingsOpen)}
+              style={{
+                padding: "16px 20px",
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "rgba(180, 151, 90, 0.04)",
+                borderBottom: isBreakfastSettingsOpen ? "1px solid var(--border)" : "none",
+                borderTopLeftRadius: "8px",
+                borderTopRightRadius: "8px",
+                borderBottomLeftRadius: isBreakfastSettingsOpen ? "0px" : "8px",
+                borderBottomRightRadius: isBreakfastSettingsOpen ? "0px" : "8px",
+                userSelect: "none"
+              }}
+            >
+              <h3 style={{ fontSize: "1rem", color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+                🥞 Sunday Breakfast Configuration
+              </h3>
+              <span style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>
+                {isBreakfastSettingsOpen ? "▲ Collapse" : "▼ Expand"}
+              </span>
+            </div>
+
+            {isBreakfastSettingsOpen && (
+              <form onSubmit={handleSaveBreakfastSettings} className="config-card-form" style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+                {breakfastSettingsSuccess && <div className="alert alert-success" style={{ margin: "4px 0 8px" }}>🎉 {breakfastSettingsSuccess}</div>}
+                {breakfastSettingsError && <div className="alert alert-error" style={{ margin: "4px 0 8px" }}>⚠️ {breakfastSettingsError}</div>}
+
+                <div className="form-group" style={{ margin: "0 0 8px", padding: "12px 14px", background: "rgba(180, 151, 90, 0.05)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 600, fontSize: "0.9rem", color: "var(--forest)" }}>
+                    <input
+                      type="checkbox"
+                      checked={settings.show_breakfast_option !== "false"}
+                      onChange={e => setSettings(prev => ({ ...prev, show_breakfast_option: e.target.checked ? "true" : "false" }))}
+                      style={{ width: 18, height: 18, accentColor: "var(--forest)" }}
+                    />
+                    <span>🥞 Ask About Sunday Breakfast at Check-In</span>
+                  </label>
+                  <span className="text-muted" style={{ fontSize: "0.78rem", marginLeft: 28, marginTop: 4, display: "block" }}>
+                    When checked, staff are prompted per-camper (right after a successful check-in) to ask if they need Sunday morning breakfast, and if so, which menu items. When unchecked, this prompt is skipped entirely.
+                  </span>
+                </div>
+
+                <div>
+                  <h4 style={{ fontSize: "0.82rem", color: "var(--forest-mid)", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 10, borderBottom: "1px solid var(--border)", paddingBottom: 6, fontWeight: 700 }}>
+                    🍽️ Breakfast Menu Items
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {breakfastMenuItems.map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          className="form-input"
+                          value={item}
+                          onChange={e => handleBreakfastItemChange(idx, e.target.value)}
+                          placeholder="e.g. Pancakes"
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBreakfastItem(idx)}
+                          className="btn btn-ghost"
+                          title="Remove this item"
+                          style={{ padding: "6px 10px", color: "var(--danger)", border: "1px dashed var(--border)" }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddBreakfastItem}
+                    className="btn btn-outline"
+                    style={{ marginTop: 10, padding: "6px 14px", fontSize: "0.82rem" }}
+                  >
+                    ➕ Add Menu Item
+                  </button>
+                </div>
+
+                <div className="form-actions-row" style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={updatingBreakfastSettings}
+                    style={{ padding: "8px 24px", fontSize: "0.85rem" }}
+                  >
+                    {updatingBreakfastSettings ? "Saving…" : "Save Breakfast Configuration"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Card 2d: Breakfast Orders Summary */}
+          <div className="card" style={{ padding: 0, overflow: "visible" }}>
+            <div
+              onClick={() => setIsBreakfastSummaryOpen(!isBreakfastSummaryOpen)}
+              style={{
+                padding: "16px 20px",
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "rgba(180, 151, 90, 0.04)",
+                borderBottom: isBreakfastSummaryOpen ? "1px solid var(--border)" : "none",
+                borderTopLeftRadius: "8px",
+                borderTopRightRadius: "8px",
+                borderBottomLeftRadius: isBreakfastSummaryOpen ? "0px" : "8px",
+                borderBottomRightRadius: isBreakfastSummaryOpen ? "0px" : "8px",
+                userSelect: "none"
+              }}
+            >
+              <h3 style={{ fontSize: "1rem", color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
+                📊 Breakfast Orders Summary
+              </h3>
+              <span style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 600 }}>
+                {isBreakfastSummaryOpen ? "▲ Collapse" : "▼ Expand"}
+              </span>
+            </div>
+
+            {isBreakfastSummaryOpen && (
+              <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className="text-muted" style={{ fontSize: "0.82rem" }}>
+                    Live counts from everyone asked at check-in so far.
+                  </span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={handleExportBreakfastPDF}
+                      className="btn btn-outline"
+                      disabled={!breakfastSummary}
+                      style={{ padding: "6px 14px", fontSize: "0.8rem" }}
+                    >
+                      📄 Export PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={fetchBreakfastSummary}
+                      className="btn btn-outline"
+                      disabled={loadingBreakfastSummary}
+                      style={{ padding: "6px 14px", fontSize: "0.8rem" }}
+                    >
+                      {loadingBreakfastSummary ? "Refreshing…" : "🔄 Refresh"}
+                    </button>
+                  </div>
+                </div>
+
+                {breakfastSummary ? (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                      <div className="stat-card">
+                        <div className="label">Campers Asked</div>
+                        <div className="value" style={{ fontSize: "1.5rem" }}>{breakfastSummary.total_answered}</div>
+                      </div>
+                      <div className="stat-card green-accent">
+                        <div className="label">Want Breakfast</div>
+                        <div className="value" style={{ fontSize: "1.5rem" }}>{breakfastSummary.total_wants_breakfast}</div>
+                      </div>
+                    </div>
+
+                    {Object.keys(breakfastSummary.item_totals || {}).length > 0 ? (
+                      <div className="table-wrap">
+                        <table style={{ margin: 0 }}>
+                          <thead>
+                            <tr>
+                              <th>Menu Item</th>
+                              <th style={{ textAlign: "right" }}>Total Count</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(breakfastSummary.item_totals).map(([name, count]) => (
+                              <tr key={name}>
+                                <td>{name}</td>
+                                <td style={{ textAlign: "right", fontWeight: 700 }}>{count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-muted" style={{ fontSize: "0.85rem" }}>No breakfast selections recorded yet.</div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-muted" style={{ fontSize: "0.85rem" }}>
+                    {loadingBreakfastSummary ? "Loading…" : "No data yet — click Refresh."}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
