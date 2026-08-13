@@ -568,6 +568,13 @@ def get_stats():
 
     total = Camper.query.filter_by(camp_year=current_year).count()
     registered = Camper.query.filter_by(registration_status="registered", camp_year=current_year).count()
+    # Everyone who is actually still eligible to be checked in (registered or
+    # waitlisted) - excludes cancelled campers, who Check-In already hides
+    # from search and should never count toward "still needs to check in".
+    active_registered = Camper.query.filter(
+        Camper.camp_year == current_year,
+        Camper.registration_status != "cancelled"
+    ).count()
     # Count campers with an active (not checked out) check-in via a DB-side
     # join/distinct instead of loading every camper and its full checkins
     # collection into Python just to test truthiness.
@@ -591,6 +598,7 @@ def get_stats():
     return jsonify({
         "total_registered": total,
         "status_registered": registered,
+        "active_registered": active_registered,
         "checked_in": checked_in,
         "waivers_submitted": waivers_submitted,
         "total_families": total_families,

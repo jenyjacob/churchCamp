@@ -10,7 +10,7 @@ export default function CheckInPage() {
   const [searching, setSearching] = useState(false);
   const [activeCheckins, setActiveCheckins] = useState([]);
   const [loadingActive, setLoadingActive] = useState(true);
-  const [stats, setStats] = useState({ total_registered: 0, checked_in: 0, waivers_submitted: 0 });
+  const [stats, setStats] = useState({ total_registered: 0, active_registered: 0, checked_in: 0, waivers_submitted: 0 });
   const [message, setMessage] = useState(null); // { type: "success"|"error", text }
   const [allCampers, setAllCampers] = useState([]);
   const [checkedInSummary, setCheckedInSummary] = useState(null); // array of campers recently checked in
@@ -505,7 +505,7 @@ export default function CheckInPage() {
           <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
             <div style={{ fontSize: "2rem" }}>👥</div>
             <div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--charcoal)" }}>{Math.max(0, stats.total_registered - stats.checked_in)}</div>
+              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--charcoal)" }}>{Math.max(0, (stats.active_registered ?? stats.total_registered) - stats.checked_in)}</div>
               <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Remaining Check-Ins</div>
             </div>
           </div>
