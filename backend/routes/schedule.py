@@ -1,3 +1,4 @@
+import time
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from models import ScheduleEvent
@@ -10,12 +11,36 @@ def require_admin():
     claims = get_jwt()
     return claims.get("role") in ["admin", "owner"]
 
+# The public schedule (gcacamp.org/schedule) is read-only, unauthenticated,
+# and hit repeatedly by the public — cache it for a short window rather than
+# querying the DB on every single request. This is a simple in-memory,
+# per-process cache (same style as the login rate limiter elsewhere in this
+# app) plus a Cache-Control header so browsers/CloudFront can also cache it
+# at the edge. Note: since gunicorn runs multiple worker processes, this
+# cache isn't shared between workers — each worker independently caches for
+# up to SCHEDULE_CACHE_TTL_SECONDS, and an edit clears the cache only on
+# whichever worker handled that edit request. Worst case, a public visitor
+# hitting a different worker still sees the old data for up to the full TTL.
+SCHEDULE_CACHE_TTL_SECONDS = 300
+_schedule_cache = {"events": None, "expires_at": 0}
+
+def invalidate_schedule_cache():
+    _schedule_cache["events"] = None
+    _schedule_cache["expires_at"] = 0
+
 @schedule_bp.route("/", methods=["GET"])
 def get_schedule():
-    events = ScheduleEvent.query.all()
-    # Sort events by day and time on python side or db side
-    # Simple order: return them as is, we can sort them by Day and Time
-    return jsonify({"events": [e.to_dict() for e in events]}), 200
+    now = time.time()
+    if _schedule_cache["events"] is not None and now < _schedule_cache["expires_at"]:
+        events = _schedule_cache["events"]
+    else:
+        events = [e.to_dict() for e in ScheduleEvent.query.all()]
+        _schedule_cache["events"] = events
+        _schedule_cache["expires_at"] = now + SCHEDULE_CACHE_TTL_SECONDS
+
+    response = jsonify({"events": events})
+    response.headers["Cache-Control"] = f"public, max-age={SCHEDULE_CACHE_TTL_SECONDS}"
+    return response, 200
 
 def parse_time_range(time_str):
     def to_minutes(t_part):
@@ -88,6 +113,7 @@ def create_event():
     )
     db.session.add(event)
     db.session.commit()
+    invalidate_schedule_cache()
     from utils.logging import log_action
     log_action("CREATE_SCHEDULE_EVENT", f"Created event '{event.title}' on {event.day} at {event.time}")
     return jsonify({"event": event.to_dict()}), 201
@@ -127,6 +153,7 @@ def update_event(event_id):
     event.location = data.get("location", event.location).strip() if data.get("location") is not None else event.location
 
     db.session.commit()
+    invalidate_schedule_cache()
     from utils.logging import log_action
     log_action("UPDATE_SCHEDULE_EVENT", f"Updated event '{event.title}' (ID: {event.id})")
     return jsonify({"event": event.to_dict()}), 200
@@ -142,6 +169,7 @@ def delete_event(event_id):
     event_title = event.title
     db.session.delete(event)
     db.session.commit()
+    invalidate_schedule_cache()
     from utils.logging import log_action
     log_action("DELETE_SCHEDULE_EVENT", f"Deleted event '{event_title}' (ID: {event_id})")
     return jsonify({"message": "Event deleted"}), 200
