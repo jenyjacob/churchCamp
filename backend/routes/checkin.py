@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Camper, CheckIn, Setting
+from models import Camper, CheckIn, Setting, BreakfastOrder
 from db import db
 from datetime import datetime
 from sqlalchemy.orm import joinedload
@@ -146,6 +146,12 @@ def delete_checkin(checkin_id):
                 Camper.query.filter_by(family_group=camper.family_group).update({"waiver_submitted": False})
         else:
             camper.waiver_submitted = False
+
+        # Reset breakfast preference too - a check-in reset means treating
+        # this check-in as if it never happened, so the camper should be
+        # asked again next time they're actually checked in, rather than
+        # staying silently marked as "already answered" forever.
+        BreakfastOrder.query.filter_by(camper_id=camper.id).delete()
 
     db.session.commit()
 
