@@ -88,7 +88,7 @@ export default function CheckInPage() {
 
   const fetchActive = useCallback(() => {
     setLoadingActive(true);
-    api.get("/api/checkin/?active_only=true&per_page=50")
+    api.get("/api/checkin/?active_only=true&per_page=-1")
       .then(r => setActiveCheckins(r.data.checkins))
       .catch(() => {})
       .finally(() => setLoadingActive(false));

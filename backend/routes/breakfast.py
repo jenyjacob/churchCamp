@@ -98,18 +98,40 @@ def save_breakfast_order():
 @jwt_required()
 @require_page_permission("checkin", "read")
 def get_breakfast_summary():
-    """Aggregated counts per menu item across all recorded orders."""
-    orders = BreakfastOrder.query.filter_by(wants_breakfast=True).all()
+    """Aggregated counts per menu item, plus a per-family/camper breakdown of
+    who's actually getting breakfast - grouped by family_group since that's
+    how the order was originally captured (one shared answer per check-in
+    batch), rather than pretending each member ordered independently."""
+    orders = BreakfastOrder.query.join(Camper).filter(BreakfastOrder.wants_breakfast == True).all()  # noqa: E712
 
     item_totals = {}
+    groups = {}
     for order in orders:
-        for name, count in order.get_items().items():
+        camper = order.camper
+        if not camper:
+            continue
+        order_items = order.get_items()
+        for name, count in order_items.items():
             item_totals[name] = item_totals.get(name, 0) + count
+
+        family_group = camper.family_group or None
+        key = family_group if family_group else f"individual-{order.camper_id}"
+        if key not in groups:
+            groups[key] = {"family_group": family_group, "members": [], "items": {}}
+        groups[key]["members"].append(f"{camper.first_name} {camper.last_name}")
+        for name, count in order_items.items():
+            groups[key]["items"][name] = groups[key]["items"].get(name, 0) + count
+
+    family_breakdown = sorted(
+        groups.values(),
+        key=lambda g: (g["family_group"] is None, g["family_group"] or "", g["members"][0] if g["members"] else "")
+    )
 
     total_answered = BreakfastOrder.query.count()
 
     return jsonify({
         "total_wants_breakfast": len(orders),
         "total_answered": total_answered,
-        "item_totals": item_totals
+        "item_totals": item_totals,
+        "family_breakdown": family_breakdown
     }), 200

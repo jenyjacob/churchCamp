@@ -130,12 +130,33 @@ export default function RoleAssignerPage() {
       return;
     }
 
+    const escapeHtml = (str) => {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
     const itemRows = Object.entries(breakfastSummary.item_totals || {}).map(([name, count]) => `
       <tr>
-        <td>${name}</td>
+        <td>${escapeHtml(name)}</td>
         <td style="text-align:right; font-weight:700;">${count}</td>
       </tr>
     `).join("") || `<tr><td colspan="2" style="text-align:center; color:#7f8c8d;">No breakfast selections recorded yet.</td></tr>`;
+
+    const rosterRows = (breakfastSummary.family_breakdown || []).map(group => {
+      const itemsText = Object.entries(group.items || {}).map(([name, count]) => `${count}x ${name}`).join(", ") || "—";
+      return `
+        <tr>
+          <td>${group.family_group ? `Family #${escapeHtml(group.family_group)}` : "Individual"}</td>
+          <td>${group.members.map(escapeHtml).join(", ")}</td>
+          <td>${itemsText}</td>
+        </tr>
+      `;
+    }).join("") || `<tr><td colspan="3" style="text-align:center; color:#7f8c8d;">No breakfast selections recorded yet.</td></tr>`;
 
     const generatedAt = new Date().toLocaleString();
 
@@ -180,6 +201,7 @@ export default function RoleAssignerPage() {
             </div>
           </div>
 
+          <h2 style="color: #1e4d2b; margin-top: 30px; font-size: 1.1rem; border-bottom: 1px solid #ddd; padding-bottom: 6px;">Totals by Menu Item</h2>
           <table>
             <thead>
               <tr>
@@ -189,6 +211,20 @@ export default function RoleAssignerPage() {
             </thead>
             <tbody>
               ${itemRows}
+            </tbody>
+          </table>
+
+          <h2 style="color: #1e4d2b; margin-top: 30px; font-size: 1.1rem; border-bottom: 1px solid #ddd; padding-bottom: 6px;">Who's Getting Breakfast</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Family</th>
+                <th>Camper Name(s)</th>
+                <th>Order</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rosterRows}
             </tbody>
           </table>
         </body>
@@ -1055,6 +1091,33 @@ export default function RoleAssignerPage() {
                       </div>
                     ) : (
                       <div className="text-muted" style={{ fontSize: "0.85rem" }}>No breakfast selections recorded yet.</div>
+                    )}
+
+                    {(breakfastSummary.family_breakdown || []).length > 0 && (
+                      <div className="table-wrap" style={{ marginTop: 16 }}>
+                        <table style={{ margin: 0 }}>
+                          <thead>
+                            <tr>
+                              <th>Family</th>
+                              <th>Camper Name(s)</th>
+                              <th>Order</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {breakfastSummary.family_breakdown.map(group => (
+                              <tr key={group.family_group || group.members.join(",")}>
+                                <td>{group.family_group ? `Family #${group.family_group}` : "Individual"}</td>
+                                <td>{group.members.join(", ")}</td>
+                                <td>
+                                  {Object.entries(group.items || {}).length > 0
+                                    ? Object.entries(group.items).map(([name, count]) => `${count}x ${name}`).join(", ")
+                                    : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </>
                 ) : (

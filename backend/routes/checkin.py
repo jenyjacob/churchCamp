@@ -91,7 +91,21 @@ def get_checkins():
     if active_only:
         query = query.filter(CheckIn.checked_out_at.is_(None))
 
-    paginated = query.order_by(CheckIn.checked_in_at.desc()).paginate(
+    ordered_query = query.order_by(CheckIn.checked_in_at.desc())
+
+    # per_page=-1 means "no pagination" - same convention used by the
+    # campers list endpoint. Needed here because "Currently On Site" must
+    # show everyone actually on site, not just the first page of results.
+    if per_page == -1:
+        items = ordered_query.all()
+        return jsonify({
+            "checkins": [c.to_dict() for c in items],
+            "total": len(items),
+            "pages": 1,
+            "page": 1,
+        }), 200
+
+    paginated = ordered_query.paginate(
         page=page, per_page=per_page, error_out=False
     )
 
