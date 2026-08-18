@@ -110,7 +110,10 @@ export default function CheckInPage() {
     fetchActive();
     fetchStats();
     fetchAllCampers();
-    
+
+    const onVisible = () => { if (document.visibilityState === "visible") fetchAllCampers(); };
+    document.addEventListener("visibilitychange", onVisible);
+
     // Fetch dynamic configurations
     api.get("/api/settings/")
       .then(res => {
@@ -134,6 +137,7 @@ export default function CheckInPage() {
       .catch(() => {});
 
     fetchBreakfastOrders();
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchActive, fetchStats, fetchAllCampers]);
 
   const fetchBreakfastOrders = () => {
@@ -162,7 +166,7 @@ export default function CheckInPage() {
   };
 
   const renderCabinBadge = (camperId) => {
-    const camper = allCampers.find(c => c.id === camperId);
+    const camper = allCampers.find(c => String(c.id) === String(camperId));
     if (!camper || !camper.cabin_group) return null;
     const [cabinName, roomName] = camper.cabin_group.split(" | ");
     const label = roomName ? `${cabinName} - ${roomName}` : cabinName;

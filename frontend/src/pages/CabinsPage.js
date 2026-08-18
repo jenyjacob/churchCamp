@@ -159,8 +159,9 @@ export default function CabinsPage() {
 
   const [dragOverBox, setDragOverBox] = useState(null); // e.g., "Cabin A | Room 1" - which room the pointer is currently over
   const [draggingKey, setDraggingKey] = useState(null); // key of the origin card being dragged (dims it)
-  const [dragGhost, setDragGhost] = useState(null); // { x, y, width, label } or null when not dragging
+  const [dragGhost, setDragGhost] = useState(null); // { x, y, label } or null when not dragging
   const dragCtxRef = useRef(null); // mutable drag session data - avoids a re-render per pointermove sample
+  const dragGhostRef = useRef(null); // direct DOM ref for 60fps ghost position updates (avoids React re-render per frame)
   const [showVacantRooms, setShowVacantRooms] = useState(false);
   const [highlightedBoxId, setHighlightedBoxId] = useState(null);
 
@@ -337,6 +338,7 @@ export default function CabinsPage() {
 
   // Assign multiple family members to the same cabin room
   const assignFamily = async (camperIds, cabinName, roomName) => {
+    if (!camperIds.length) return;
     const targetValue = cabinName && roomName ? `${cabinName} | ${roomName}` : "";
     
     // Save original state of family members for rollback
@@ -554,20 +556,48 @@ export default function CabinsPage() {
     typeof window !== "undefined" && window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Hit-test the element under the pointer without relying on elementFromPoint
+  // alone: on older iOS Safari, pointer capture causes elementFromPoint to
+  // return the capturing element rather than the topmost element at those
+  // coordinates, so we fall back to a manual bounding-rect scan if the
+  // primary result looks like the capturing card.
+  const findRoomBoxAt = (clientX, clientY, capturedEl) => {
+    const el = document.elementFromPoint(clientX, clientY);
+    const box = el ? el.closest(".room-box") : null;
+    if (box) return box;
+    if (el && capturedEl && (el === capturedEl || capturedEl.contains(el))) {
+      return Array.from(document.querySelectorAll(".room-box")).find(rb => {
+        const r = rb.getBoundingClientRect();
+        return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+      }) || null;
+    }
+    return null;
+  };
+
   // Small dependency-free spring: critically damped by default (settling
   // into a room shouldn't overshoot), a touch of bounce only for the
   // invalid-drop return since that's the one case actually carrying the
   // gesture's momentum. Decomposed into independent X/Y terms in the same
   // step loop, per "decompose 2D motion into independent springs".
+  // Ghost position is written directly to the DOM node (dragGhostRef) to
+  // avoid scheduling a React state update on every rAF frame.
   const springGhostTo = ({ toX, toY, velocityX = 0, velocityY = 0, bounce, onDone }) => {
     const ctx = dragCtxRef.current;
     if (!ctx) return;
 
+    const applyPos = (x, y) => {
+      if (dragGhostRef.current) dragGhostRef.current.style.transform = `translate(${x}px, ${y}px)`;
+    };
+
+    // Guard: only fire onDone if this spring's ctx is still the active drag.
+    // A new startDrag overwrites dragCtxRef.current, making the old ctx stale.
+    const settle = () => { if (dragCtxRef.current === ctx) onDone && onDone(); };
+
     if (prefersReducedMotion()) {
       ctx.currentX = toX;
       ctx.currentY = toY;
-      setDragGhost(prev => (prev ? { ...prev, x: toX, y: toY } : prev));
-      onDone && onDone();
+      applyPos(toX, toY);
+      settle();
       return;
     }
 
@@ -590,13 +620,13 @@ export default function CabinsPage() {
 
       ctx.currentX = x;
       ctx.currentY = y;
-      setDragGhost(prev => (prev ? { ...prev, x, y } : prev));
+      applyPos(x, y);
 
       if (Math.hypot(x - toX, y - toY) < 0.75 && Math.hypot(vx, vy) < 40) {
         ctx.currentX = toX;
         ctx.currentY = toY;
-        setDragGhost(prev => (prev ? { ...prev, x: toX, y: toY } : prev));
-        onDone && onDone();
+        applyPos(toX, toY);
+        settle();
         return;
       }
       ctx.springFrame = requestAnimationFrame(step);
@@ -611,6 +641,10 @@ export default function CabinsPage() {
     // start a drag.
     if (e.target.closest("select, button, .selector-box")) return;
     if (e.button !== undefined && e.button !== 0) return;
+
+    // Prevent the browser from synthesizing mouse/click events after this
+    // pointer sequence, so finger drift onto a button child doesn't fire its onClick.
+    e.preventDefault();
 
     // If a previous drag's settle/return spring is still animating, cancel
     // it before starting a new one - two drags must never fight over the
@@ -658,10 +692,11 @@ export default function CabinsPage() {
     ctx.history.push({ x: e.clientX, y: e.clientY, t: performance.now() });
     if (ctx.history.length > 5) ctx.history.shift();
 
-    setDragGhost(prev => (prev ? { ...prev, x, y } : prev));
+    // Write position directly to the DOM node — skips React reconciliation
+    // at 60fps; setDragGhost is only called to show/hide the ghost.
+    if (dragGhostRef.current) dragGhostRef.current.style.transform = `translate(${x}px, ${y}px)`;
 
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const roomBox = el ? el.closest(".room-box") : null;
+    const roomBox = findRoomBoxAt(e.clientX, e.clientY, e.currentTarget);
     const overKey = roomBox ? roomBox.dataset.boxKey : null;
     setDragOverBox(prev => (prev === overKey ? prev : overKey));
   };
@@ -692,8 +727,7 @@ export default function CabinsPage() {
       vy = (b.y - a.y) / dt;
     }
 
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const roomBox = el ? el.closest(".room-box") : null;
+    const roomBox = findRoomBoxAt(e.clientX, e.clientY, e.currentTarget);
 
     if (roomBox) {
       const targetCabin = roomBox.dataset.cabinName;
@@ -721,12 +755,18 @@ export default function CabinsPage() {
       }
     } else {
       // Dropped somewhere with no room underneath - spring back to origin.
-      springGhostTo({
-        toX: ctx.originX, toY: ctx.originY,
-        velocityX: vx, velocityY: vy,
-        bounce: true,
-        onDone: () => { setDragGhost(null); setDraggingKey(null); dragCtxRef.current = null; }
-      });
+      try {
+        springGhostTo({
+          toX: ctx.originX, toY: ctx.originY,
+          velocityX: vx, velocityY: vy,
+          bounce: true,
+          onDone: () => { setDragGhost(null); setDraggingKey(null); dragCtxRef.current = null; }
+        });
+      } catch {
+        setDragGhost(null);
+        setDraggingKey(null);
+        dragCtxRef.current = null;
+      }
     }
   };
 
@@ -1132,11 +1172,13 @@ export default function CabinsPage() {
 
       {dragGhost && (
         <div
+          ref={dragGhostRef}
           className="drag-ghost"
           style={{
             position: "fixed",
-            left: dragGhost.x,
-            top: dragGhost.y,
+            left: 0,
+            top: 0,
+            transform: `translate(${dragGhost.x}px, ${dragGhost.y}px)`,
             zIndex: 2000
           }}
         >
