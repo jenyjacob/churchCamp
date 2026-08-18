@@ -161,6 +161,22 @@ export default function CheckInPage() {
     );
   };
 
+  const renderCabinBadge = (camperId) => {
+    const camper = allCampers.find(c => c.id === camperId);
+    if (!camper || !camper.cabin_group) return null;
+    const [cabinName, roomName] = camper.cabin_group.split(" | ");
+    const label = roomName ? `${cabinName} - ${roomName}` : cabinName;
+    return (
+      <span
+        className="badge badge-blue"
+        title={`Cabin: ${label}`}
+        style={{ fontSize: "0.68rem", padding: "2px 6px", marginLeft: 8, whiteSpace: "nowrap" }}
+      >
+        🏠 {label}
+      </span>
+    );
+  };
+
   const startBreakfastFlow = (camperList, onAllDone) => {
     const needsAsking = breakfastOptionEnabled
       ? camperList.filter(c => c && !answeredBreakfastIds.has(c.id))
@@ -704,6 +720,8 @@ export default function CheckInPage() {
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: 8,
                                 cursor: "pointer",
                                 userSelect: "none"
                               }}
@@ -727,7 +745,7 @@ export default function CheckInPage() {
                                   ))}
                                 </div>
                               </div>
-                              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                                 <button
                                   className="btn btn-outline btn-sm"
                                   style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }}
@@ -755,11 +773,14 @@ export default function CheckInPage() {
                                     background: "#fff",
                                     display: "flex",
                                     justifyContent: "space-between",
-                                    alignItems: "center"
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                    gap: 8
                                   }}>
                                     <div>
-                                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)", display: "flex", alignItems: "center" }}>
+                                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
                                         {ci.camper_name}
+                                        {renderCabinBadge(ci.camper_id)}
                                         {renderBreakfastBadge(ci.camper_id)}
                                       </div>
                                       <div className="text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
@@ -767,7 +788,7 @@ export default function CheckInPage() {
                                         {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
                                       </div>
                                     </div>
-                                    <div style={{ display: "flex", gap: 6 }}>
+                                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                                       <button
                                         className="btn btn-outline btn-sm"
                                         style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }}
@@ -805,11 +826,14 @@ export default function CheckInPage() {
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 8,
                           boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
                         }}>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)", display: "flex", alignItems: "center" }}>
+                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
                               {ci.camper_name}
+                              {renderCabinBadge(ci.camper_id)}
                               {renderBreakfastBadge(ci.camper_id)}
                             </div>
                             <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
@@ -817,7 +841,7 @@ export default function CheckInPage() {
                               {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: 8 }}>
+                          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                             <button
                               className="btn btn-outline btn-sm"
                               style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24 }}

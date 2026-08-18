@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 
@@ -157,7 +157,10 @@ export default function CabinsPage() {
     return [];
   });
 
-  const [dragOverBox, setDragOverBox] = useState(null); // e.g., "Cabin A | Room 1"
+  const [dragOverBox, setDragOverBox] = useState(null); // e.g., "Cabin A | Room 1" - which room the pointer is currently over
+  const [draggingKey, setDraggingKey] = useState(null); // key of the origin card being dragged (dims it)
+  const [dragGhost, setDragGhost] = useState(null); // { x, y, width, label } or null when not dragging
+  const dragCtxRef = useRef(null); // mutable drag session data - avoids a re-render per pointermove sample
   const [showVacantRooms, setShowVacantRooms] = useState(false);
   const [highlightedBoxId, setHighlightedBoxId] = useState(null);
 
@@ -541,43 +544,189 @@ export default function CabinsPage() {
     flash("success", `Deleted empty room "${roomName}" from ${cabinName}.`);
   };
 
-  // Drag and drop setup
-  const handleDragStart = (e, dragType, data) => {
-    if (!isAdmin) {
-      e.preventDefault();
+  // Drag and drop, built on Pointer Events for real 1:1 tracking (the
+  // dragged card follows the pointer from the exact point it was grabbed,
+  // not snapped to its center) instead of native HTML5 drag-and-drop, which
+  // offsets to a fixed drag image and has inconsistent dragover/dragleave
+  // firing across browsers.
+
+  const prefersReducedMotion = () =>
+    typeof window !== "undefined" && window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Small dependency-free spring: critically damped by default (settling
+  // into a room shouldn't overshoot), a touch of bounce only for the
+  // invalid-drop return since that's the one case actually carrying the
+  // gesture's momentum. Decomposed into independent X/Y terms in the same
+  // step loop, per "decompose 2D motion into independent springs".
+  const springGhostTo = ({ toX, toY, velocityX = 0, velocityY = 0, bounce, onDone }) => {
+    const ctx = dragCtxRef.current;
+    if (!ctx) return;
+
+    if (prefersReducedMotion()) {
+      ctx.currentX = toX;
+      ctx.currentY = toY;
+      setDragGhost(prev => (prev ? { ...prev, x: toX, y: toY } : prev));
+      onDone && onDone();
       return;
     }
-    const dragPayload = { type: dragType, ...data };
-    e.dataTransfer.setData("application/json", JSON.stringify(dragPayload));
-    e.dataTransfer.effectAllowed = "move";
-  };
 
-  const handleDragOver = (e, boxId) => {
-    e.preventDefault();
-    if (dragOverBox !== boxId) {
-      setDragOverBox(boxId);
-    }
-  };
+    let x = ctx.currentX;
+    let y = ctx.currentY;
+    let vx = velocityX;
+    let vy = velocityY;
+    let lastT = performance.now();
+    const stiffness = 210;
+    const damping = bounce ? 20 : 28;
 
-  const handleDragLeave = () => {
-    setDragOverBox(null);
-  };
+    const step = (now) => {
+      const dt = Math.min((now - lastT) / 1000, 0.032);
+      lastT = now;
 
-  const handleDrop = async (e, targetCabin, targetRoom) => {
-    e.preventDefault();
-    setDragOverBox(null);
-    try {
-      const dataStr = e.dataTransfer.getData("application/json");
-      if (!dataStr) return;
-      const dragPayload = JSON.parse(dataStr);
+      vx += (-stiffness * (x - toX) - damping * vx) * dt;
+      vy += (-stiffness * (y - toY) - damping * vy) * dt;
+      x += vx * dt;
+      y += vy * dt;
 
-      if (dragPayload.type === "single") {
-        await assignCabin(dragPayload.id, targetCabin, targetRoom);
-      } else if (dragPayload.type === "family") {
-        await assignFamily(dragPayload.ids, targetCabin, targetRoom);
+      ctx.currentX = x;
+      ctx.currentY = y;
+      setDragGhost(prev => (prev ? { ...prev, x, y } : prev));
+
+      if (Math.hypot(x - toX, y - toY) < 0.75 && Math.hypot(vx, vy) < 40) {
+        ctx.currentX = toX;
+        ctx.currentY = toY;
+        setDragGhost(prev => (prev ? { ...prev, x: toX, y: toY } : prev));
+        onDone && onDone();
+        return;
       }
-    } catch (err) {
-      console.error("Drop operation failed", err);
+      ctx.springFrame = requestAnimationFrame(step);
+    };
+    ctx.springFrame = requestAnimationFrame(step);
+    ctx.cancelSpring = () => cancelAnimationFrame(ctx.springFrame);
+  };
+
+  const startDrag = (e, dragType, data, key, label) => {
+    if (!isAdmin) return;
+    // Clicking the assign dropdown (or any button) inside the card shouldn't
+    // start a drag.
+    if (e.target.closest("select, button, .selector-box")) return;
+    if (e.button !== undefined && e.button !== 0) return;
+
+    // If a previous drag's settle/return spring is still animating, cancel
+    // it before starting a new one - two drags must never fight over the
+    // same ghost state (never lock out input during a transition).
+    if (dragCtxRef.current?.cancelSpring) dragCtxRef.current.cancelSpring();
+
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    card.setPointerCapture(e.pointerId);
+
+    dragCtxRef.current = {
+      payload: { type: dragType, ...data },
+      originX: rect.left,
+      originY: rect.top,
+      currentX: rect.left,
+      currentY: rect.top,
+      grabOffsetX: e.clientX - rect.left,
+      grabOffsetY: e.clientY - rect.top,
+      history: [{ x: e.clientX, y: e.clientY, t: performance.now() }],
+      moved: false,
+      cancelSpring: null,
+      springFrame: null
+    };
+
+    setDraggingKey(key);
+    setDragGhost({ x: rect.left, y: rect.top, label });
+  };
+
+  const onDragPointerMove = (e) => {
+    const ctx = dragCtxRef.current;
+    if (!ctx) return;
+
+    // ~10px hysteresis before committing to a drag, per the gesture-design
+    // checklist - avoids treating a slightly-shaky click as a drag.
+    if (!ctx.moved) {
+      const first = ctx.history[0];
+      if (Math.hypot(e.clientX - first.x, e.clientY - first.y) > 8) ctx.moved = true;
+    }
+
+    const x = e.clientX - ctx.grabOffsetX;
+    const y = e.clientY - ctx.grabOffsetY;
+    ctx.currentX = x;
+    ctx.currentY = y;
+
+    ctx.history.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+    if (ctx.history.length > 5) ctx.history.shift();
+
+    setDragGhost(prev => (prev ? { ...prev, x, y } : prev));
+
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const roomBox = el ? el.closest(".room-box") : null;
+    const overKey = roomBox ? roomBox.dataset.boxKey : null;
+    setDragOverBox(prev => (prev === overKey ? prev : overKey));
+  };
+
+  const onDragPointerUp = async (e) => {
+    const ctx = dragCtxRef.current;
+    if (!ctx) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setDragOverBox(null);
+
+    if (!ctx.moved) {
+      // Just a press-and-release with no real movement - nothing to animate.
+      setDragGhost(null);
+      setDraggingKey(null);
+      dragCtxRef.current = null;
+      return;
+    }
+
+    // Release velocity from the last couple of samples, handed off to the
+    // spring so there's no seam between dragging and animating.
+    const hist = ctx.history;
+    let vx = 0, vy = 0;
+    if (hist.length >= 2) {
+      const a = hist[hist.length - 2];
+      const b = hist[hist.length - 1];
+      const dt = Math.max((b.t - a.t) / 1000, 0.001);
+      vx = (b.x - a.x) / dt;
+      vy = (b.y - a.y) / dt;
+    }
+
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const roomBox = el ? el.closest(".room-box") : null;
+
+    if (roomBox) {
+      const targetCabin = roomBox.dataset.cabinName;
+      const targetRoom = roomBox.dataset.roomName;
+      const targetRect = roomBox.getBoundingClientRect();
+
+      springGhostTo({
+        // Approximate half-width/height of the compact ghost pill - exact
+        // centering isn't critical here, it's a settle cue, not a layout.
+        toX: targetRect.left + targetRect.width / 2 - 60,
+        toY: targetRect.top + targetRect.height / 2 - 16,
+        velocityX: vx, velocityY: vy,
+        bounce: false,
+        onDone: () => { setDragGhost(null); setDraggingKey(null); dragCtxRef.current = null; }
+      });
+
+      try {
+        if (ctx.payload.type === "single") {
+          await assignCabin(ctx.payload.ids[0], targetCabin, targetRoom);
+        } else if (ctx.payload.type === "family") {
+          await assignFamily(ctx.payload.ids, targetCabin, targetRoom);
+        }
+      } catch (err) {
+        console.error("Drop operation failed", err);
+      }
+    } else {
+      // Dropped somewhere with no room underneath - spring back to origin.
+      springGhostTo({
+        toX: ctx.originX, toY: ctx.originY,
+        velocityX: vx, velocityY: vy,
+        bounce: true,
+        onDone: () => { setDragGhost(null); setDraggingKey(null); dragCtxRef.current = null; }
+      });
     }
   };
 
@@ -890,6 +1039,11 @@ export default function CabinsPage() {
       transform: translateY(-2px);
     }
 
+    .family-group-card.is-dragging-origin,
+    .single-camper-card.is-dragging-origin {
+      opacity: 0.35;
+    }
+
     .family-header {
       display: flex;
       justify-content: space-between;
@@ -917,6 +1071,27 @@ export default function CabinsPage() {
     .single-camper-card:hover {
       box-shadow: 0 4px 10px rgba(0,0,0,0.05);
       transform: translateY(-2px);
+    }
+
+    .family-group-card:active,
+    .single-camper-card:active {
+      cursor: grabbing;
+    }
+
+    /* The element that follows the pointer 1:1 while dragging - a compact
+       proxy of the real card, not the card itself (the card stays in place,
+       dimmed, via .is-dragging-origin above). */
+    .drag-ghost {
+      background: var(--white);
+      border: 1.5px solid var(--forest-mid);
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: var(--shadow-lg);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--forest);
+      pointer-events: none;
+      white-space: nowrap;
     }
 
     .selector-box {
@@ -954,6 +1129,20 @@ export default function CabinsPage() {
   return (
     <>
       <style>{customStyles}</style>
+
+      {dragGhost && (
+        <div
+          className="drag-ghost"
+          style={{
+            position: "fixed",
+            left: dragGhost.x,
+            top: dragGhost.y,
+            zIndex: 2000
+          }}
+        >
+          {dragGhost.label}
+        </div>
+      )}
 
       <div className="top-bar">
         <div>
@@ -1121,11 +1310,14 @@ export default function CabinsPage() {
                     if (item.type === "family") {
                       const ids = item.members.map(m => m.id);
                       return (
-                        <div 
+                        <div
                           key={`family-${item.id}`}
-                          className="family-group-card"
-                          draggable={isAdmin}
-                          onDragStart={e => handleDragStart(e, "family", { ids, familyGroup: item.id })}
+                          className={`family-group-card ${draggingKey === `family-${item.id}` ? "is-dragging-origin" : ""}`}
+                          style={{ touchAction: isAdmin ? "none" : "auto" }}
+                          onPointerDown={e => startDrag(e, "family", { ids, familyGroup: item.id }, `family-${item.id}`, `👨‍👩‍👧‍👦 Family #${item.id}`)}
+                          onPointerMove={onDragPointerMove}
+                          onPointerUp={onDragPointerUp}
+                          onPointerCancel={onDragPointerUp}
                         >
                           <div className="family-header">
                             <span>👨‍👩‍👧‍👦 Family #{item.id}</span>
@@ -1149,11 +1341,14 @@ export default function CabinsPage() {
                     } else {
                       const c = item.camper;
                       return (
-                        <div 
+                        <div
                           key={`single-${c.id}`}
-                          className="single-camper-card"
-                          draggable={isAdmin}
-                          onDragStart={e => handleDragStart(e, "single", { id: c.id })}
+                          className={`single-camper-card ${draggingKey === `single-${c.id}` ? "is-dragging-origin" : ""}`}
+                          style={{ touchAction: isAdmin ? "none" : "auto" }}
+                          onPointerDown={e => startDrag(e, "single", { ids: [c.id] }, `single-${c.id}`, `👤 ${c.first_name} ${c.last_name}`)}
+                          onPointerMove={onDragPointerMove}
+                          onPointerUp={onDragPointerUp}
+                          onPointerCancel={onDragPointerUp}
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                             <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--forest-mid)" }}>
@@ -1241,9 +1436,9 @@ export default function CabinsPage() {
                               key={roomName}
                               id={roomAnchorId(cabin.name, roomName)}
                               className={`room-box ${isOver ? "drag-over" : ""} ${isHighlighted ? "room-highlighted" : ""}`}
-                              onDragOver={e => handleDragOver(e, boxId)}
-                              onDragLeave={handleDragLeave}
-                              onDrop={e => handleDrop(e, cabin.name, roomName)}
+                              data-box-key={boxId}
+                              data-cabin-name={cabin.name}
+                              data-room-name={roomName}
                             >
                               <div className="room-header">
                                 <span className="room-title">

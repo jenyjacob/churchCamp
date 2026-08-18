@@ -35,7 +35,14 @@ body {
 h1, h2, h3 {
   font-family: 'Playfair Display', serif;
   line-height: 1.25;
+  font-optical-sizing: auto;
 }
+
+/* Tracking is size-specific, never one value for all sizes: large display
+   text wants negative tracking (letters read too far apart as they grow),
+   body/small text stays near 0 or slightly positive. */
+h1 { letter-spacing: -0.015em; line-height: 1.15; }
+h2 { letter-spacing: -0.01em; }
 
 a { color: var(--forest-mid); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -200,8 +207,10 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .top-bar {
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(212, 207, 196, 0.5);
   padding: 16px 32px;
   display: flex;
   align-items: center;
@@ -259,6 +268,7 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 2.2rem;
   color: var(--forest);
   line-height: 1;
+  letter-spacing: -0.01em;
 }
 
 .stat-card .sub {
@@ -280,8 +290,16 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 0.875rem;
   font-weight: 600;
   border: none;
-  transition: all 0.15s;
+  transition: background-color 0.15s, color 0.15s, opacity 0.15s, transform 0.1s ease-out;
   white-space: nowrap;
+}
+
+/* Respond on press, not on release - feedback should feel instant (Apple
+   fluid-interface principle #1). Scoped to transform only so it composes
+   cleanly with each variant's own background/color transition above. */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 0.1s ease-out;
 }
 
 .btn-primary {
@@ -422,10 +440,13 @@ tbody tr:hover { background: var(--cream); }
   display: flex; align-items: center; justify-content: center;
   z-index: 200;
   padding: 20px;
+  animation: modal-scrim-in 0.2s ease-out;
 }
 
 .modal {
-  background: var(--white);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: var(--radius-lg);
   padding: 30px;
   max-width: 600px;
@@ -433,6 +454,22 @@ tbody tr:hover { background: var(--cream); }
   max-height: 88vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
+  /* Critically damped entrance (no bounce - this isn't a gesture-driven
+     interaction, so overshoot would feel wrong here). Note: this only
+     covers open, not close - the modal unmounts immediately on close in
+     this codebase, so a symmetric exit animation would need each modal's
+     open/close state reworked, which is out of scope for this pass. */
+  animation: modal-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes modal-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .modal-header {
@@ -707,7 +744,10 @@ tbody tr:hover { background: var(--cream); }
     margin-left: 0 !important;
     padding: 14px !important;
     box-sizing: border-box !important;
-    overflow-x: hidden !important;
+    /* auto, not hidden: if something still doesn't fit despite proper
+       wrapping (a future long badge/name, etc.), it should be reachable by
+       scrolling, not silently clipped with no way to see it at all. */
+    overflow-x: auto !important;
   }
 
   /* Page elements */
@@ -887,6 +927,8 @@ tbody tr:hover { background: var(--cream); }
 
 .camper-card:active {
   cursor: grabbing;
+  transform: scale(0.98);
+  transition: transform 0.1s ease-out;
 }
 
 .camper-card-header {
@@ -1365,6 +1407,62 @@ tbody tr:hover { background: var(--cream); }
   .apparel-member-controls {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+/* ── Reduced motion / transparency / contrast ──
+   Reduced motion doesn't mean no feedback - it means a gentler,
+   non-vestibular equivalent. Replace transforms/springs with short
+   opacity cross-fades, and drop overshoot/elastic motion entirely. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .btn:active:not(:disabled),
+  .camper-card:active,
+  .camper-card:hover,
+  .room-box.room-highlighted,
+  .stat-card:hover {
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .modal-overlay, .modal {
+    transition: opacity 0.15s ease !important;
+    transform: none !important;
+  }
+
+  .btn, .form-input, .form-select, .form-textarea {
+    transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease !important;
+  }
+}
+
+/* Firm up borders/contrast when the user asks for more contrast, since
+   translucent materials (added below) reduce edge definition by design. */
+@media (prefers-contrast: more) {
+  .modal, .card, .stat-card, .room-box, .camper-card {
+    border-width: 1.5px;
+    border-color: var(--charcoal);
+  }
+}
+
+/* Make translucent surfaces frostier/solid when the user has disabled
+   transparency effects: raise opacity, drop the blur entirely. */
+@media (prefers-reduced-transparency: reduce) {
+  .top-bar {
+    background: var(--white);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal {
+    background: var(--white);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
