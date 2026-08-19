@@ -4,6 +4,58 @@ import { useAuth } from "../context/AuthContext";
 
 const EXPENSE_CATEGORIES = ["Catering", "Lodging", "Transportation", "Activities", "Supplies", "Other"];
 
+const CATEGORY_COLORS = {
+  Catering: "#2E6B3E",
+  Lodging: "#C8972B",
+  Transportation: "#3B82F6",
+  Activities: "#8B5CF6",
+  Supplies: "#E67E22",
+  Other: "#6B7280",
+};
+
+// Pure-SVG donut chart — no library. Starts at 12 o'clock, draws clockwise.
+const SvgPieChart = ({ data, size = 160 }) => {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (!total) return <p style={{ color: "var(--muted)", fontSize: "0.8rem" }}>No data</p>;
+  const cx = size / 2, cy = size / 2, r = size / 2 - 6, ir = r * 0.52;
+  let angle = -Math.PI / 2;
+  const slices = data.map(d => {
+    const sweep = (d.value / total) * 2 * Math.PI;
+    const end = angle + sweep;
+    const cos0 = Math.cos(angle), sin0 = Math.sin(angle);
+    const cos1 = Math.cos(end),   sin1 = Math.sin(end);
+    const large = sweep > Math.PI ? 1 : 0;
+    const path = [
+      `M${cx + ir * cos0},${cy + ir * sin0}`,
+      `L${cx + r  * cos0},${cy + r  * sin0}`,
+      `A${r},${r},0,${large},1,${cx + r  * cos1},${cy + r  * sin1}`,
+      `L${cx + ir * cos1},${cy + ir * sin1}`,
+      `A${ir},${ir},0,${large},0,${cx + ir * cos0},${cy + ir * sin0}`,
+      "Z",
+    ].join(" ");
+    angle = end;
+    return { ...d, path, pct: (d.value / total * 100).toFixed(1) };
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+        {slices.map((s, i) => (
+          <path key={i} d={s.path} fill={s.color} stroke="#fff" strokeWidth={2} />
+        ))}
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minWidth: 130 }}>
+        {slices.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.78rem" }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+            <span style={{ color: "var(--charcoal)", flex: 1 }}>{s.label}</span>
+            <span style={{ fontWeight: 700 }}>{s.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // Receipt preview helper with token authentication support
 const ReceiptPreview = ({ expenseId, filename }) => {
   const [src, setSrc] = useState(null);
@@ -61,7 +113,7 @@ const ReceiptPreview = ({ expenseId, filename }) => {
 
 export default function FinancePage() {
   const { user, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState("fees");
+  const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -783,6 +835,36 @@ GCA Church Camp Team`
     return matchesSearch && matchesCategory;
   });
 
+  // Overview chart data
+  const ovPaid    = families.filter(f => f.status === "paid");
+  const ovPartial = families.filter(f => f.status === "partial");
+  const ovUnpaid  = families.filter(f => f.status === "unpaid");
+  const ovExpected   = stats.total_expected_fees || 0;
+  const ovCollected  = stats.total_collected_fees || 0;
+  const ovCollectPct = ovExpected > 0 ? Math.min(100, (ovCollected / ovExpected) * 100) : 0;
+  const ovTotalReg = families.reduce((s, f) => s + (f.calculated_fee || 0), 0);
+  const ovTotalAct = families.reduce((s, f) => s + (f.activity_fee   || 0), 0);
+  const ovTotalApp = families.reduce((s, f) => s + (f.apparel_fee    || 0), 0);
+  const ovStatusData = [
+    { label: `Paid (${ovPaid.length})`,    value: ovPaid.length,    color: "#27AE60" },
+    { label: `Partial (${ovPartial.length})`, value: ovPartial.length, color: "#E67E22" },
+    { label: `Unpaid (${ovUnpaid.length})`, value: ovUnpaid.length,  color: "#C0392B" },
+  ].filter(d => d.value > 0);
+  const ovAmtData = [
+    { label: "Collected",    value: ovCollected,                        color: "#27AE60" },
+    { label: "Outstanding",  value: Math.max(0, ovExpected - ovCollected), color: "#C0392B" },
+  ].filter(d => d.value > 0);
+  const ovFeeTypeData = [
+    { label: "Registration", value: ovTotalReg, color: "#1E4D2B" },
+    { label: "Activities",   value: ovTotalAct, color: "#3D8B50" },
+    { label: "Apparel",      value: ovTotalApp, color: "#C8972B" },
+  ].filter(d => d.value > 0);
+  const ovExpCatData = EXPENSE_CATEGORIES.map(cat => ({
+    label: cat,
+    value: expenses.filter(e => e.category === cat && e.amount > 0).reduce((s, e) => s + e.amount, 0),
+    color: CATEGORY_COLORS[cat],
+  })).filter(d => d.value > 0);
+
     const grossRegistrationBase = filteredFamilies.reduce((sum, f) => {
       const base = f.override_fee !== null ? f.override_fee : f.tiered_fee;
       return sum + (base || 0);
@@ -972,9 +1054,10 @@ GCA Church Camp Team`
           flexWrap: "wrap"
         }}>
           {[
-            { key: "fees", icon: "🏷️", label: "Family Camp Fees", accent: "var(--forest)" },
-            { key: "expenses", icon: "🧾", label: "Itemized Expenses", accent: "var(--danger)" },
-            { key: "reminders", icon: "📱", label: "Send Reminders", accent: "var(--gold)" }
+            { key: "overview",  icon: "📊", label: "Overview",            accent: "var(--forest-mid)" },
+            { key: "fees",      icon: "🏷️", label: "Family Camp Fees",    accent: "var(--forest)" },
+            { key: "expenses",  icon: "🧾", label: "Itemized Expenses",   accent: "var(--danger)" },
+            { key: "reminders", icon: "📱", label: "Send Reminders",      accent: "var(--gold)" }
           ].map(tab => {
             const isActive = activeTab === tab.key;
             return (
@@ -1009,6 +1092,135 @@ GCA Church Camp Team`
         <div style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>
           <span className="spinner" style={{ borderTopColor: "var(--forest-mid)", borderColor: "rgba(30,77,43,0.15)" }}></span>
           <div style={{ marginTop: 10, fontSize: "0.875rem" }}>Loading finance records…</div>
+        </div>
+      )}
+
+      {!loading && activeTab === "overview" && canReadFinance && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Collection Progress */}
+          <div className="card" style={{ padding: "22px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>💰 Collection Progress</h2>
+              <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                ${ovCollected.toFixed(2)} collected of ${ovExpected.toFixed(2)} expected
+              </span>
+            </div>
+            <div style={{ background: "var(--parchment)", borderRadius: 8, height: 26, overflow: "hidden" }}>
+              <div style={{
+                width: `${ovCollectPct}%`,
+                height: "100%",
+                background: ovCollectPct >= 100 ? "var(--forest-lt)" : ovCollectPct >= 60 ? "var(--forest-mid)" : "var(--gold)",
+                borderRadius: 8,
+                transition: "width 0.6s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                paddingRight: ovCollectPct > 12 ? 10 : 0,
+              }}>
+                {ovCollectPct > 12 && (
+                  <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#fff" }}>{ovCollectPct.toFixed(1)}%</span>
+                )}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 28, marginTop: 16, flexWrap: "wrap" }}>
+              {[
+                { label: "Fully Paid",    n: ovPaid.length,    sub: `$${ovPaid.reduce((s,f)=>s+(f.amount_paid||0),0).toFixed(2)}`,    color: "#27AE60" },
+                { label: "Partial Paid",  n: ovPartial.length, sub: `$${ovPartial.reduce((s,f)=>s+(f.amount_paid||0),0).toFixed(2)} paid`, color: "#E67E22" },
+                { label: "Unpaid",        n: ovUnpaid.length,  sub: `$${ovUnpaid.reduce((s,f)=>s+(f.total_expected_fee||0),0).toFixed(2)} owed`, color: "#C0392B" },
+                { label: "Outstanding",   n: `$${Math.max(0, ovExpected - ovCollected).toFixed(2)}`, sub: `${(100 - ovCollectPct).toFixed(1)}% remaining`, color: "var(--muted)" },
+              ].map((item, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: "1.2rem", fontWeight: 700, color: item.color }}>{item.n}</div>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--charcoal)" }}>{item.label}</div>
+                  <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{item.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment status charts */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
+            <div className="card" style={{ padding: "22px 24px" }}>
+              <h2 style={{ margin: "0 0 18px", fontSize: "1rem", fontWeight: 700 }}>👨‍👩‍👧 Families by Payment Status</h2>
+              {families.length === 0
+                ? <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No family data available.</p>
+                : <SvgPieChart data={ovStatusData} size={160} />}
+            </div>
+            <div className="card" style={{ padding: "22px 24px" }}>
+              <h2 style={{ margin: "0 0 18px", fontSize: "1rem", fontWeight: 700 }}>💵 Collected vs Outstanding</h2>
+              {ovExpected === 0
+                ? <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No fee data available.</p>
+                : <SvgPieChart data={ovAmtData} size={160} />}
+            </div>
+          </div>
+
+          {/* Fee breakdown + Expense by category */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
+            <div className="card" style={{ padding: "22px 24px" }}>
+              <h2 style={{ margin: "0 0 18px", fontSize: "1rem", fontWeight: 700 }}>🏷️ Fee Type Breakdown</h2>
+              {ovFeeTypeData.length === 0
+                ? <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No fee data available.</p>
+                : <>
+                  <SvgPieChart data={ovFeeTypeData} size={160} />
+                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {ovFeeTypeData.map((f, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}>
+                        <span style={{ color: "var(--muted)" }}>{f.label}</span>
+                        <strong>${f.value.toFixed(2)}</strong>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: 6, marginTop: 2 }}>
+                      <span style={{ fontWeight: 600 }}>Total Expected</span>
+                      <strong>${(ovTotalReg + ovTotalAct + ovTotalApp).toFixed(2)}</strong>
+                    </div>
+                  </div>
+                </>}
+            </div>
+            <div className="card" style={{ padding: "22px 24px" }}>
+              <h2 style={{ margin: "0 0 18px", fontSize: "1rem", fontWeight: 700 }}>🧾 Expenses by Category</h2>
+              {ovExpCatData.length === 0
+                ? <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No expense data yet.</p>
+                : <>
+                  <SvgPieChart data={ovExpCatData} size={160} />
+                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {ovExpCatData.map((c, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem" }}>
+                        <span style={{ color: "var(--muted)" }}>{c.label}</span>
+                        <strong>${c.value.toFixed(2)}</strong>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", borderTop: "1px solid var(--border)", paddingTop: 6, marginTop: 2 }}>
+                      <span style={{ fontWeight: 600 }}>Total Expenses</span>
+                      <strong>${ovExpCatData.reduce((s, c) => s + c.value, 0).toFixed(2)}</strong>
+                    </div>
+                  </div>
+                </>}
+            </div>
+          </div>
+
+          {/* Net balance summary */}
+          <div className="card" style={{ padding: "22px 24px", borderTop: `3px solid ${(stats.net_balance || 0) >= 0 ? "var(--forest-mid)" : "var(--danger)"}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <h2 style={{ margin: "0 0 4px", fontSize: "1rem", fontWeight: 700 }}>
+                  {(stats.net_balance || 0) >= 0 ? "✅" : "⚠️"} Net Balance
+                </h2>
+                <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.8rem" }}>
+                  Total collected fees minus all recorded expenses
+                </p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "2rem", fontWeight: 700, color: (stats.net_balance || 0) >= 0 ? "var(--forest-mid)" : "var(--danger)" }}>
+                  ${(stats.net_balance || 0).toFixed(2)}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                  ${ovCollected.toFixed(2)} collected − ${(stats.total_expenses || 0).toFixed(2)} expenses
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       )}
 
