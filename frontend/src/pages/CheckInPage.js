@@ -58,6 +58,11 @@ export default function CheckInPage() {
     onConfirm: null
   });
 
+  // Backend stores UTC with no timezone suffix; append "Z" so JS parses as UTC → local display
+  const utcToLocal = (iso) => iso ? new Date(/[Z+]/.test(iso) ? iso : iso + "Z") : null;
+  const fmtTime = (iso) => utcToLocal(iso)?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) ?? "";
+  const fmtDateTime = (iso) => iso ? (utcToLocal(iso)?.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) ?? "—") : "—";
+
   const flash = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 4000);
@@ -69,7 +74,7 @@ export default function CheckInPage() {
     const rows = activeCheckins.map(ci => [
       ci.camper_name || "",
       ci.family_group || "",
-      ci.checked_in_at ? new Date(ci.checked_in_at).toLocaleString() : "",
+      ci.checked_in_at ? utcToLocal(ci.checked_in_at).toLocaleString() : "",
       ci.checked_in_by || "",
       ci.notes || "",
     ]);
@@ -695,7 +700,7 @@ export default function CheckInPage() {
                                       {renderBreakfastBadge(ci.camper_id)}
                                     </div>
                                     <div className="text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-                                      In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                      In {fmtTime(ci.checked_in_at)}
                                       {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
                                     </div>
                                   </div>
@@ -722,7 +727,7 @@ export default function CheckInPage() {
                             {renderBreakfastBadge(ci.camper_id)}
                           </div>
                           <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
-                            In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            In {fmtTime(ci.checked_in_at)}
                             {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
                           </div>
                         </div>
@@ -865,7 +870,7 @@ export default function CheckInPage() {
 
         {/* Tab: Checked Out */}
         {activeTab === "checkout" && (() => {
-          const fmt = (iso) => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+          const fmt = fmtDateTime;
           const filtered = checkedOut.filter(c => {
             const q = checkoutSearch.toLowerCase();
             return !q ||
@@ -878,7 +883,7 @@ export default function CheckInPage() {
             const headers = ["Camper Name", "Family Group", "Cabin", "Checked In At", "Checked In By", "Checked Out At", "Checked Out By"];
             const rows = filtered.map(c => {
               const cabin = allCampers.find(ac => ac.id === c.camper_id)?.cabin_group || "";
-              return [c.camper_name || "", c.family_group || "", cabin, c.checked_in_at ? new Date(c.checked_in_at).toLocaleString() : "", c.checked_in_by || "", c.checked_out_at ? new Date(c.checked_out_at).toLocaleString() : "", c.checked_out_by || ""];
+              return [c.camper_name || "", c.family_group || "", cabin, c.checked_in_at ? utcToLocal(c.checked_in_at).toLocaleString() : "", c.checked_in_by || "", c.checked_out_at ? utcToLocal(c.checked_out_at).toLocaleString() : "", c.checked_out_by || ""];
             });
             const csv = "﻿" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
             const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
