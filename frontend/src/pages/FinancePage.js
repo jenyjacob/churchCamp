@@ -140,25 +140,18 @@ export default function FinancePage() {
   const [reminderTemplates, setReminderTemplates] = useState({
     balance: `Hi {first_name} {last_name},
 
-This is a friendly reminder from GCA Church Camp regarding your camp fee balance. Your apparel (T-shirt) fee total comes to \${apparel_fee}, and your total outstanding balance — including registration and apparel fees — is \${balance}. We'd greatly appreciate it if you could arrange payment at your earliest convenience.
+This is a friendly reminder from GCA Church Camp regarding your camp fee balance. Your total outstanding balance is \${balance}. We'd greatly appreciate it if you could arrange payment at your earliest convenience.
 
 If you've already taken care of this, please disregard this message — and thank you for your prompt attention!
 
 We're so grateful to have you with us this year. If you have any questions, please don't hesitate to reach out.
 
 Warm regards,
-GCA Church Camp Team`,
-    activity: `Hi {first_name} {last_name},
-
-This is a friendly reminder from GCA Church Camp that the outdoor activity fees (kayaking, boat tour, etc.) for your family come to \${activity_fee}.
-
-If you've already taken care of this, please disregard this message — and thank you!
-
-Warm regards,
 GCA Church Camp Team`
   });
   const [reminderFilter, setReminderFilter] = useState("due"); // due, all
   const [markingReminder, setMarkingReminder] = useState(null); // family_group currently being marked
+  const [templateSaving, setTemplateSaving] = useState(false);
 
   // Dynamic Activity Configs
   const [activityNames, setActivityNames] = useState(["Kayaking", "Boat Tour"]);
@@ -233,11 +226,12 @@ GCA Church Camp Team`
         const expensesRes = await api.get(`/api/finance/expenses?${params}`);
         setExpenses(expensesRes.data.expenses);
       } else {
-        const [statsRes, feesRes, expensesRes, ratesRes] = await Promise.all([
+        const [statsRes, feesRes, expensesRes, ratesRes, settingsRes] = await Promise.all([
           api.get(`/api/finance/stats?${params}`),
           api.get(`/api/finance/fees?${params}`),
           api.get(`/api/finance/expenses?${params}`),
-          api.get("/api/finance/rates")
+          api.get("/api/finance/rates"),
+          api.get("/api/settings/"),
         ]);
         setStats(statsRes.data);
         setFamilies(feesRes.data.families);
@@ -257,6 +251,9 @@ GCA Church Camp Team`
         }
         if (feesRes.data.apparel_price !== undefined) {
           setApparelPrice(feesRes.data.apparel_price);
+        }
+        if (settingsRes.data.settings?.reminder_balance_template) {
+          setReminderTemplates(prev => ({ ...prev, balance: settingsRes.data.settings.reminder_balance_template }));
         }
       }
     } catch (err) {
@@ -1048,16 +1045,15 @@ GCA Church Camp Team`
       {canReadFinance && (
         <div style={{
           display: "flex",
-          gap: 4,
+          gap: 6,
           marginBottom: 24,
-          borderBottom: "1px solid var(--border)",
           flexWrap: "wrap"
         }}>
           {[
-            { key: "overview",  icon: "📊", label: "Overview",            accent: "var(--forest-mid)" },
-            { key: "fees",      icon: "🏷️", label: "Family Camp Fees",    accent: "var(--forest)" },
-            { key: "expenses",  icon: "🧾", label: "Itemized Expenses",   accent: "var(--danger)" },
-            { key: "reminders", icon: "📱", label: "Send Reminders",      accent: "var(--gold)" }
+            { key: "overview",   icon: "📊", label: "Overview",          accent: "#2E6B3E", bg: "#E8F5EC" },
+            { key: "fees",       icon: "🏷️", label: "Family Camp Fees",  accent: "#1E4D2B", bg: "#D6EAD9" },
+            { key: "expenses",   icon: "🧾", label: "Itemized Expenses", accent: "#C0392B", bg: "#FDECEA" },
+            { key: "reminders",  icon: "📱", label: "Send Reminders",    accent: "#92400E", bg: "#FEF3C7" }
           ].map(tab => {
             const isActive = activeTab === tab.key;
             return (
@@ -1065,19 +1061,19 @@ GCA Church Camp Team`
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 style={{
-                  padding: "10px 18px",
-                  background: "transparent",
-                  border: "none",
-                  borderBottom: isActive ? `2.5px solid ${tab.accent}` : "2.5px solid transparent",
-                  marginBottom: "-1px",
+                  padding: "9px 18px",
+                  background: isActive ? tab.bg : "var(--parchment)",
+                  border: `1.5px solid ${isActive ? tab.accent : "var(--border)"}`,
+                  borderRadius: 8,
                   color: isActive ? tab.accent : "var(--muted)",
-                  fontWeight: isActive ? 700 : 600,
+                  fontWeight: isActive ? 700 : 500,
                   fontSize: "0.875rem",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  transition: "color 0.15s, border-color 0.15s"
+                  gap: 7,
+                  boxShadow: isActive ? `0 2px 8px rgba(0,0,0,0.08)` : "none",
+                  transition: "background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s"
                 }}
               >
                 <span style={{ fontSize: "1rem" }}>{tab.icon}</span>
@@ -1485,33 +1481,39 @@ GCA Church Camp Team`
             💬 <span>This opens your own phone's SMS or WhatsApp app with the message pre-filled — nothing is sent automatically and there's no per-message charge. Tap a button for each family, then hit Send in your messaging app to actually deliver it.</span>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-            <button
-              className={`btn ${reminderMode === "balance" ? "btn-primary" : "btn-outline"}`}
-              onClick={() => { setReminderMode("balance"); setReminderFilter("due"); }}
-            >
-              💰 Fee Balance Reminder
-            </button>
-            <button
-              className={`btn ${reminderMode === "activity" ? "btn-primary" : "btn-outline"}`}
-              onClick={() => { setReminderMode("activity"); setReminderFilter("all"); }}
-            >
-              🚣 Outdoor Activity Fee Notice
-            </button>
-          </div>
-
           <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-            <label className="form-label" style={{ display: "block", marginBottom: 8 }}>
-              Message template — {reminderMode === "balance" ? "Fee Balance Reminder" : "Outdoor Activity Fee Notice"}
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+              <label className="form-label" style={{ margin: 0 }}>
+                Message template — Fee Balance Reminder
+              </label>
+              {hasPermission("finance", "edit") && (
+                <button
+                  className="btn btn-sm btn-primary"
+                  disabled={templateSaving}
+                  onClick={async () => {
+                    setTemplateSaving(true);
+                    try {
+                      await api.post("/api/settings/", { reminder_balance_template: reminderTemplates.balance });
+                      flashSuccess("Message template saved.");
+                    } catch {
+                      flashError("Failed to save template.");
+                    } finally {
+                      setTemplateSaving(false);
+                    }
+                  }}
+                >
+                  {templateSaving ? "Saving…" : "💾 Save Template"}
+                </button>
+              )}
+            </div>
             <textarea
               className="form-textarea"
               value={reminderTemplates[reminderMode]}
               onChange={(e) => setReminderTemplates(prev => ({ ...prev, [reminderMode]: e.target.value }))}
-              rows={3}
+              rows={6}
             />
             <div className="text-muted" style={{ marginTop: 8 }}>
-              Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{activity_fee}"}</code>, <code>{"{apparel_fee}"}</code>
+              Placeholders: <code>{"{first_name}"}</code>, <code>{"{last_name}"}</code>, <code>{"{name}"}</code>, <code>{"{family}"}</code>, <code>{"{balance}"}</code>, <code>{"{apparel_fee}"}</code>
             </div>
           </div>
 

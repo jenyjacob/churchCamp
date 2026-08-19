@@ -20,10 +20,13 @@ export default function CheckInPage() {
   const [breakfastOrdersByCamperId, setBreakfastOrdersByCamperId] = useState({});
   const [breakfastFlow, setBreakfastFlow] = useState({
     isOpen: false,
-    members: [], // campers being asked together as one group
-    step: "ask", // "ask" | "items"
+    members: [],        // full list of campers to ask (one at a time)
+    currentIndex: 0,    // which member we're currently on
+    step: "ask",        // "ask" | "items"
     selectedCounts: {},
-    onAllDone: null
+    pendingOrders: [],  // [{camper, wants_breakfast, items}] collected so far
+    onAllDone: null,
+    isEdit: false
   });
 
   const showTeams = settings.teams_published !== "false";
@@ -43,6 +46,9 @@ export default function CheckInPage() {
     return clean;
   };
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [activeTab, setActiveTab] = useState("onsite");
+  const [checkedOut, setCheckedOut] = useState([]);
+  const [checkoutSearch, setCheckoutSearch] = useState("");
   const [waiverModal, setWaiverModal] = useState({
     isOpen: false,
     title: "",
@@ -106,12 +112,19 @@ export default function CheckInPage() {
       .catch(() => {});
   }, []);
 
+  const fetchCheckedOut = useCallback(() => {
+    api.get("/api/checkin/?per_page=-1")
+      .then(r => setCheckedOut((r.data.checkins || []).filter(ci => ci.checked_out_at)))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchActive();
     fetchStats();
     fetchAllCampers();
+    fetchCheckedOut();
 
-    const onVisible = () => { if (document.visibilityState === "visible") fetchAllCampers(); };
+    const onVisible = () => { if (document.visibilityState === "visible") { fetchAllCampers(); fetchActive(); fetchCheckedOut(); } };
     document.addEventListener("visibilitychange", onVisible);
 
     // Fetch dynamic configurations
@@ -138,7 +151,7 @@ export default function CheckInPage() {
 
     fetchBreakfastOrders();
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchActive, fetchStats, fetchAllCampers]);
+  }, [fetchActive, fetchStats, fetchAllCampers, fetchCheckedOut]);
 
   const fetchBreakfastOrders = () => {
     api.get("/api/breakfast/orders")
@@ -194,32 +207,48 @@ export default function CheckInPage() {
     setBreakfastFlow({
       isOpen: true,
       members: needsAsking,
+      currentIndex: 0,
       step: "ask",
       selectedCounts: {},
-      onAllDone
+      pendingOrders: [],
+      onAllDone,
+      isEdit: false
     });
   };
 
-  const finishBreakfastFlow = async (wantsBreakfast, items) => {
-    const { members, onAllDone } = breakfastFlow;
-    if (members.length > 0) {
-      try {
-        await api.post("/api/breakfast/orders", {
-          camper_ids: members.map(m => m.id),
-          wants_breakfast: wantsBreakfast,
-          items
-        });
-        setAnsweredBreakfastIds(prev => {
-          const next = new Set(prev);
-          members.forEach(m => next.add(m.id));
-          return next;
-        });
-        fetchBreakfastOrders();
-      } catch {
-        // Non-fatal — move on regardless so check-in flow isn't blocked
-      }
+  const RESET_FLOW = { isOpen: false, members: [], currentIndex: 0, step: "ask", selectedCounts: {}, pendingOrders: [], onAllDone: null, isEdit: false };
+
+  const recordCurrentAndAdvance = async (wantsBreakfast, items) => {
+    const { members, currentIndex, pendingOrders, onAllDone } = breakfastFlow;
+    const currentMember = members[currentIndex];
+    const newPending = [...pendingOrders, { camper: currentMember, wants_breakfast: wantsBreakfast, items }];
+    const nextIndex = currentIndex + 1;
+
+    if (nextIndex < members.length) {
+      // More members to ask — advance to the next one
+      setBreakfastFlow(prev => ({ ...prev, currentIndex: nextIndex, step: "ask", selectedCounts: {}, pendingOrders: newPending }));
+      return;
     }
-    setBreakfastFlow({ isOpen: false, members: [], step: "ask", selectedCounts: {}, onAllDone: null });
+
+    // All members answered — close modal then submit individually
+    setBreakfastFlow(RESET_FLOW);
+    try {
+      await Promise.all(newPending.map(o =>
+        api.post("/api/breakfast/orders", {
+          camper_ids: [o.camper.id],
+          wants_breakfast: o.wants_breakfast,
+          items: o.items
+        })
+      ));
+      setAnsweredBreakfastIds(prev => {
+        const next = new Set(prev);
+        newPending.forEach(o => next.add(o.camper.id));
+        return next;
+      });
+      fetchBreakfastOrders();
+    } catch {
+      // Non-fatal — check-in flow must not be blocked
+    }
     if (onAllDone) onAllDone();
   };
 
@@ -228,7 +257,7 @@ export default function CheckInPage() {
       setBreakfastFlow(prev => ({ ...prev, step: "items" }));
       return;
     }
-    finishBreakfastFlow(false, {});
+    recordCurrentAndAdvance(false, {});
   };
 
   const handleBreakfastCountChange = (itemName, count) => {
@@ -238,8 +267,24 @@ export default function CheckInPage() {
     }));
   };
 
+  const handleEditBreakfast = (ci) => {
+    const camper = allCampers.find(c => String(c.id) === String(ci.camper_id));
+    if (!camper) return;
+    const existing = breakfastOrdersByCamperId[ci.camper_id];
+    setBreakfastFlow({
+      isOpen: true,
+      members: [camper],
+      currentIndex: 0,
+      step: existing?.wants_breakfast ? "items" : "ask",
+      selectedCounts: existing?.items || {},
+      pendingOrders: [],
+      onAllDone: () => {},
+      isEdit: true
+    });
+  };
+
   const submitBreakfastItems = () => {
-    finishBreakfastFlow(true, breakfastFlow.selectedCounts);
+    recordCurrentAndAdvance(true, breakfastFlow.selectedCounts);
   };
 
   const searchCampers = useCallback(() => {
@@ -417,11 +462,13 @@ export default function CheckInPage() {
       fetchActive();
       fetchStats();
       fetchAllCampers();
+      fetchCheckedOut();
     } catch (err) {
       flash("error", "One or more check-outs failed.");
       fetchActive();
       fetchStats();
       fetchAllCampers();
+      fetchCheckedOut();
     }
   };
 
@@ -455,11 +502,13 @@ export default function CheckInPage() {
       fetchActive();
       fetchStats();
       fetchAllCampers();
+      fetchCheckedOut();
     } catch (err) {
       flash("error", "One or more check-outs failed during group checkout.");
       fetchActive();
       fetchStats();
       fetchAllCampers();
+      fetchCheckedOut();
     }
   };
 
@@ -507,66 +556,226 @@ export default function CheckInPage() {
         )}
 
         {/* Statistics Row */}
-        <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: "2rem" }}>✅</div>
+        <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+          <div className="card" style={{ flex: "1 1 160px", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "1.8rem" }}>✅</div>
             <div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--forest-mid)" }}>{stats.checked_in}</div>
-              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Checked In Campers</div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--forest-mid)" }}>{stats.checked_in}</div>
+              <div className="text-muted" style={{ fontSize: "0.78rem", fontWeight: 500 }}>On Site Now</div>
             </div>
           </div>
-          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: "2rem" }}>📝</div>
+          <div className="card" style={{ flex: "1 1 160px", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "1.8rem" }}>👥</div>
             <div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--gold)" }}>{stats.waivers_submitted}</div>
-              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Waiver Forms Submitted</div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--charcoal)" }}>{Math.max(0, (stats.active_registered ?? stats.total_registered) - stats.checked_in)}</div>
+              <div className="text-muted" style={{ fontSize: "0.78rem", fontWeight: 500 }}>Yet to Arrive</div>
             </div>
           </div>
-          <div className="card" style={{ flex: "1 1 200px", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: "2rem" }}>👥</div>
+          <div className="card" style={{ flex: "1 1 160px", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "1.8rem" }}>🚪</div>
             <div>
-              <div style={{ fontSize: "1.45rem", fontWeight: 700, color: "var(--charcoal)" }}>{Math.max(0, (stats.active_registered ?? stats.total_registered) - stats.checked_in)}</div>
-              <div className="text-muted" style={{ fontSize: "0.8rem", fontWeight: 500 }}>Remaining Check-Ins</div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#1B4965" }}>{checkedOut.length}</div>
+              <div className="text-muted" style={{ fontSize: "0.78rem", fontWeight: 500 }}>Checked Out</div>
+            </div>
+          </div>
+          <div className="card" style={{ flex: "1 1 160px", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "1.8rem" }}>📝</div>
+            <div>
+              <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--gold)" }}>{stats.waivers_submitted}</div>
+              <div className="text-muted" style={{ fontSize: "0.78rem", fontWeight: 500 }}>Waivers Submitted</div>
             </div>
           </div>
         </div>
 
-        <div className="checkin-grid">
-          {/* Left: Check In */}
-          <div>
-            <div className="card" style={{ marginBottom: 20 }}>
-              <h3 style={{ color: "var(--forest)", fontSize: "1rem", marginBottom: 16 }}>
-                ✅ Check In
+        {/* Tab Bar */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+          {[
+            { key: "onsite",   icon: "🏕️", label: `On Site (${activeCheckins.length})`,  accent: "#2E6B3E", bg: "#E8F5EC" },
+            { key: "checkin",  icon: "✅", label: "Check In",                              accent: "#1E4D2B", bg: "#D6EAD9" },
+            { key: "checkout", icon: "🚪", label: `Checked Out (${checkedOut.length})`,    accent: "#1B4965", bg: "#E8F4FB" },
+          ].map(tab => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: "9px 18px",
+                  background: isActive ? tab.bg : "var(--parchment)",
+                  border: `1.5px solid ${isActive ? tab.accent : "var(--border)"}`,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? tab.accent : "var(--muted)",
+                  fontSize: "0.88rem",
+                  boxShadow: isActive ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.15s"
+                }}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab: On Site */}
+        {activeTab === "onsite" && (
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+              <h3 style={{ color: "var(--forest)", fontSize: "1rem", margin: 0 }}>
+                🏕️ Currently On Site ({activeCheckins.length})
               </h3>
+              {activeCheckins.length > 0 && (
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={handleExportOnSite}
+                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
+                >
+                  📥 Export Excel
+                </button>
+              )}
+            </div>
 
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label">Search Camper or Family Group</label>
-                <div className="search-input-wrap">
-                  <span className="search-icon">🔍</span>
-                  <input
-                    className="form-input"
-                    placeholder="Search by name or Family Group (e.g. 101)…"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                  />
-                </div>
+            {loadingActive ? (
+              <p className="text-muted">Loading…</p>
+            ) : activeCheckins.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: 10 }}>🏕️</div>
+                <p className="text-muted">No campers checked in yet.</p>
               </div>
+            ) : (
+              (() => {
+                const groups = {};
+                const individuals = [];
+                activeCheckins.forEach(ci => {
+                  if (ci.family_group) {
+                    if (!groups[ci.family_group]) groups[ci.family_group] = [];
+                    groups[ci.family_group].push(ci);
+                  } else {
+                    individuals.push(ci);
+                  }
+                });
+                const sortedGroupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {sortedGroupKeys.map(fg => {
+                      const cis = groups[fg];
+                      const isExpanded = expandedGroups[fg] !== false;
+                      return (
+                        <div key={`group-${fg}`} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md, 8px)", background: "#fff", overflow: "visible", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                          <div onClick={() => toggleGroupExpand(fg)} style={{ padding: "10px 14px", background: "rgba(180, 151, 90, 0.05)", borderBottom: isExpanded ? "1px solid var(--border)" : "none", borderTopLeftRadius: "7px", borderTopRightRadius: "7px", borderBottomLeftRadius: isExpanded ? "0px" : "7px", borderBottomRightRadius: isExpanded ? "0px" : "7px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                            <div className="tooltip-container tooltip-bottom">
+                              <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--forest)", display: "flex", alignItems: "center", gap: 6 }}>
+                                👨‍👩‍👧‍👦 Family #{fg}
+                                <span className="badge badge-gray" style={{ fontSize: "0.65rem", padding: "1px 5px", color: "var(--forest)" }}>{cis.length} on site</span>
+                              </span>
+                              <div className="tooltip-content" style={{ pointerEvents: "none" }}>
+                                <strong style={{ display: "block", borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 4, marginBottom: 4 }}>Currently On Site ({cis.length}):</strong>
+                                {cis.map(ci => (
+                                  <div key={ci.id} style={{ display: "flex", gap: 12, justifyContent: "space-between", margin: "2px 0" }}>
+                                    <span>{ci.camper_name}</span>
+                                    <span style={{ fontSize: "0.75rem", color: "#a7f3d0" }}>🟢 In</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                              <button className="btn btn-outline btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }} disabled={!canEdit} title={`Check out all members of Family #${fg}`} onClick={(e) => { e.stopPropagation(); handleCheckOutGroup(fg, cis); }}>Check Out Group</button>
+                              <span style={{ fontSize: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>{isExpanded ? "▲ Collapse" : "▼ Expand"}</span>
+                            </div>
+                          </div>
+                          {isExpanded && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, background: "#fdfdfb" }}>
+                              {cis.map(ci => (
+                                <div key={ci.id} style={{ padding: "8px 12px", border: "1px solid #f1f0ea", borderRadius: "6px", background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                                      {ci.camper_name}
+                                      {renderCabinBadge(ci.camper_id)}
+                                      {renderBreakfastBadge(ci.camper_id)}
+                                    </div>
+                                    <div className="text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+                                      In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                      {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+                                    <button className="btn btn-outline btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }} onClick={(e) => { e.stopPropagation(); handleCheckOut(ci); }} disabled={!canEdit}>Check Out</button>
+                                    {canEdit && breakfastOptionEnabled && (
+                                      <button className="btn btn-outline btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, color: "#92400E", borderColor: "#D97706", background: breakfastOrdersByCamperId[ci.camper_id]?.wants_breakfast ? "#FEF3C7" : undefined }} title="Edit breakfast order" onClick={(e) => { e.stopPropagation(); handleEditBreakfast(ci); }}>🥞 Edit</button>
+                                    )}
+                                    {canEdit && <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem", height: 24, minWidth: "auto" }} title="Reset Check-In" onClick={(e) => { e.stopPropagation(); handleResetCheckIn(ci); }}>Reset</button>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {individuals.map(ci => (
+                      <div key={ci.id} style={{ padding: "10px 14px", border: "1px solid var(--border)", borderRadius: "var(--radius-md, 8px)", background: "var(--cream)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                            {ci.camper_name}
+                            {renderCabinBadge(ci.camper_id)}
+                            {renderBreakfastBadge(ci.camper_id)}
+                          </div>
+                          <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
+                            In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+                          <button className="btn btn-outline btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24 }} onClick={() => handleCheckOut(ci)} disabled={!canEdit}>Check Out</button>
+                          {canEdit && breakfastOptionEnabled && (
+                            <button className="btn btn-outline btn-sm" style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, color: "#92400E", borderColor: "#D97706", background: breakfastOrdersByCamperId[ci.camper_id]?.wants_breakfast ? "#FEF3C7" : undefined }} title="Edit breakfast order" onClick={() => handleEditBreakfast(ci)}>🥞 Edit</button>
+                          )}
+                          {canEdit && <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: "0.7rem", height: 24, minWidth: "auto" }} title="Reset Check-In" onClick={() => handleResetCheckIn(ci)}>Reset</button>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        )}
 
-              {searching && <p className="text-muted" style={{ marginTop: 8 }}>Searching…</p>}
+        {/* Tab: Check In */}
+        {activeTab === "checkin" && (
+          <div className="card">
+            <h3 style={{ color: "var(--forest)", fontSize: "1rem", marginBottom: 20 }}>✅ Check In a Camper</h3>
 
-              {campers.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  {/* Family Group Quick Check-In Panels */}
-                  {uniqueFamilyGroups.map(fg => {
-                    const familyCampers = allCampers.filter(c => c.family_group === fg);
-                    const uncheckedFamilyCampers = familyCampers.filter(c => !c.checked_in);
-                    
-                    if (uncheckedFamilyCampers.length === 0) return null;
-                    
-                    return (
-                      <div key={fg} style={{
-                        background: "rgba(30, 77, 43, 0.04)",
-                        border: "1px solid var(--border)",
+            <div className="form-group" style={{ marginBottom: 16, maxWidth: 540 }}>
+              <label className="form-label">Search by name or Family Group number</label>
+              <div className="search-input-wrap">
+                <span className="search-icon">🔍</span>
+                <input
+                  className="form-input"
+                  placeholder="Search by name or Family Group (e.g. 101)…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {searching && <p className="text-muted" style={{ marginTop: 8 }}>Searching…</p>}
+
+            {campers.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                {/* Family Group Quick Check-In Panels */}
+                {uniqueFamilyGroups.map(fg => {
+                  const familyCampers = allCampers.filter(c => c.family_group === fg);
+                  const uncheckedFamilyCampers = familyCampers.filter(c => !c.checked_in);
+
+                  if (uncheckedFamilyCampers.length === 0) return null;
+
+                  return (
+                    <div key={fg} style={{
+                      background: "rgba(30, 77, 43, 0.04)",
+                      border: "1px solid var(--border)",
                         borderRadius: "var(--radius)",
                         padding: "12px 16px",
                         marginBottom: 12,
@@ -651,229 +860,106 @@ export default function CheckInPage() {
               {search && !searching && campers.length === 0 && (
                 <p className="text-muted" style={{ marginTop: 8 }}>No campers found matching "{search}".</p>
               )}
-            </div>
           </div>
+        )}
 
-          {/* Right: Currently Checked In */}
-          <div>
-            <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-                <h3 style={{ color: "var(--forest)", fontSize: "1rem", margin: 0 }}>
-                  🏕️ Currently On Site ({activeCheckins.length})
-                </h3>
-                {activeCheckins.length > 0 && (
-                  <button
-                    className="btn btn-outline btn-sm"
-                    onClick={handleExportOnSite}
-                    style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
-                  >
-                    📥 Export Excel
-                  </button>
-                )}
+        {/* Tab: Checked Out */}
+        {activeTab === "checkout" && (() => {
+          const fmt = (iso) => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+          const filtered = checkedOut.filter(c => {
+            const q = checkoutSearch.toLowerCase();
+            return !q ||
+              (c.camper_name || "").toLowerCase().includes(q) ||
+              (c.family_group || "").toLowerCase().includes(q) ||
+              (allCampers.find(ac => ac.id === c.camper_id)?.cabin_group || "").toLowerCase().includes(q);
+          });
+          const handleExportCheckouts = () => {
+            const escapeCell = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+            const headers = ["Camper Name", "Family Group", "Cabin", "Checked In At", "Checked In By", "Checked Out At", "Checked Out By"];
+            const rows = filtered.map(c => {
+              const cabin = allCampers.find(ac => ac.id === c.camper_id)?.cabin_group || "";
+              return [c.camper_name || "", c.family_group || "", cabin, c.checked_in_at ? new Date(c.checked_in_at).toLocaleString() : "", c.checked_in_by || "", c.checked_out_at ? new Date(c.checked_out_at).toLocaleString() : "", c.checked_out_by || ""];
+            });
+            const csv = "﻿" + [headers.join(","), ...rows.map(r => r.map(escapeCell).join(","))].join("\n");
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `gca_checked_out_${new Date().toISOString().split("T")[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          };
+          return (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <div className="card" style={{ padding: "14px 20px", minWidth: 120, borderTop: "3px solid #1B4965", boxShadow: "var(--shadow-sm)" }}>
+                    <div className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 500 }}>Checked Out</div>
+                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#1B4965" }}>{checkedOut.length}</div>
+                    <div className="text-muted" style={{ fontSize: "0.72rem" }}>campers departed</div>
+                  </div>
+                  <div className="card" style={{ padding: "14px 20px", minWidth: 120, borderTop: "3px solid var(--forest-mid)", boxShadow: "var(--shadow-sm)" }}>
+                    <div className="text-muted" style={{ fontSize: "0.75rem", fontWeight: 500 }}>Families</div>
+                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--forest-mid)" }}>{new Set(checkedOut.map(c => c.family_group).filter(Boolean)).size}</div>
+                    <div className="text-muted" style={{ fontSize: "0.72rem" }}>unique family groups</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <div className="search-input-wrap" style={{ maxWidth: 300, flex: "1 1 200px" }}>
+                    <span className="search-icon">🔍</span>
+                    <input type="text" className="form-input" placeholder="Search name, family, cabin…" value={checkoutSearch} onChange={e => setCheckoutSearch(e.target.value)} />
+                  </div>
+                  {checkedOut.length > 0 && (
+                    <button className="btn btn-outline btn-sm" onClick={handleExportCheckouts} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", whiteSpace: "nowrap" }}>
+                      📥 Export Excel
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {loadingActive ? (
-                <p className="text-muted">Loading…</p>
-              ) : activeCheckins.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "24px 0" }}>
-                  <div style={{ fontSize: "2rem", marginBottom: 8 }}>🏕️</div>
-                  <p className="text-muted">No campers checked in yet.</p>
+              {filtered.length === 0 ? (
+                <div className="card" style={{ padding: "40px 0", textAlign: "center" }}>
+                  <div style={{ fontSize: "2rem", marginBottom: 8 }}>🚪</div>
+                  <p className="text-muted">{checkedOut.length === 0 ? "No campers have checked out yet." : "No results match your search."}</p>
                 </div>
               ) : (
-                (() => {
-                  const groups = {};
-                  const individuals = [];
-
-                  activeCheckins.forEach(ci => {
-                    if (ci.family_group) {
-                      if (!groups[ci.family_group]) {
-                        groups[ci.family_group] = [];
-                      }
-                      groups[ci.family_group].push(ci);
-                    } else {
-                      individuals.push(ci);
-                    }
-                  });
-
-                  const sortedGroupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-
-                  return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {/* Collapsible Groups */}
-                      {sortedGroupKeys.map(fg => {
-                        const cis = groups[fg];
-                        const isExpanded = expandedGroups[fg] !== false;
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Camper</th>
+                        <th>Family</th>
+                        <th>Cabin</th>
+                        <th>Checked In</th>
+                        <th>In By</th>
+                        <th>Checked Out</th>
+                        <th>Out By</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(c => {
+                        const cabin = allCampers.find(ac => ac.id === c.camper_id)?.cabin_group || "";
                         return (
-                          <div key={`group-${fg}`} style={{
-                            border: "1px solid var(--border)",
-                            borderRadius: "var(--radius-md, 8px)",
-                            background: "#fff",
-                            overflow: "visible",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
-                          }}>
-                            <div 
-                              onClick={() => toggleGroupExpand(fg)}
-                              style={{
-                                padding: "10px 14px",
-                                background: "rgba(180, 151, 90, 0.05)",
-                                borderBottom: isExpanded ? "1px solid var(--border)" : "none",
-                                borderTopLeftRadius: "7px",
-                                borderTopRightRadius: "7px",
-                                borderBottomLeftRadius: isExpanded ? "0px" : "7px",
-                                borderBottomRightRadius: isExpanded ? "0px" : "7px",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                flexWrap: "wrap",
-                                gap: 8,
-                                cursor: "pointer",
-                                userSelect: "none"
-                              }}
-                            >
-                              <div className="tooltip-container tooltip-bottom">
-                                <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--forest)", display: "flex", alignItems: "center", gap: 6 }}>
-                                  👨‍👩‍👧‍👦 Family #{fg}
-                                  <span className="badge badge-gray" style={{ fontSize: "0.65rem", padding: "1px 5px", color: "var(--forest)" }}>
-                                    {cis.length} on site
-                                  </span>
-                                </span>
-                                <div className="tooltip-content" style={{ pointerEvents: "none" }}>
-                                  <strong style={{ display: "block", borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 4, marginBottom: 4 }}>
-                                    Currently On Site ({cis.length}):
-                                  </strong>
-                                  {cis.map(ci => (
-                                    <div key={ci.id} style={{ display: "flex", gap: 12, justifyContent: "space-between", margin: "2px 0" }}>
-                                      <span>{ci.camper_name}</span>
-                                      <span style={{ fontSize: "0.75rem", color: "#a7f3d0" }}>🟢 In</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                                <button
-                                  className="btn btn-outline btn-sm"
-                                  style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }}
-                                  disabled={!canEdit}
-                                  title={`Check out all members of Family #${fg}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCheckOutGroup(fg, cis);
-                                  }}
-                                >
-                                  Check Out Group
-                                </button>
-                                <span style={{ fontSize: "0.75rem", color: "var(--muted)", fontWeight: 600 }}>
-                                  {isExpanded ? "▲ Collapse" : "▼ Expand"}
-                                </span>
-                              </div>
-                            </div>
-                            {isExpanded && (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, background: "#fdfdfb" }}>
-                                {cis.map(ci => (
-                                  <div key={ci.id} style={{
-                                    padding: "8px 12px",
-                                    border: "1px solid #f1f0ea",
-                                    borderRadius: "6px",
-                                    background: "#fff",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    flexWrap: "wrap",
-                                    gap: 8
-                                  }}>
-                                    <div>
-                                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--dark)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
-                                        {ci.camper_name}
-                                        {renderCabinBadge(ci.camper_id)}
-                                        {renderBreakfastBadge(ci.camper_id)}
-                                      </div>
-                                      <div className="text-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-                                        In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                        {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
-                                      </div>
-                                    </div>
-                                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                                      <button
-                                        className="btn btn-outline btn-sm"
-                                        style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24, minWidth: 68 }}
-                                        onClick={(e) => { e.stopPropagation(); handleCheckOut(ci); }}
-                                        disabled={!canEdit}
-                                      >
-                                        Check Out
-                                      </button>
-                                      {canEdit && (
-                                        <button
-                                          className="btn btn-danger btn-sm"
-                                          style={{ padding: "2px 6px", fontSize: "0.7rem", height: 24, minWidth: "auto" }}
-                                          title="Reset Check-In"
-                                          onClick={(e) => { e.stopPropagation(); handleResetCheckIn(ci); }}
-                                        >
-                                          Reset
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <tr key={c.id}>
+                            <td style={{ fontWeight: 600 }}>{c.camper_name}</td>
+                            <td>{c.family_group || <span className="text-muted">—</span>}</td>
+                            <td>{cabin ? <span className="badge badge-blue" style={{ fontSize: "0.72rem" }}>🏠 {cabin.replace(" | ", " – ")}</span> : <span className="text-muted">—</span>}</td>
+                            <td style={{ fontSize: "0.82rem", color: "var(--muted)" }}>{fmt(c.checked_in_at)}</td>
+                            <td style={{ fontSize: "0.82rem" }}>{c.checked_in_by || <span className="text-muted">—</span>}</td>
+                            <td style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1B4965" }}>{fmt(c.checked_out_at)}</td>
+                            <td style={{ fontSize: "0.82rem" }}>{c.checked_out_by || <span className="text-muted">—</span>}</td>
+                          </tr>
                         );
                       })}
-
-                      {/* Individuals List */}
-                      {individuals.map(ci => (
-                        <div key={ci.id} style={{
-                          padding: "10px 14px",
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-md, 8px)",
-                          background: "var(--cream)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                          gap: 8,
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                        }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--dark)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
-                              {ci.camper_name}
-                              {renderCabinBadge(ci.camper_id)}
-                              {renderBreakfastBadge(ci.camper_id)}
-                            </div>
-                            <div className="text-muted" style={{ fontSize: "0.75rem", marginTop: 2 }}>
-                              In {new Date(ci.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              {ci.checked_in_by && ` · by ${ci.checked_in_by}`}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                            <button
-                              className="btn btn-outline btn-sm"
-                              style={{ padding: "2px 8px", fontSize: "0.7rem", height: 24 }}
-                              onClick={() => handleCheckOut(ci)}
-                              disabled={!canEdit}
-                            >
-                              Check Out
-                            </button>
-                            {canEdit && (
-                              <button
-                                className="btn btn-danger btn-sm"
-                                style={{ padding: "2px 6px", fontSize: "0.7rem", height: 24, minWidth: "auto" }}
-                                title="Reset Check-In"
-                                onClick={() => handleResetCheckIn(ci)}
-                              >
-                                Reset
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Waiver Confirmation Dialog Box */}
@@ -973,19 +1059,32 @@ export default function CheckInPage() {
             boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
             borderTop: "5px solid var(--gold)"
           }}>
+            {/* Progress indicator for multi-member flows */}
+            {breakfastFlow.members.length > 1 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#E8F5EC", borderRadius: 6, padding: "6px 12px", marginBottom: 16 }}>
+                <span style={{ fontSize: "0.82rem", color: "#2E6B3E", fontWeight: 700 }}>
+                  👤 {breakfastFlow.members[breakfastFlow.currentIndex]?.full_name}
+                </span>
+                <span style={{ fontSize: "0.78rem", color: "#5a7a63", fontWeight: 600 }}>
+                  {breakfastFlow.currentIndex + 1} / {breakfastFlow.members.length}
+                </span>
+              </div>
+            )}
+
             {breakfastFlow.step === "ask" ? (
               <>
-                <h3 style={{ margin: "0 0 16px 0", color: "var(--forest)", fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                <h3 style={{ margin: "0 0 14px 0", color: "var(--forest)", fontSize: "1.1rem", fontWeight: 700 }}>
                   🥞 Sunday Breakfast
                 </h3>
                 <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", margin: "0 0 20px 0", lineHeight: 1.5 }}>
-                  {breakfastFlow.members.length === 1 ? (
-                    <>Does <strong>{breakfastFlow.members[0].full_name}</strong> need breakfast on Sunday morning?</>
-                  ) : (
-                    <>Does anyone in this group need breakfast on Sunday morning? (<strong>{breakfastFlow.members.map(m => m.full_name).join(", ")}</strong>)</>
-                  )}
+                  Does <strong>{breakfastFlow.members[breakfastFlow.currentIndex]?.full_name}</strong> need breakfast on Sunday morning?
                 </p>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                  {breakfastFlow.isEdit && (
+                    <button className="btn btn-outline" onClick={() => setBreakfastFlow(RESET_FLOW)} style={{ padding: "10px 20px", fontWeight: 600, marginRight: "auto" }}>
+                      Cancel
+                    </button>
+                  )}
                   <button className="btn btn-outline" onClick={() => submitBreakfastAnswer(false)} style={{ padding: "10px 20px", fontWeight: 600 }}>
                     No
                   </button>
@@ -996,15 +1095,11 @@ export default function CheckInPage() {
               </>
             ) : (
               <>
-                <h3 style={{ margin: "0 0 16px 0", color: "var(--forest)", fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                <h3 style={{ margin: "0 0 14px 0", color: "var(--forest)", fontSize: "1.1rem", fontWeight: 700 }}>
                   🍽️ Breakfast Selection
                 </h3>
                 <p style={{ fontSize: "0.9rem", color: "var(--charcoal)", margin: "0 0 16px 0", lineHeight: 1.5 }}>
-                  {breakfastFlow.members.length === 1 ? (
-                    <>What would <strong>{breakfastFlow.members[0].full_name}</strong> like, and how many?</>
-                  ) : (
-                    <>Total counts needed for <strong>{breakfastFlow.members.map(m => m.full_name).join(", ")}</strong>:</>
-                  )}
+                  What would <strong>{breakfastFlow.members[breakfastFlow.currentIndex]?.full_name}</strong> like, and how many?
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
                   {breakfastMenuItems.map(item => (
@@ -1022,7 +1117,12 @@ export default function CheckInPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                  {breakfastFlow.isEdit && (
+                    <button className="btn btn-outline" onClick={() => setBreakfastFlow(RESET_FLOW)} style={{ padding: "10px 20px", fontWeight: 600, marginRight: "auto" }}>
+                      Cancel
+                    </button>
+                  )}
                   <button className="btn btn-primary" onClick={submitBreakfastItems} style={{ padding: "10px 24px", fontWeight: 600 }}>
                     Confirm
                   </button>

@@ -149,14 +149,25 @@ export default function RoleAssignerPage() {
 
     const rosterRows = (breakfastSummary.family_breakdown || []).map(group => {
       const itemsText = Object.entries(group.items || {}).map(([name, count]) => `${count}x ${name}`).join(", ") || "—";
+      const hasNoItems = Object.keys(group.items || {}).length === 0;
       return `
-        <tr>
+        <tr${hasNoItems ? ' style="background:#FEF3C7;"' : ""}>
           <td>${group.family_group ? `Family #${escapeHtml(group.family_group)}` : "Individual"}</td>
           <td>${group.members.map(escapeHtml).join(", ")}</td>
-          <td>${itemsText}</td>
+          <td${hasNoItems ? ' style="color:#92400E;font-weight:700;"' : ""}>${hasNoItems ? "⚠️ No items specified" : itemsText}</td>
         </tr>
       `;
     }).join("") || `<tr><td colspan="3" style="text-align:center; color:#7f8c8d;">No breakfast selections recorded yet.</td></tr>`;
+
+    const mismatches = (breakfastSummary.family_breakdown || []).filter(g => Object.keys(g.items || {}).length === 0);
+    const mismatchBanner = mismatches.length > 0
+      ? `<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:12px 16px;margin-bottom:24px;">
+           <strong style="color:#92400E;">⚠️ Order mismatch — ${mismatches.reduce((s, g) => s + g.members.length, 0)} camper(s) want breakfast but have no items specified</strong>
+           <ul style="margin:6px 0 0 0;padding-left:18px;color:#78350F;font-size:0.88rem;">
+             ${mismatches.map(g => `<li>${g.family_group ? `<strong>Family #${escapeHtml(g.family_group)}:</strong> ` : "<strong>Individual:</strong> "}${g.members.map(escapeHtml).join(", ")}</li>`).join("")}
+           </ul>
+         </div>`
+      : `<div style="background:#ECFDF5;border:1px solid #6EE7B7;border-radius:6px;padding:10px 14px;margin-bottom:24px;color:#065F46;font-weight:600;font-size:0.88rem;">✅ All campers who want breakfast have items selected.</div>`;
 
     const generatedAt = new Date().toLocaleString();
 
@@ -200,6 +211,8 @@ export default function RoleAssignerPage() {
               <div class="metric-value">${breakfastSummary.total_wants_breakfast}</div>
             </div>
           </div>
+
+          ${mismatchBanner}
 
           <h2 style="color: #1e4d2b; margin-top: 30px; font-size: 1.1rem; border-bottom: 1px solid #ddd; padding-bottom: 6px;">Totals by Menu Item</h2>
           <table>
@@ -1069,6 +1082,39 @@ export default function RoleAssignerPage() {
                         <div className="value" style={{ fontSize: "1.5rem" }}>{breakfastSummary.total_wants_breakfast}</div>
                       </div>
                     </div>
+
+                    {/* Mismatch check: want breakfast but no items selected */}
+                    {(() => {
+                      const noItems = (breakfastSummary.family_breakdown || []).filter(
+                        group => Object.keys(group.items || {}).length === 0
+                      );
+                      const affectedCount = noItems.reduce((sum, g) => sum + g.members.length, 0);
+                      if (breakfastSummary.total_wants_breakfast === 0) return null;
+                      if (noItems.length > 0) {
+                        return (
+                          <div style={{ background: "#FEF3C7", border: "1px solid #F59E0B", borderRadius: 8, padding: "12px 16px" }}>
+                            <div style={{ fontWeight: 700, color: "#92400E", marginBottom: 6, fontSize: "0.9rem" }}>
+                              ⚠️ Order mismatch — {affectedCount} camper{affectedCount !== 1 ? "s" : ""} want breakfast but have no items specified
+                            </div>
+                            <ul style={{ margin: "0 0 4px 0", paddingLeft: 18, fontSize: "0.83rem", color: "#78350F", display: "flex", flexDirection: "column", gap: 2 }}>
+                              {noItems.map((group, i) => (
+                                <li key={i}>
+                                  {group.family_group ? <strong>Family #{group.family_group}:</strong> : <strong>Individual:</strong>} {group.members.join(", ")}
+                                </li>
+                              ))}
+                            </ul>
+                            <div style={{ fontSize: "0.78rem", color: "#92400E", marginTop: 4 }}>
+                              Ask these campers to re-confirm their breakfast items at check-in.
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div style={{ background: "#ECFDF5", border: "1px solid #6EE7B7", borderRadius: 8, padding: "10px 14px", fontSize: "0.85rem", color: "#065F46", fontWeight: 600 }}>
+                          ✅ All {breakfastSummary.total_wants_breakfast} camper{breakfastSummary.total_wants_breakfast !== 1 ? "s" : ""} who want breakfast have items selected.
+                        </div>
+                      );
+                    })()}
 
                     {Object.keys(breakfastSummary.item_totals || {}).length > 0 ? (
                       <div className="table-wrap">

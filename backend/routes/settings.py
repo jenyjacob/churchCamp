@@ -34,7 +34,8 @@ DEFAULT_SETTINGS = {
     "current_camp_year": "2026",
     "signup_camp_year": "2026",
     "camp_info_title": "Grace Christian Assembly Camp",
-    "camp_info_address": "Camp Prothro"
+    "camp_info_address": "Camp Prothro",
+    "reminder_balance_template": "Hi {first_name} {last_name},\n\nThis is a friendly reminder from GCA Church Camp regarding your camp fee balance. Your apparel (T-shirt) fee total comes to ${apparel_fee}, and your total outstanding balance — including registration and apparel fees — is ${balance}. We’d greatly appreciate it if you could arrange payment at your earliest convenience.\n\nIf you’ve already taken care of this, please disregard this message — and thank you for your prompt attention!\n\nWe’re so grateful to have you with us this year. If you have any questions, please don’t hesitate to reach out.\n\nWarm regards,\nGCA Church Camp Team"
 }
 
 PUBLIC_SETTINGS_KEYS = {

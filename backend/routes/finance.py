@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 from models import Camper, Expense, FamilyPayment, FeeRate
 from db import db
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 from utils.permissions import require_page_permission
 
 finance_bp = Blueprint("finance", __name__)
@@ -1125,4 +1126,46 @@ def delete_receipt(expense_id):
     return jsonify({
         "message": "Receipt deleted successfully",
         "expense": expense.to_dict()
+    }), 200
+
+
+@finance_bp.route("/checkouts", methods=["GET"])
+@jwt_required()
+@require_page_permission("finance", "read")
+def get_checkouts():
+    """Return all checked-out campers for the active camp year."""
+    from models.checkin import CheckIn
+    from models import Setting
+
+    current_year_setting = Setting.query.filter_by(key="current_camp_year").first()
+    current_year = int(current_year_setting.value) if (
+        current_year_setting and current_year_setting.value.isdigit()
+    ) else 2027
+
+    rows = (
+        CheckIn.query
+        .join(Camper)
+        .options(joinedload(CheckIn.camper), joinedload(CheckIn.staff_in), joinedload(CheckIn.staff_out))
+        .filter(Camper.camp_year == current_year)
+        .filter(CheckIn.checked_out_at.isnot(None))
+        .order_by(CheckIn.checked_out_at.desc())
+        .all()
+    )
+
+    return jsonify({
+        "checkouts": [
+            {
+                "id": r.id,
+                "camper_id": r.camper_id,
+                "camper_name": f"{r.camper.first_name} {r.camper.last_name}" if r.camper else "Unknown",
+                "family_group": r.camper.family_group if r.camper else None,
+                "cabin_group": r.camper.cabin_group if r.camper else None,
+                "checked_in_at": r.checked_in_at.isoformat() if r.checked_in_at else None,
+                "checked_in_by": r.staff_in.username if r.staff_in else None,
+                "checked_out_at": r.checked_out_at.isoformat() if r.checked_out_at else None,
+                "checked_out_by": r.staff_out.username if r.staff_out else None,
+            }
+            for r in rows
+        ],
+        "total": len(rows),
     }), 200
